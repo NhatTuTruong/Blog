@@ -1,0 +1,44 @@
+ .fi-fixed-save-button {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 50;
+ }
+ 
+/* Tăng độ đậm viền cho input & table trong Filament admin (không cần npm run dev) */
+[data-fi-theme] input,
+[data-fi-theme] textarea,
+[data-fi-theme] select,
+[data-fi-theme] .fi-input,
+[data-fi-theme] .fi-select,
+[data-fi-theme] .fi-textarea {
+    border-width: 1.5px !important;
+    border-color: rgba(var(--gray-300), 1) !important;
+}
+
+[data-fi-theme] .fi-input:focus-within,
+[data-fi-theme] input:focus,
+[data-fi-theme] textarea:focus,
+[data-fi-theme] select:focus {
+    border-color: rgba(var(--primary-500), 1) !important;
+}
+
+/* Viền table đậm hơn một chút */
+[data-fi-theme] .fi-ta-table table,
+[data-fi-theme] .fi-ta-table th,
+[data-fi-theme] .fi-ta-table td {
+    border-color: rgba(var(--gray-200), 1) !important;
+    border-width: 1.5px;
+}
+
+/* Điều chỉnh chiều rộng sidebar cho desktop/laptop (>= 1024px, không áp dụng cho tablet/mobile) */
+@media (min-width: 1024px) {
+    [data-fi-theme] .fi-sidebar {
+        width: 2rem !important; /* ~208px, nhỏ hơn mặc định */
+    }
+
+    [data-fi-theme] .fi-main {
+        margin-left: 2rem !important;
+    }
+}
+
