@@ -37,8 +37,8 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Storage;
-use Livewire\Attributes\Computed;
 use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AutoBlogPublish extends Page implements HasForms, HasTable
 {
@@ -92,8 +92,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
         return '';
     }
 
-    #[Computed]
-    public function recordCount(): int
+    public function getRecordCount(): int
     {
         return collect($this->data['records'] ?? [])
             ->filter(fn (array $record): bool => filled($record['brand_domain'] ?? null))
@@ -152,7 +151,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                                 Placeholder::make('summary')
                                     ->label('Tóm tắt')
                                     ->content(function (): string {
-                                        $parts = [$this->recordCount.' bài sẵn sàng'];
+                                        $parts = [$this->getRecordCount().' bài sẵn sàng'];
 
                                         if ($this->loadedSavedListName) {
                                             $parts[] = 'Đang mở: '.$this->loadedSavedListName;
@@ -274,8 +273,9 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                 ->modalHeading('Đăng danh sách bài viết')
                 ->modalDescription(function (): string {
                     $service = app(AutoBlogQueueService::class);
-                    $base = $this->recordCount > 0
-                        ? "Sẽ xếp hàng {$this->recordCount} bài. Mỗi bài cách {$this->queueIntervalMinutes} phút."
+                    $count = $this->getRecordCount();
+                    $base = $count > 0
+                        ? "Sẽ xếp hàng {$count} bài. Mỗi bài cách {$this->queueIntervalMinutes} phút."
                         : 'Chưa có bài hợp lệ — nhập Domain hoặc tải danh sách trước.';
 
                     if ($service->hasActiveQueue()) {
@@ -299,7 +299,8 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                     Checkbox::make('confirm_active_queue')
                         ->label('Tôi hiểu và vẫn muốn thêm vào hàng đợi đang chạy')
                         ->accepted()
-                        ->visible(fn (): bool => app(AutoBlogQueueService::class)->hasActiveQueue()),
+                        ->visible(fn (): bool => app(AutoBlogQueueService::class)->hasActiveQueue())
+                        ->dehydrated(fn (): bool => app(AutoBlogQueueService::class)->hasActiveQueue()),
                     Radio::make('publish_mode')
                         ->label('Thời điểm bắt đầu')
                         ->options([
@@ -323,7 +324,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                 Action::make('importFromFile')
                     ->label('Import file vào danh sách')
                     ->icon('heroicon-o-arrow-up-tray')
-                    ->action('importFromFile'),
+                    ->action(fn () => $this->importFromFile()),
                 Action::make('saveList')
                     ->label('Lưu danh sách')
                     ->icon('heroicon-o-bookmark')
@@ -342,11 +343,11 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                     ->requiresConfirmation()
                     ->visible(fn (): bool => $this->loadedSavedListId !== null
                         || filled($this->data['saved_list_id'] ?? null))
-                    ->action('deleteSavedList'),
+                    ->action(fn () => $this->deleteSavedList()),
                 Action::make('downloadTemplate')
                     ->label('Tải file mẫu Excel')
                     ->icon('heroicon-o-arrow-down-tray')
-                    ->action(fn () => Excel::download(
+                    ->action(fn (): BinaryFileResponse => Excel::download(
                         new AutoBlogTemplateExport,
                         'auto-blog-template.xlsx',
                     )),

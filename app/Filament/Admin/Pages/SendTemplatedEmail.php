@@ -76,7 +76,7 @@ class SendTemplatedEmail extends Page implements HasForms
 
         $this->form->fill([
             'email_template_id' => $templateId,
-            'recipients' => '',
+            'recipients' => [],
             'variables' => $this->prefillVariablesForTemplate($templateId),
             'custom_subject' => '',
             'custom_body' => '',
@@ -99,7 +99,7 @@ class SendTemplatedEmail extends Page implements HasForms
             FormDraftService::delete($userId, FormDraftService::key('send_email'));
         }
 
-        $recipients = $log->recipientsForResend();
+        $recipients = EmailSendLog::normalizeArray($log->recipients);
 
         if ($log->isManualSend()) {
             $this->form->fill([
@@ -149,9 +149,33 @@ class SendTemplatedEmail extends Page implements HasForms
     /**
      * @param  array<string, mixed>  $data
      */
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDraftBeforeRestore(array $data): array
+    {
+        $recipients = $data['recipients'] ?? null;
+
+        if (is_string($recipients) && filled($recipients)) {
+            $data['recipients'] = app(TemplatedEmailService::class)->parseRecipients($recipients);
+        }
+
+        if (! is_array($data['recipients'] ?? null)) {
+            $data['recipients'] = [];
+        }
+
+        return $data;
+    }
+
     protected function formDraftHasContent(array $data): bool
     {
-        return filled($data['recipients'] ?? null)
+        $recipients = $data['recipients'] ?? null;
+        $hasRecipients = is_array($recipients)
+            ? $recipients !== []
+            : filled($recipients);
+
+        return $hasRecipients
             || filled($data['custom_subject'] ?? null)
             || filled($data['custom_body'] ?? null)
             || (is_array($data['attachments'] ?? null) && $data['attachments'] !== [])
@@ -162,7 +186,7 @@ class SendTemplatedEmail extends Page implements HasForms
     {
         $this->form->fill([
             'email_template_id' => null,
-            'recipients' => '',
+            'recipients' => [],
             'variables' => [],
             'custom_subject' => '',
             'custom_body' => '',
@@ -204,13 +228,16 @@ class SendTemplatedEmail extends Page implements HasForms
                                 }
                             })
                             ->helperText('Để trống nếu muốn tự nhập tiêu đề và nội dung bên dưới.'),
-                        Forms\Components\Textarea::make('recipients')
+                        Forms\Components\TagsInput::make('recipients')
                             ->label('Danh sách người nhận')
+                            ->placeholder('Enter')
                             ->required()
-                            ->live(onBlur: true)
-                            ->rows(5)
-                            ->placeholder("user1@gmail.com\nuser2@gmail.com")
-                            ->helperText('Nhiều email: mỗi dòng một địa chỉ, hoặc phân cách bằng dấu phẩy / chấm phẩy.')
+                            ->live()
+                            ->nestedRecursiveRules([
+                                'email',
+                                'distinct',
+                            ])
+                            ->helperText('Nhập email rồi nhấn Enter để thêm. Mỗi tag là một người nhận.')
                             ->columnSpanFull(),
                     ])
                     ->columns(1),
@@ -470,7 +497,7 @@ class SendTemplatedEmail extends Page implements HasForms
         $service = app(TemplatedEmailService::class);
         $result = $service->send(
             $template,
-            (string) ($data['recipients'] ?? ''),
+            is_array($data['recipients'] ?? null) ? $data['recipients'] : (string) ($data['recipients'] ?? ''),
             $variables,
             $sender,
             $data['custom_subject'] ?? null,
@@ -507,7 +534,7 @@ class SendTemplatedEmail extends Page implements HasForms
         $this->clearFormDraft();
         $this->form->fill([
             'email_template_id' => null,
-            'recipients' => '',
+            'recipients' => [],
             'variables' => [],
             'custom_subject' => '',
             'custom_body' => '',

@@ -1,6 +1,6 @@
 <x-filament-panels::page>
     @php
-        $recordCount = $this->recordCount;
+        $recordCount = $this->getRecordCount();
         $pendingCount = $queueStats['pending'] + $queueStats['processing'];
     @endphp
 
@@ -71,4 +71,6 @@
             {{ $this->table }}
         </div>
     @endif
+
+    <x-filament-actions::modals />
 </x-filament-panels::page>

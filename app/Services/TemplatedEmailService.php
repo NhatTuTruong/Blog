@@ -21,7 +21,7 @@ class TemplatedEmailService
      */
     public function send(
         ?EmailTemplate $template,
-        string $recipientsInput,
+        string|array $recipientsInput,
         array $variableValues = [],
         ?User $sender = null,
         ?string $customSubject = null,
@@ -106,9 +106,11 @@ class TemplatedEmailService
     /**
      * @return array<int, string>
      */
-    public function parseRecipients(string $input): array
+    public function parseRecipients(string|array $input): array
     {
-        $parts = preg_split('/[\s,;]+/', trim($input), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $parts = is_array($input)
+            ? $input
+            : (preg_split('/[\s,;]+/', trim($input), -1, PREG_SPLIT_NO_EMPTY) ?: []);
 
         $emails = [];
         foreach ($parts as $part) {

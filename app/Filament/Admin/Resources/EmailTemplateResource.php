@@ -66,7 +66,7 @@ class EmailTemplateResource extends Resource
                     ])
                     ->columns(2),
                 Forms\Components\Section::make('Biến thể (placeholder)')
-                    ->description('Trong tiêu đề/nội dung mẫu dùng [tên_biến]. «Nội dung biến thể» sẽ tự điền sang tab Gửi email (có thể sửa trước khi gửi).')
+                    ->description('Dùng [tên_biến] trong tiêu đề/nội dung. Giá trị mặc định tự điền khi gửi mail.')
                     ->schema([
                         Forms\Components\Repeater::make('variables')
                             ->label('')
@@ -76,17 +76,21 @@ class EmailTemplateResource extends Resource
                                     ->required()
                                     ->maxLength(80)
                                     ->placeholder('email')
-                                    ->helperText('Trong mẫu: [email]'),
+                                    ->columnSpan(['default' => 6, 'md' => 2]),
                                 Forms\Components\TextInput::make('default')
-                                    ->label('Nội dung biến thể')
+                                    ->label('Giá trị mặc định')
                                     ->maxLength(500)
                                     ->placeholder('nhatbui2017@gmail.com')
-                                    ->helperText('Giá trị thay [tên_biến] — tự điền khi chọn mẫu ở tab Gửi email')
-                                    ->columnSpanFull(),
+                                    ->columnSpan(['default' => 6, 'md' => 4]),
                             ])
-                            ->columns(2)
+                            ->columns(6)
+                            ->collapsible()
+                            ->collapsed()
+                            ->itemLabel(fn (array $state): ?string => filled($state['key'] ?? null)
+                                ? '['.(string) $state['key'].']'
+                                : 'Biến mới')
                             ->defaultItems(0)
-                            ->addActionLabel('Thêm biến thể')
+                            ->addActionLabel('Thêm biến')
                             ->reorderable()
                             ->columnSpanFull(),
                     ]),
