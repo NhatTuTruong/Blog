@@ -19,6 +19,11 @@ class Kernel extends ConsoleKernel
                 ->runInBackground();
         }
 
+        $schedule->command('blogs:process-queue')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
+
         $schedule->command('blogs:generate-daily --respect-daily-limit')
             ->hourly()
             ->withoutOverlapping()

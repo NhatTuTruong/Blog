@@ -156,6 +156,8 @@ class EmailTemplateResource extends Resource
     {
         return $table
             ->defaultSort('updated_at', 'desc')
+            ->emptyStateHeading('Chưa có mẫu email')
+            ->emptyStateDescription('Tạo mẫu email để gửi nhanh cho khách hàng.')
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Tên mẫu')

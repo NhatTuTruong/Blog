@@ -144,6 +144,8 @@ class BlogResource extends Resource
     {
         return $table
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('Chưa có bài viết')
+            ->emptyStateDescription('Tạo bài thủ công hoặc dùng AI để bắt đầu.')
             ->columns([
                 Tables\Columns\ImageColumn::make('featured_image')
                     ->label('Ảnh')
@@ -197,10 +199,7 @@ class BlogResource extends Resource
                     ->tooltip('Xem trước')
                     ->url(fn (Blog $record) => route('blog.show', $record->slug))
                     ->openUrlInNewTab(),
-                Tables\Actions\EditAction::make()
-                    ->label('')
-                    ->icon('heroicon-o-pencil-square')
-                    ->tooltip('Sửa'),
+                Tables\Actions\EditAction::make(),
                 Tables\Actions\ReplicateAction::make()
                     ->label('')
                     ->icon('heroicon-o-document-duplicate')
@@ -224,19 +223,9 @@ class BlogResource extends Resource
                         $data['is_published'] = false; // Mặc định là bản nháp khi sao chép
                         return $data;
                     }),
-                Tables\Actions\DeleteAction::make()
-                    ->label('')
-                    ->icon('heroicon-o-trash')
-                    ->tooltip('Xóa'),
-                Tables\Actions\RestoreAction::make()
-                    ->label('')
-                    ->icon('heroicon-o-arrow-uturn-left')
-                    ->tooltip('Khôi phục'),
-                Tables\Actions\ForceDeleteAction::make()
-                    ->label('')
-                    ->icon('heroicon-o-trash')
-                    ->color('danger')
-                    ->tooltip('Xóa vĩnh viễn'),
+                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\RestoreAction::make(),
+                Tables\Actions\ForceDeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

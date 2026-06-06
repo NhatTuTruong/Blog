@@ -46,7 +46,7 @@ class ListBlogs extends ListRecords
                         ->options($categoryOptions)
                         ->searchable()
                         ->placeholder('General (mặc định)')
-                        ->helperText('Chọn danh mục từ danh sách đã tạo trong «Danh mục bài viết».'),
+                        ->helperText('Chỉ dùng để phân loại bài sau khi tạo — không ảnh hưởng nội dung AI.'),
                     Forms\Components\Textarea::make('content_idea')
                         ->label('Nội dung / ý tưởng')
                         ->rows(4)
@@ -80,10 +80,10 @@ class ListBlogs extends ListRecords
                     }
 
                     $domain = (string) ($data['brand_domain'] ?? '');
-                    $category = null;
-                    if (! empty($data['blog_category_id'])) {
-                        $category = BlogCategory::query()->find($data['blog_category_id'])?->name;
-                    }
+                    $blogCategoryId = ! empty($data['blog_category_id']) ? (int) $data['blog_category_id'] : null;
+                    $categoryLabel = $blogCategoryId
+                        ? (BlogCategory::query()->find($blogCategoryId)?->name ?? 'General')
+                        : 'General';
 
                     $contentIdea = filled($data['content_idea'] ?? null)
                         ? trim((string) $data['content_idea'])
@@ -100,7 +100,6 @@ class ListBlogs extends ListRecords
 
                     $result = $gemini->generateBrandPromoBlog(
                         $domain,
-                        $category,
                         $contentIdea,
                         $affLink,
                         $couponCodes,
@@ -118,13 +117,11 @@ class ListBlogs extends ListRecords
 
                     $author = User::where('is_admin', true)->first() ?? User::first();
 
-                    $blogCategoryId = ! empty($data['blog_category_id']) ? (int) $data['blog_category_id'] : null;
-
                     $blog = Blog::create([
                         'user_id' => $author?->id,
                         'blog_category_id' => $blogCategoryId,
                         'title' => $result['title'],
-                        'category' => $result['category'],
+                        'category' => $categoryLabel,
                         'content' => $result['content'],
                         'featured_image' => $result['featured_image'] ?? null,
                         'is_published' => true,

@@ -49,11 +49,10 @@ PROMPT;
      * Bài blog quảng cáo / giới thiệu brand theo domain.
      *
      * @param  array<int, string>  $couponCodes
-     * @return array{title: string, content: string, featured_image: ?string, category: string, domain: string}|null
+     * @return array{title: string, content: string, featured_image: ?string, domain: string}|null
      */
     public function generateBrandPromoBlog(
         string $domainInput,
-        ?string $category = null,
         ?string $contentIdea = null,
         ?string $affLink = null,
         array $couponCodes = [],
@@ -80,7 +79,6 @@ PROMPT;
         $timeout = max(90, $this->resolveTimeoutSeconds());
 
         $brandLabel = self::guessBrandNameFromDomain($host);
-        $categoryLabel = filled($category) ? $category : 'General';
         $year = (int) now()->format('Y');
         $brandEsc = htmlspecialchars($brandLabel, ENT_QUOTES, 'UTF-8');
 
@@ -120,7 +118,6 @@ You are an expert English SEO copywriter for brand review and promotional blogs.
 - Domain: {$host}
 - Official website: {$siteUrl}
 - Brand name to use (adjust if you know the real name): {$brandLabel}
-- Article category / niche: {$categoryLabel}
 {$contentIdeaSection}{$affSection}{$couponSection}
 ## Task
 Write ONE long-form **promotional brand introduction** blog post. Language: **English**. Target length **1,200–1,800 words**. Tone: helpful, trustworthy, conversion-oriented but honest.
@@ -131,7 +128,7 @@ Write ONE long-form **promotional brand introduction** blog post. Language: **En
 - Promotional links will be added automatically at the top and bottom of the article — you must not add links yourself.
 
 ## Required structure (use English `<h2>` titles)
-1. `<h1>`: Include brand name + {$categoryLabel} angle + value (Review, Guide, or {$year} only if natural) — brand name as plain text, no links.
+1. `<h1>`: Include brand name + clear value proposition (Review, Guide, or {$year} only if natural) — brand name as plain text, no links.
 2. Opening: problem readers face + why this brand matters.
 3. What is {$brandLabel}: what they sell, positioning, USP.
 4. Products / services / highlights (optional `<h3>` subsections).
@@ -158,7 +155,6 @@ PROMPT;
             $brandLabel,
         );
 
-        $result['category'] = $categoryLabel;
         $result['domain'] = $host;
 
         return $result;

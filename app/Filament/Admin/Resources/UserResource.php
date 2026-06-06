@@ -69,8 +69,9 @@ class UserResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultPaginationPageOption(25)
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('Chưa có người dùng')
+            ->emptyStateDescription('Thêm tài khoản quản trị hoặc biên tập viên.')
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
@@ -80,15 +81,15 @@ class UserResource extends Resource
                     ->label('Admin')
                     ->boolean(),
                 Tables\Columns\TextColumn::make('email_verified_at')
-                    ->dateTime()
+                    ->dateTime('d/m/Y H:i')
                     ->label('Ngày xác minh')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
+                    ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->label('Ngày tạo'),
                 Tables\Columns\TextColumn::make('updated_at')
-                    ->dateTime()
+                    ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->label('Ngày cập nhật')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -97,10 +98,7 @@ class UserResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make()
-                    ->label('')
-                    ->icon('heroicon-o-pencil-square')
-                    ->tooltip('Sửa'),
+                Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

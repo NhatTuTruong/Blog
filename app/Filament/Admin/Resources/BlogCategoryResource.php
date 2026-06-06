@@ -92,6 +92,8 @@ class BlogCategoryResource extends Resource
     {
         return $table
             ->defaultSort('sort_order')
+            ->emptyStateHeading('Chưa có danh mục')
+            ->emptyStateDescription('Tạo danh mục để phân loại bài viết.')
             ->reorderable('sort_order')
             ->columns([
                 Tables\Columns\ImageColumn::make('image')

@@ -77,6 +77,7 @@ class SystemSettings extends Page implements HasForms
             'auto_blog_variant_best' => (bool) AdminSettings::get('auto_blog_variant_best', true),
             'auto_blog_variant_guide' => (bool) AdminSettings::get('auto_blog_variant_guide', true),
             'auto_blog_variant_comparison' => (bool) AdminSettings::get('auto_blog_variant_comparison', true),
+            'auto_blog_queue_interval_minutes' => (int) AdminSettings::get('auto_blog_queue_interval_minutes', 10),
             'seo_title_suffix' => (string) AdminSettings::get('seo_title_suffix', '- ' . config('app.name')),
             'seo_meta_description_default' => (string) AdminSettings::get('seo_meta_description_default', 'Latest articles and insights from our blog.'),
             'seo_og_image_default' => (string) AdminSettings::get('seo_og_image_default', ''),
@@ -123,7 +124,7 @@ class SystemSettings extends Page implements HasForms
                     ])
                     ->columns(3),
                 Section::make('Auto Blog')
-                    ->description('Thiết lập tạo blog tự động theo ngày, khung giờ và variant.')
+                    ->description('Thiết lập tạo blog tự động theo ngày, khung giờ, variant và hàng đợi đăng bài AI.')
                     ->schema([
                         Toggle::make('auto_blog_enabled')
                             ->label('Bật Auto Blog')
@@ -154,6 +155,14 @@ class SystemSettings extends Page implements HasForms
                         Toggle::make('auto_blog_variant_comparison')
                             ->label('Bật variant: Bài viết so sánh')
                             ->inline(false),
+                        TextInput::make('auto_blog_queue_interval_minutes')
+                            ->label('Khoảng cách đăng hàng đợi (phút)')
+                            ->numeric()
+                            ->minValue(1)
+                            ->maxValue(1440)
+                            ->default(10)
+                            ->helperText('Áp dụng cho trang «Đăng bài viết tự động» — mỗi bài cách nhau bao nhiêu phút.')
+                            ->required(),
                     ])
                     ->columns(3),
                 Section::make('SEO mặc định')
@@ -339,6 +348,7 @@ class SystemSettings extends Page implements HasForms
         AdminSettings::set('auto_blog_variant_best', (bool) ($data['auto_blog_variant_best'] ?? true));
         AdminSettings::set('auto_blog_variant_guide', (bool) ($data['auto_blog_variant_guide'] ?? true));
         AdminSettings::set('auto_blog_variant_comparison', (bool) ($data['auto_blog_variant_comparison'] ?? true));
+        AdminSettings::set('auto_blog_queue_interval_minutes', max(1, min(1440, (int) ($data['auto_blog_queue_interval_minutes'] ?? 10))));
         AdminSettings::set('seo_title_suffix', trim((string) ($data['seo_title_suffix'] ?? ('- ' . config('app.name')))));
         AdminSettings::set('seo_meta_description_default', trim((string) ($data['seo_meta_description_default'] ?? 'Latest articles and insights from our blog.')));
         AdminSettings::set('seo_og_image_default', trim((string) ($data['seo_og_image_default'] ?? '')));
