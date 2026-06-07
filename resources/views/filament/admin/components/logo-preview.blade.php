@@ -1,6 +1,6 @@
 @php
     $previewPath = $previewPath ?? null;
-    $previewUrl = $previewPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($previewPath) : null;
+    $previewUrl = $previewPath ? \App\Support\PublicStorage::url($previewPath) : null;
 @endphp
 
 @if($previewUrl)

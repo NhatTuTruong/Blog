@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
+use App\Support\PublicStorage;
 use Illuminate\Support\Str;
 
 class Blog extends Model
@@ -67,7 +67,7 @@ class Blog extends Model
     public function hasStoredFeaturedImage(): bool
     {
         return filled($this->featured_image)
-            && Storage::disk('public')->exists($this->featured_image);
+            && PublicStorage::exists($this->featured_image);
     }
 
     /** Danh mục gắn với bài (theo blog_category_id hoặc tên category). */
@@ -88,7 +88,7 @@ class Blog extends Model
     public function getFeaturedImageUrlAttribute(): string
     {
         if ($this->hasStoredFeaturedImage()) {
-            return Storage::disk('public')->url($this->featured_image);
+            return PublicStorage::url($this->featured_image);
         }
 
         return static::categoryImageUrl($this->categoryForImage(), $this->category);
@@ -136,8 +136,8 @@ class Blog extends Model
                 return $url;
             }
 
-            if ($category->image && Storage::disk('public')->exists($category->image)) {
-                return Storage::disk('public')->url($category->image);
+            if ($category->image && PublicStorage::exists($category->image)) {
+                return PublicStorage::url($category->image);
             }
         }
 
@@ -172,7 +172,7 @@ class Blog extends Model
             return true;
         }
 
-        if ($model && $model->image && Storage::disk('public')->exists($model->image)) {
+        if ($model && $model->image && PublicStorage::exists($model->image)) {
             return true;
         }
 

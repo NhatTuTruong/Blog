@@ -38,8 +38,8 @@ return [
 
         'public' => [
             'driver' => 'local',
-            'root' => storage_path('app/public'),
-            'url' => 'http://localhost:8000/storage',
+            'root' => public_path('storage'),
+            'url' => rtrim(env('APP_URL', 'http://localhost:8000'), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
         ],
@@ -58,20 +58,7 @@ return [
 
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Symbolic Links
-    |--------------------------------------------------------------------------
-    |
-    | Here you may configure the symbolic links that will be created when the
-    | `storage:link` Artisan command is executed. The array keys should be
-    | the locations of the links and the values should be their targets.
-    |
-    */
-
-    'links' => [
-        public_path('storage') => storage_path('app/public'),
-    ],
+    // Không dùng storage:link — file public lưu trực tiếp tại public/storage (xem PublicStorage).
 
 ];
 

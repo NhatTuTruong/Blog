@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\PublicStorage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,10 +14,12 @@ class BlogImageUploadController extends Controller
             'file' => ['required', 'image', 'max:5120'],
         ]);
 
-        $path = $request->file('file')->store('blog-content', 'public');
+        $file = $request->file('file');
+        $path = PublicStorage::storeUploadedFile($file, 'blog-content', $file->hashName());
+        PublicStorage::syncUploadedPath($path);
 
         return response()->json([
-            'url' => asset('storage/' . $path),
+            'url' => PublicStorage::url($path),
         ]);
     }
 }

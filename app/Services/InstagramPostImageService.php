@@ -5,8 +5,8 @@ namespace App\Services;
 use App\Models\InstagramQueueItem;
 use App\Support\AdminSettings;
 use App\Support\InstagramSettings;
+use App\Support\PublicStorage;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class InstagramPostImageService
@@ -62,7 +62,9 @@ class InstagramPostImageService
 
     public function absolutePath(string $storagePath): string
     {
-        return Storage::disk('public')->path($storagePath);
+        PublicStorage::syncUploadedPath($storagePath);
+
+        return PublicStorage::absolutePath($storagePath);
     }
 
     public function validatePublicImageUrl(string $url): ?string
@@ -106,12 +108,12 @@ class InstagramPostImageService
 
         $path = str_replace('\\', '/', $path);
 
-        return Storage::disk('public')->exists($path) ? $path : null;
+        return PublicStorage::exists($path) ? $path : null;
     }
 
     protected function isJpegAtPath(string $path): bool
     {
-        if (! Storage::disk('public')->exists($path)) {
+        if (! PublicStorage::exists($path)) {
             return false;
         }
 
@@ -133,7 +135,7 @@ class InstagramPostImageService
         }
 
         $dest = "instagram-generated/item-{$itemId}.jpg";
-        Storage::disk('public')->makeDirectory('instagram-generated');
+        PublicStorage::ensureDirectory('instagram-generated');
         $destAbsolute = $this->absolutePath($dest);
 
         imagejpeg($image, $destAbsolute, 90);
@@ -144,7 +146,7 @@ class InstagramPostImageService
 
     protected function generatePlaceholderJpeg(InstagramQueueItem $item): string
     {
-        Storage::disk('public')->makeDirectory('instagram-generated');
+        PublicStorage::ensureDirectory('instagram-generated');
         $dest = "instagram-generated/item-{$item->id}.jpg";
 
         if (extension_loaded('gd')) {
@@ -162,7 +164,7 @@ class InstagramPostImageService
             try {
                 $bytes = Http::timeout(20)->get($fallbackUrl)->body();
                 if ($bytes !== '') {
-                    Storage::disk('public')->put($dest, $bytes);
+                    PublicStorage::put($dest, $bytes);
 
                     return $dest;
                 }
@@ -277,7 +279,7 @@ class InstagramPostImageService
             true,
         );
 
-        Storage::disk('public')->put($dest, $jpeg);
+        PublicStorage::put($dest, $jpeg);
 
         return $dest;
     }

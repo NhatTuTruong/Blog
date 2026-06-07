@@ -3,6 +3,9 @@
 namespace App\Providers;
 
 use App\Support\MailSettings;
+use App\Support\PublicStorage;
+use Filament\Forms\Components\BaseFileUpload;
+use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Actions\ForceDeleteAction;
@@ -22,6 +25,22 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Schema::defaultStringLength(191);
+
+        PublicStorage::ensureDirectory('');
+
+        FileUpload::configureUsing(function (FileUpload $component): void {
+            if ($component->getDiskName() !== 'public') {
+                return;
+            }
+
+            $component->saveUploadedFileUsing(function ($file, BaseFileUpload $component): ?string {
+                $directory = (string) ($component->getDirectory() ?? '');
+                $filename = $component->getUploadedFileNameForStorage($file);
+                $stored = PublicStorage::storeUploadedFile($file, $directory, $filename);
+
+                return PublicStorage::syncUploadedPath($stored);
+            });
+        });
 
         Table::configureUsing(fn (Table $table): Table => \App\Filament\Admin\Support\AdminTable::make($table));
 
