@@ -78,6 +78,13 @@ class SystemSettings extends Page implements HasForms
             'auto_blog_variant_guide' => (bool) AdminSettings::get('auto_blog_variant_guide', true),
             'auto_blog_variant_comparison' => (bool) AdminSettings::get('auto_blog_variant_comparison', true),
             'auto_blog_queue_interval_minutes' => (int) AdminSettings::get('auto_blog_queue_interval_minutes', 10),
+            'instagram_enabled' => (bool) AdminSettings::get('instagram_enabled', false),
+            'instagram_access_token' => AdminSettings::getEncrypted('instagram_access_token') ? '********' : '',
+            'instagram_user_id' => (string) AdminSettings::get('instagram_user_id', ''),
+            'instagram_graph_version' => (string) AdminSettings::get('instagram_graph_version', 'v21.0'),
+            'instagram_queue_interval_minutes' => (int) AdminSettings::get('instagram_queue_interval_minutes', 30),
+            'instagram_public_base_url' => (string) AdminSettings::get('instagram_public_base_url', ''),
+            'instagram_default_image_url' => (string) AdminSettings::get('instagram_default_image_url', ''),
             'seo_title_suffix' => (string) AdminSettings::get('seo_title_suffix', '- ' . config('app.name')),
             'seo_meta_description_default' => (string) AdminSettings::get('seo_meta_description_default', 'Latest articles and insights from our blog.'),
             'seo_og_image_default' => (string) AdminSettings::get('seo_og_image_default', ''),
@@ -163,6 +170,50 @@ class SystemSettings extends Page implements HasForms
                             ->default(10)
                             ->helperText('Áp dụng cho trang «Đăng bài viết tự động» — mỗi bài cách nhau bao nhiêu phút.')
                             ->required(),
+                    ])
+                    ->columns(3),
+                Section::make('Instagram (Meta Graph API)')
+                    ->description('Token IGAA… (Instagram Login) dùng graph.instagram.com — chỉ cần token. Token EAA… (Facebook Login) dùng graph.facebook.com — cần thêm Instagram User ID. Ảnh đăng phải truy cập công khai qua HTTPS.')
+                    ->schema([
+                        Toggle::make('instagram_enabled')
+                            ->label('Bật đăng Instagram')
+                            ->inline(false),
+                        TextInput::make('instagram_access_token')
+                            ->label('Access Token')
+                            ->password()
+                            ->revealable()
+                            ->helperText('Token IGAA… từ Business Login for Instagram, hoặc EAA… từ Facebook Login. Nhập key mới để lưu; để "********" giữ token hiện tại; để trống xóa.')
+                            ->maxLength(2048)
+                            ->columnSpanFull(),
+                        TextInput::make('instagram_user_id')
+                            ->label('Instagram User ID')
+                            ->helperText('Bắt buộc với token EAA…. Với token IGAA… có thể để trống (hệ thống tự lấy từ token).')
+                            ->maxLength(64),
+                        TextInput::make('instagram_graph_version')
+                            ->label('Graph API version')
+                            ->default('v21.0')
+                            ->maxLength(20),
+                        TextInput::make('instagram_queue_interval_minutes')
+                            ->label('Khoảng cách đăng hàng đợi (phút)')
+                            ->numeric()
+                            ->minValue(1)
+                            ->maxValue(1440)
+                            ->default(30)
+                            ->helperText('Áp dụng cho trang «Đăng bài mạng xã hội» — Instagram khuyến nghị không đăng quá dày.')
+                            ->required(),
+                        TextInput::make('instagram_public_base_url')
+                            ->label('URL công khai (HTTPS)')
+                            ->url()
+                            ->placeholder('https://your-domain.com')
+                            ->helperText('Bắt buộc khi chạy localhost — Meta phải tải ảnh từ URL công khai (domain thật hoặc ngrok).')
+                            ->maxLength(500)
+                            ->columnSpanFull(),
+                        TextInput::make('instagram_default_image_url')
+                            ->label('Ảnh mặc định (URL, tùy chọn)')
+                            ->url()
+                            ->helperText('Dùng khi không tải ảnh và server không tạo được ảnh tự động.')
+                            ->maxLength(500)
+                            ->columnSpanFull(),
                     ])
                     ->columns(3),
                 Section::make('SEO mặc định')
@@ -312,6 +363,17 @@ class SystemSettings extends Page implements HasForms
         AdminSettings::setEncrypted('mail_password', $value !== '' ? $value : null);
     }
 
+    protected function saveInstagramAccessToken(array $data): void
+    {
+        $value = trim((string) ($data['instagram_access_token'] ?? ''));
+
+        if ($value === '********') {
+            return;
+        }
+
+        AdminSettings::setEncrypted('instagram_access_token', $value !== '' ? $value : null);
+    }
+
     public function save(): void
     {
         $data = $this->form->getState();
@@ -349,6 +411,15 @@ class SystemSettings extends Page implements HasForms
         AdminSettings::set('auto_blog_variant_guide', (bool) ($data['auto_blog_variant_guide'] ?? true));
         AdminSettings::set('auto_blog_variant_comparison', (bool) ($data['auto_blog_variant_comparison'] ?? true));
         AdminSettings::set('auto_blog_queue_interval_minutes', max(1, min(1440, (int) ($data['auto_blog_queue_interval_minutes'] ?? 10))));
+
+        AdminSettings::set('instagram_enabled', (bool) ($data['instagram_enabled'] ?? false));
+        $this->saveInstagramAccessToken($data);
+        AdminSettings::set('instagram_user_id', trim((string) ($data['instagram_user_id'] ?? '')));
+        AdminSettings::set('instagram_graph_version', trim((string) ($data['instagram_graph_version'] ?? 'v21.0')));
+        AdminSettings::set('instagram_queue_interval_minutes', max(1, min(1440, (int) ($data['instagram_queue_interval_minutes'] ?? 30))));
+        AdminSettings::set('instagram_public_base_url', trim((string) ($data['instagram_public_base_url'] ?? '')));
+        AdminSettings::set('instagram_default_image_url', trim((string) ($data['instagram_default_image_url'] ?? '')));
+
         AdminSettings::set('seo_title_suffix', trim((string) ($data['seo_title_suffix'] ?? ('- ' . config('app.name')))));
         AdminSettings::set('seo_meta_description_default', trim((string) ($data['seo_meta_description_default'] ?? 'Latest articles and insights from our blog.')));
         AdminSettings::set('seo_og_image_default', trim((string) ($data['seo_og_image_default'] ?? '')));

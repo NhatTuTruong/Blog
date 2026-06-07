@@ -48,6 +48,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\\Filament\\Admin\\Pages')
             ->navigationGroups([
                 NavigationGroup::make()->label('Blog'),
+                NavigationGroup::make()->label('Mạng xã hội'),
                 NavigationGroup::make()->label('Email'),
                 NavigationGroup::make()->label('Cài đặt'),
             ])

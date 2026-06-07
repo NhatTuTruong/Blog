@@ -68,6 +68,9 @@ Route::middleware(['web', 'auth'])->prefix('admin/received-emails')->group(funct
         ->name('admin.received-emails.attachments.download');
 });
 
+Route::get('/instagram/media/{item}', [App\Http\Controllers\InstagramMediaController::class, 'show'])
+    ->name('instagram.media');
+
 Route::get('/terms', function () {
     return view('legal.terms');
 })->name('legal.terms');

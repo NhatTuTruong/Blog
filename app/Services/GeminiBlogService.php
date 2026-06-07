@@ -278,6 +278,25 @@ PROMPT;
     /**
      * @param  array<string, mixed>  $generationConfigOverrides
      */
+    public function generatePlainText(string $prompt, array $generationConfigOverrides = []): ?string
+    {
+        $model = (string) AdminSettings::get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest'));
+        $timeout = max(60, $this->resolveTimeoutSeconds());
+
+        $result = $this->callGeminiWithFallback($model, $prompt, $timeout, $generationConfigOverrides);
+
+        if (! $result) {
+            return null;
+        }
+
+        $text = trim((string) ($result['content'] ?? ''));
+
+        return $text !== '' ? $text : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $generationConfigOverrides
+     */
     protected function callGeminiWithFallback(string $model, string $prompt, int $timeout, array $generationConfigOverrides = []): ?array
     {
         $apiKeys = AdminSettings::getGeminiApiKeys();

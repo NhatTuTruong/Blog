@@ -24,6 +24,11 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground();
 
+        $schedule->command('instagram:process-queue')
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
+
         $schedule->command('blogs:generate-daily --respect-daily-limit')
             ->hourly()
             ->withoutOverlapping()
