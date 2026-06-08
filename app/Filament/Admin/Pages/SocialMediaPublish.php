@@ -300,7 +300,9 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     })
                     ->description(fn (InstagramQueueItem $record): ?string => match (true) {
                         $record->status === InstagramQueueItem::STATUS_FAILED => $record->error_message,
-                        $record->used_default_caption && $record->status === InstagramQueueItem::STATUS_COMPLETED => 'Đã đăng với nội dung mặc định',
+                        $record->used_default_caption && $record->status === InstagramQueueItem::STATUS_COMPLETED => filled($record->error_message)
+                            ? $record->error_message
+                            : 'Đã đăng với nội dung mặc định (AI lỗi)',
                         default => null,
                     }),
                 Tables\Columns\TextColumn::make('caption')

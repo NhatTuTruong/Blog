@@ -56,7 +56,10 @@ class InstagramGraphService
 
     protected function http(): PendingRequest
     {
-        return Http::acceptJson()->withToken((string) $this->token());
+        return Http::acceptJson()
+            ->withToken((string) $this->token())
+            ->connectTimeout(30)
+            ->timeout(120);
     }
 
     /**

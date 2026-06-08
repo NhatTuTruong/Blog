@@ -57,7 +57,7 @@ class SystemSettings extends Page implements HasForms
             'gemini_api_key' => AdminSettings::getEncrypted('gemini_api_key') ? '********' : '',
             'gemini_api_key_2' => AdminSettings::getEncrypted('gemini_api_key_2') ? '********' : '',
             'gemini_api_key_3' => AdminSettings::getEncrypted('gemini_api_key_3') ? '********' : '',
-            'gemini_model' => (string) AdminSettings::get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest')),
+            'gemini_model' => (string) AdminSettings::get('gemini_model', config('gemini.model', 'gemini-2.5-flash-lite')),
             'gemini_timeout' => max(60, (int) AdminSettings::get('gemini_timeout', config('gemini.timeout', 120))),
             'mail_host' => (string) AdminSettings::get('mail_host', env('MAIL_HOST', 'smtp.gmail.com')),
             'mail_port' => (int) AdminSettings::get('mail_port', env('MAIL_PORT', 587)),
@@ -133,6 +133,7 @@ class SystemSettings extends Page implements HasForms
                         TextInput::make('gemini_model')
                             ->label('Gemini model')
                             ->required()
+                            ->helperText('Khuyến nghị: gemini-2.5-flash-lite. Tránh gemini-flash-latest khi bị 503.')
                             ->maxLength(120),
                         TextInput::make('gemini_timeout')
                             ->label('Timeout (giây)')
@@ -452,7 +453,7 @@ class SystemSettings extends Page implements HasForms
         $this->saveGeminiApiKey('gemini_api_key_2', $data);
         $this->saveGeminiApiKey('gemini_api_key_3', $data);
 
-        AdminSettings::set('gemini_model', trim((string) ($data['gemini_model'] ?? config('gemini.model', 'gemini-1.5-flash-latest'))));
+        AdminSettings::set('gemini_model', trim((string) ($data['gemini_model'] ?? config('gemini.model', 'gemini-2.5-flash-lite'))));
         AdminSettings::set('gemini_timeout', max(60, min(600, (int) ($data['gemini_timeout'] ?? config('gemini.timeout', 120)))));
 
         $mailUsername = trim((string) ($data['mail_username'] ?? ''));

@@ -287,6 +287,9 @@ class InstagramQueueService
             $item->update([
                 'caption' => $caption,
                 'used_default_caption' => $usedDefaultCaption,
+                'error_message' => $usedDefaultCaption && filled($gemini->lastError)
+                    ? 'AI: '.$gemini->lastError
+                    : null,
             ]);
         }
 

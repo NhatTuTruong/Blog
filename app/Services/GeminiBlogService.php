@@ -309,33 +309,133 @@ PROMPT;
 
         $errors = [];
 
-        foreach ($apiKeys as $index => $apiKey) {
-            $attempt = $this->attemptGeminiCall($apiKey, $model, $prompt, $timeout, $generationConfigOverrides);
+        foreach ($this->modelsToTry($model) as $currentModel) {
+            foreach ($apiKeys as $index => $apiKey) {
+                $attempt = $this->attemptGeminiCallWithRetries(
+                    $apiKey,
+                    $currentModel,
+                    $prompt,
+                    $timeout,
+                    $generationConfigOverrides,
+                );
 
-            if ($attempt['success']) {
-                if ($index > 0) {
-                    Log::info('GeminiBlogService: đã chuyển sang API key dự phòng', [
-                        'key_number' => $index + 1,
-                    ]);
+                if ($attempt['success']) {
+                    $this->lastError = null;
+
+                    if ($currentModel !== $model) {
+                        Log::info('GeminiBlogService: đã chuyển sang model dự phòng', [
+                            'from' => $model,
+                            'to' => $currentModel,
+                        ]);
+                    }
+
+                    if ($index > 0) {
+                        Log::info('GeminiBlogService: đã chuyển sang API key dự phòng', [
+                            'key_number' => $index + 1,
+                        ]);
+                    }
+
+                    return $attempt['result'];
                 }
 
-                return $attempt['result'];
-            }
+                $errors[] = "{$currentModel} / Key ".($index + 1).': '.$attempt['error'];
+                $this->lastError = $attempt['error'];
 
-            $errors[] = 'Key '.($index + 1).': '.$attempt['error'];
-            $this->lastError = $attempt['error'];
-
-            if ($index < count($apiKeys) - 1 && $attempt['retryable']) {
-                Log::warning('GeminiBlogService: key lỗi, thử key tiếp theo', [
-                    'key_number' => $index + 1,
-                    'error' => $attempt['error'],
-                ]);
+                if ($index < count($apiKeys) - 1 && $attempt['retryable']) {
+                    Log::warning('GeminiBlogService: key lỗi, thử key tiếp theo', [
+                        'model' => $currentModel,
+                        'key_number' => $index + 1,
+                        'error' => $attempt['error'],
+                    ]);
+                }
             }
         }
 
         $this->lastError = 'Tất cả Gemini API key đều lỗi. '.implode(' | ', $errors);
 
         return null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function modelsToTry(string $primary): array
+    {
+        $fallbacks = [
+            'gemini-flash-latest' => ['gemini-2.5-flash-lite', 'gemini-2.5-flash'],
+            'gemini-2.5-flash' => ['gemini-2.5-flash-lite', 'gemini-flash-latest'],
+            'gemini-2.5-flash-lite' => ['gemini-2.5-flash', 'gemini-flash-latest'],
+            'gemini-1.5-flash-latest' => ['gemini-2.5-flash-lite', 'gemini-2.5-flash'],
+            'gemini-2.0-flash' => ['gemini-2.5-flash-lite', 'gemini-2.5-flash'],
+        ];
+
+        $models = [$primary];
+
+        foreach ($fallbacks[$primary] ?? ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-latest'] as $fallback) {
+            if (! in_array($fallback, $models, true)) {
+                $models[] = $fallback;
+            }
+        }
+
+        return $models;
+    }
+
+    /**
+     * @param  array<string, mixed>  $generationConfigOverrides
+     * @return array{success: bool, result: ?array, error: string, retryable: bool}
+     */
+    protected function attemptGeminiCallWithRetries(
+        string $apiKey,
+        string $model,
+        string $prompt,
+        int $timeout,
+        array $generationConfigOverrides = [],
+        int $maxAttempts = 3,
+    ): array {
+        $lastAttempt = [
+            'success' => false,
+            'result' => null,
+            'error' => 'Unknown error',
+            'retryable' => false,
+        ];
+
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+            $lastAttempt = $this->attemptGeminiCall($apiKey, $model, $prompt, $timeout, $generationConfigOverrides);
+
+            if ($lastAttempt['success']) {
+                return $lastAttempt;
+            }
+
+            if (! $this->shouldRetrySameGeminiCall($lastAttempt['error'], $attempt, $maxAttempts)) {
+                return $lastAttempt;
+            }
+
+            $delay = min(10, 2 ** $attempt);
+            Log::info('GeminiBlogService: thử lại sau lỗi tạm thời', [
+                'model' => $model,
+                'attempt' => $attempt + 1,
+                'delay_seconds' => $delay,
+                'error' => $lastAttempt['error'],
+            ]);
+            sleep($delay);
+        }
+
+        return $lastAttempt;
+    }
+
+    protected function shouldRetrySameGeminiCall(string $error, int $attempt, int $maxAttempts): bool
+    {
+        if ($attempt >= $maxAttempts - 1) {
+            return false;
+        }
+
+        $error = strtolower($error);
+
+        return str_contains($error, '503')
+            || str_contains($error, '429')
+            || str_contains($error, 'timed out')
+            || str_contains($error, 'high demand')
+            || str_contains($error, 'resource exhausted');
     }
 
     /**

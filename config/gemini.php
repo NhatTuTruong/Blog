@@ -2,7 +2,7 @@
 
 return [
     'api_key' => env('GEMINI_API_KEY'),
-    'model' => env('GEMINI_MODEL', 'gemini-1.5-flash-latest'),
+    'model' => env('GEMINI_MODEL', 'gemini-2.5-flash-lite'),
     /** Model hỗ trợ sinh ảnh (dùng cho blog auto: nội dung + ảnh đại diện 1 request) */
     'model_image' => env('GEMINI_MODEL_IMAGE', 'gemini-2.5-flash-image'),
     /** Thời gian chờ tối đa mỗi request (giây). Bài blog dài thường cần 90–180s. */

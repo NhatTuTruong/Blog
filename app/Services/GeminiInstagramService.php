@@ -78,7 +78,10 @@ class GeminiInstagramService
     protected function useDefaultCaption(?string $affLink, array $couponCodes): string
     {
         $this->usedDefaultCaption = true;
-        $this->lastError = null;
+
+        if (! filled($this->lastError)) {
+            $this->lastError = 'AI không tạo được caption — dùng nội dung mặc định.';
+        }
 
         return $this->buildDefaultInstagramCaption($affLink, $couponCodes);
     }
