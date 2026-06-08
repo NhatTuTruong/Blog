@@ -88,6 +88,8 @@
 
         @if ($activeTab === 'compose')
 
+            <div wire:poll.10s="saveFormDraft" class="hidden" aria-hidden="true"></div>
+
             {{ $this->form }}
 
         @else
@@ -140,25 +142,49 @@
 
 
 
-                        <x-filament::button
+                        <div class="flex flex-wrap gap-2">
 
-                            color="danger"
+                            <x-filament::button
 
-                            size="sm"
+                                color="warning"
 
-                            icon="heroicon-o-x-circle"
+                                size="sm"
 
-                            wire:click="cancelPendingQueue"
+                                icon="heroicon-o-arrow-path"
 
-                            wire:confirm="Hủy tất cả bài đang chờ?"
+                                wire:click="releaseStuckProcessing"
 
-                            :disabled="! $this->canCancelPendingQueue()"
+                                wire:confirm="Đưa bài «Đang đăng» về «Chờ đăng» để thử lại?"
 
-                        >
+                                :disabled="! $this->canReleaseStuckProcessing()"
 
-                            Hủy hàng đợi
+                            >
 
-                        </x-filament::button>
+                                Mở kẹt
+
+                            </x-filament::button>
+
+                            <x-filament::button
+
+                                color="danger"
+
+                                size="sm"
+
+                                icon="heroicon-o-x-circle"
+
+                                wire:click="cancelPendingQueue"
+
+                                wire:confirm="Hủy tất cả bài đang chờ?"
+
+                                :disabled="! $this->canCancelPendingQueue()"
+
+                            >
+
+                                Hủy hàng đợi
+
+                            </x-filament::button>
+
+                        </div>
 
                     </div>
 

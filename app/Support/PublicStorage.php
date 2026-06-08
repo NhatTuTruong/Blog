@@ -27,9 +27,13 @@ class PublicStorage
     {
         $relativePath = static::normalizePath($relativePath);
 
-        return $relativePath === ''
-            ? static::root()
-            : static::root().'/'.$relativePath;
+        if ($relativePath === '') {
+            return static::root();
+        }
+
+        $segments = array_filter(explode('/', $relativePath), fn (string $segment): bool => $segment !== '');
+
+        return static::root().DIRECTORY_SEPARATOR.implode(DIRECTORY_SEPARATOR, $segments);
     }
 
     public static function ensureDirectory(string $relativeDir = ''): void
@@ -91,7 +95,7 @@ class PublicStorage
             return $path;
         }
 
-        $legacy = static::legacyRoot().'/'.$path;
+        $legacy = static::legacyRoot().DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $path);
         if (! is_file($legacy)) {
             return null;
         }
@@ -142,7 +146,16 @@ class PublicStorage
         $parentPath = $parentPath === '.' ? '' : $parentPath;
         static::ensureDirectory($parentPath);
 
-        $file->move(static::absolutePath($parentPath), basename($path));
+        $destination = static::absolutePath($path);
+        $source = $file->getRealPath();
+
+        if ($source === false || ! is_file($source)) {
+            throw new \RuntimeException('Không đọc được file upload tạm.');
+        }
+
+        if (! File::copy($source, $destination)) {
+            throw new \RuntimeException('Không lưu được file vào public/storage.');
+        }
 
         return $path;
     }

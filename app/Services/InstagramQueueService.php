@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\InstagramAccount;
 use App\Models\InstagramQueueItem;
 use App\Models\User;
 use App\Support\AdminSettings;
@@ -49,15 +50,27 @@ class InstagramQueueService
     {
         $geminiTimeout = max(60, (int) AdminSettings::get('gemini_timeout', 120));
 
-        return max(15, (int) ceil($geminiTimeout / 60) + 5);
+        // Gemini + upload video Meta có thể mất vài phút; sau đó coi là kẹt.
+        return max(8, (int) ceil($geminiTimeout / 60) + 3);
     }
 
-    public function recoverStaleProcessingItems(): int
+    public function hasStuckProcessing(): bool
     {
-        $staleItems = InstagramQueueItem::query()
+        return InstagramQueueItem::query()
             ->where('status', InstagramQueueItem::STATUS_PROCESSING)
-            ->where('updated_at', '<', now()->subMinutes($this->staleProcessingMinutes()))
-            ->get();
+            ->exists();
+    }
+
+    public function releaseStuckProcessingItems(bool $force = false): int
+    {
+        $query = InstagramQueueItem::query()
+            ->where('status', InstagramQueueItem::STATUS_PROCESSING);
+
+        if (! $force) {
+            $query->where('updated_at', '<', now()->subMinutes($this->staleProcessingMinutes()));
+        }
+
+        $staleItems = $query->get();
 
         if ($staleItems->isEmpty()) {
             return 0;
@@ -65,20 +78,24 @@ class InstagramQueueService
 
         foreach ($staleItems as $item) {
             $item->update([
-                'status' => InstagramQueueItem::STATUS_FAILED,
-                'processed_at' => now(),
-                'error_message' => 'Quá thời gian xử lý — hàng đợi đã dừng để tránh kẹt.',
+                'status' => InstagramQueueItem::STATUS_PENDING,
+                'processed_at' => null,
+                'error_message' => null,
             ]);
         }
 
-        $this->cancelPendingQueue();
-
-        Log::warning('InstagramQueueService recovered stale processing items', [
+        Log::warning('InstagramQueueService released stuck processing items', [
+            'force' => $force,
             'count' => $staleItems->count(),
             'queue_item_ids' => $staleItems->pluck('id')->all(),
         ]);
 
         return $staleItems->count();
+    }
+
+    public function recoverStaleProcessingItems(): int
+    {
+        return $this->releaseStuckProcessingItems(force: false);
     }
 
     public function abortQueueOnError(string $reason): int
@@ -97,9 +114,14 @@ class InstagramQueueService
 
     /**
      * @param  array<int, array<string, mixed>>  $records
+     * @param  array<int, int>  $accountIds
      */
-    public function enqueue(array $records, ?User $user = null, ?Carbon $startAt = null): ?string
-    {
+    public function enqueue(
+        array $records,
+        ?User $user = null,
+        ?Carbon $startAt = null,
+        array $accountIds = [],
+    ): ?string {
         $this->lastError = null;
 
         $validRecords = collect($records)
@@ -113,7 +135,27 @@ class InstagramQueueService
         }
 
         if (! InstagramSettings::isConfigured()) {
-            $this->lastError = 'Instagram chưa được cấu hình (token + User ID) trong Cài đặt hệ thống.';
+            $this->lastError = 'Instagram chưa được cấu hình — thêm ít nhất một tài khoản trong Cài đặt hệ thống.';
+
+            return null;
+        }
+
+        $accountIds = array_values(array_unique(array_map('intval', $accountIds)));
+        if ($accountIds === []) {
+            $accountIds = InstagramAccount::enabledConfiguredIds();
+        }
+
+        $accounts = InstagramAccount::query()
+            ->whereIn('id', $accountIds)
+            ->where('enabled', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (InstagramAccount $account): bool => $account->isConfigured())
+            ->values();
+
+        if ($accounts->isEmpty()) {
+            $this->lastError = 'Chưa chọn tài khoản Instagram hợp lệ.';
 
             return null;
         }
@@ -121,8 +163,9 @@ class InstagramQueueService
         $batchId = (string) Str::uuid();
         $interval = $this->intervalMinutes();
         $baseTime = ($startAt ?? now())->copy();
+        $queueIndex = 0;
 
-        $validRecords->each(function (array $record, int $index) use ($batchId, $user, $interval, $baseTime): void {
+        foreach ($validRecords as $record) {
             $couponCodes = collect($record['coupon_codes'] ?? [])
                 ->map(fn (mixed $code): string => trim((string) $code))
                 ->filter()
@@ -134,30 +177,27 @@ class InstagramQueueService
             $contentIdea = filled($record['content_idea'] ?? null) ? trim((string) $record['content_idea']) : null;
             $affLink = filled($record['aff_link'] ?? null) ? trim((string) $record['aff_link']) : null;
 
-            $gemini = app(GeminiInstagramService::class);
-            $caption = $gemini->generateCaption(
-                $brandDomain,
-                $contentIdea,
-                $affLink,
-                $couponCodes,
-            );
+            foreach ($accounts as $account) {
+                InstagramQueueItem::query()->create([
+                    'batch_id' => $batchId,
+                    'user_id' => $user?->id,
+                    'instagram_account_id' => $account->id,
+                    'sort_order' => $queueIndex,
+                    'brand_domain' => $brandDomain,
+                    'content_idea' => $contentIdea,
+                    'aff_link' => $affLink,
+                    'coupon_codes' => $couponCodes !== [] ? $couponCodes : null,
+                    'image_path' => filled($record['image'] ?? null) ? trim((string) $record['image']) : null,
+                    'video_path' => filled($record['video'] ?? null) ? trim((string) $record['video']) : null,
+                    'caption' => null,
+                    'used_default_caption' => false,
+                    'status' => InstagramQueueItem::STATUS_PENDING,
+                    'scheduled_at' => $baseTime->copy()->addMinutes($queueIndex * $interval),
+                ]);
 
-            InstagramQueueItem::query()->create([
-                'batch_id' => $batchId,
-                'user_id' => $user?->id,
-                'sort_order' => $index,
-                'brand_domain' => $brandDomain,
-                'content_idea' => $contentIdea,
-                'aff_link' => $affLink,
-                'coupon_codes' => $couponCodes !== [] ? $couponCodes : null,
-                'image_path' => filled($record['image'] ?? null) ? trim((string) $record['image']) : null,
-                'video_path' => filled($record['video'] ?? null) ? trim((string) $record['video']) : null,
-                'caption' => $caption,
-                'used_default_caption' => $gemini->usedDefaultCaption,
-                'status' => InstagramQueueItem::STATUS_PENDING,
-                'scheduled_at' => $baseTime->copy()->addMinutes($index * $interval),
-            ]);
-        });
+                $queueIndex++;
+            }
+        }
 
         return $batchId;
     }
@@ -250,6 +290,17 @@ class InstagramQueueService
             ]);
         }
 
+        $item->loadMissing('instagramAccount');
+
+        /** @var InstagramAccount|null $account */
+        $account = $item->instagramAccount;
+        if ($account === null || ! $account->isConfigured()) {
+            $account = InstagramSettings::primaryAccount();
+        }
+        if ($account === null || ! $account->isConfigured()) {
+            throw new \RuntimeException('Tài khoản Instagram không hợp lệ hoặc đã bị xóa.');
+        }
+
         $media = app(InstagramPostImageService::class);
         $mediaUrl = $media->signedPublicUrl($item);
 
@@ -257,7 +308,7 @@ class InstagramQueueService
             throw new \RuntimeException($media->lastError ?? 'Không tạo được URL media công khai.');
         }
 
-        $graph = app(InstagramGraphService::class);
+        $graph = app(InstagramGraphService::class)->forAccount($account);
 
         if (filled($item->video_path)) {
             $urlError = $media->validatePublicVideoUrl($mediaUrl);

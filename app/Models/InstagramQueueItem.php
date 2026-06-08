@@ -18,6 +18,7 @@ class InstagramQueueItem extends Model
     protected $fillable = [
         'batch_id',
         'user_id',
+        'instagram_account_id',
         'sort_order',
         'brand_domain',
         'content_idea',
@@ -47,6 +48,11 @@ class InstagramQueueItem extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function instagramAccount(): BelongsTo
+    {
+        return $this->belongsTo(InstagramAccount::class);
+    }
+
     public function usesDefaultCaptionInQueue(): bool
     {
         return (bool) $this->used_default_caption
@@ -56,7 +62,7 @@ class InstagramQueueItem extends Model
     public function statusLabel(): string
     {
         if ($this->usesDefaultCaptionInQueue()) {
-            return 'Chờ đăng';
+            return 'Đang sử dụng nội dung mặc định';
         }
 
         return match ($this->status) {

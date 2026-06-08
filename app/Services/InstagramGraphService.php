@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\InstagramAccount;
 use App\Support\InstagramSettings;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
@@ -11,19 +12,46 @@ class InstagramGraphService
 {
     public ?string $lastError = null;
 
+    protected ?InstagramAccount $account = null;
+
+    public function forAccount(InstagramAccount $account): self
+    {
+        $this->account = $account;
+        $this->lastError = null;
+
+        return $this;
+    }
+
+    protected function activeAccount(): ?InstagramAccount
+    {
+        return $this->account ?? InstagramSettings::primaryAccount();
+    }
+
     protected function baseUrl(): string
     {
-        return 'https://'.InstagramSettings::apiHost().'/'.ltrim(InstagramSettings::graphVersion(), '/');
+        return 'https://'.$this->apiHost().'/'.ltrim(InstagramSettings::graphVersion(), '/');
+    }
+
+    protected function apiHost(): string
+    {
+        return InstagramSettings::apiHostForAccount($this->activeAccount());
     }
 
     protected function token(): ?string
     {
-        return InstagramSettings::accessToken();
+        return $this->activeAccount()?->normalizedAccessToken();
     }
 
     protected function configuredUserId(): ?string
     {
-        return InstagramSettings::userId();
+        $id = trim((string) ($this->activeAccount()?->user_id ?? ''));
+
+        return $id !== '' ? $id : null;
+    }
+
+    protected function usesInstagramLoginApi(): bool
+    {
+        return $this->activeAccount()?->usesInstagramLoginApi() ?? false;
     }
 
     protected function http(): PendingRequest
@@ -34,17 +62,21 @@ class InstagramGraphService
     /**
      * @return array{id: string, username?: string, name?: string}|null
      */
-    public function testConnection(): ?array
+    public function testConnection(?InstagramAccount $account = null): ?array
     {
         $this->lastError = null;
 
-        if (! InstagramSettings::isConfigured()) {
+        if ($account !== null) {
+            $this->account = $account;
+        }
+
+        if ($this->activeAccount() === null || ! $this->activeAccount()->isConfigured()) {
             $this->lastError = 'Instagram chưa được bật hoặc thiếu token / User ID trong Cài đặt hệ thống.';
 
             return null;
         }
 
-        if (InstagramSettings::usesInstagramLoginApi()) {
+        if ($this->usesInstagramLoginApi()) {
             return $this->testInstagramLoginConnection();
         }
 
@@ -82,11 +114,31 @@ class InstagramGraphService
             return null;
         }
 
-        return [
+        $profile = [
             'id' => $userId,
             'username' => isset($data['username']) ? (string) $data['username'] : null,
             'name' => isset($data['name']) ? (string) $data['name'] : null,
         ];
+
+        $this->syncAccountProfile($profile);
+
+        return $profile;
+    }
+
+    protected function syncAccountProfile(array $profile): void
+    {
+        if ($this->account === null) {
+            return;
+        }
+
+        $updates = array_filter([
+            'username' => $profile['username'] ?? null,
+            'user_id' => $profile['id'] ?? null,
+        ], fn (mixed $value): bool => filled($value));
+
+        if ($updates !== []) {
+            $this->account->update($updates);
+        }
     }
 
     /**
@@ -113,18 +165,22 @@ class InstagramGraphService
 
         $data = $response->json();
 
-        return [
+        $profile = [
             'id' => (string) ($data['id'] ?? ''),
             'username' => isset($data['username']) ? (string) $data['username'] : null,
             'name' => isset($data['name']) ? (string) $data['name'] : null,
         ];
+
+        $this->syncAccountProfile($profile);
+
+        return $profile;
     }
 
     public function publishImage(string $imageUrl, string $caption): ?string
     {
         $this->lastError = null;
 
-        if (! InstagramSettings::isConfigured()) {
+        if ($this->activeAccount() === null || ! $this->activeAccount()->isConfigured()) {
             $this->lastError = 'Instagram chưa được cấu hình đầy đủ.';
 
             return null;
@@ -140,7 +196,7 @@ class InstagramGraphService
             'caption' => $caption,
         ];
 
-        if (InstagramSettings::usesInstagramLoginApi()) {
+        if ($this->usesInstagramLoginApi()) {
             $payload['media_type'] = 'IMAGE';
         }
 
@@ -150,7 +206,7 @@ class InstagramGraphService
             $this->lastError = $this->formatGraphError($containerResponse->json(), $containerResponse->status());
 
             Log::warning('InstagramGraphService container failed', [
-                'host' => InstagramSettings::apiHost(),
+                'host' => $this->apiHost(),
                 'status' => $containerResponse->status(),
                 'body' => $containerResponse->json(),
                 'image_url' => $imageUrl,
@@ -178,7 +234,7 @@ class InstagramGraphService
             $this->lastError = $this->formatGraphError($publishResponse->json(), $publishResponse->status());
 
             Log::warning('InstagramGraphService publish failed', [
-                'host' => InstagramSettings::apiHost(),
+                'host' => $this->apiHost(),
                 'status' => $publishResponse->status(),
                 'body' => $publishResponse->json(),
                 'creation_id' => $creationId,
@@ -201,7 +257,7 @@ class InstagramGraphService
     {
         $this->lastError = null;
 
-        if (! InstagramSettings::isConfigured()) {
+        if ($this->activeAccount() === null || ! $this->activeAccount()->isConfigured()) {
             $this->lastError = 'Instagram chưa được cấu hình đầy đủ.';
 
             return null;
@@ -217,7 +273,7 @@ class InstagramGraphService
             'caption' => $caption,
         ];
 
-        if (InstagramSettings::usesInstagramLoginApi()) {
+        if ($this->usesInstagramLoginApi()) {
             $payload['media_type'] = 'REELS';
         }
 
@@ -227,7 +283,7 @@ class InstagramGraphService
             $this->lastError = $this->formatGraphError($containerResponse->json(), $containerResponse->status());
 
             Log::warning('InstagramGraphService video container failed', [
-                'host' => InstagramSettings::apiHost(),
+                'host' => $this->apiHost(),
                 'status' => $containerResponse->status(),
                 'body' => $containerResponse->json(),
                 'video_url' => $videoUrl,
@@ -255,7 +311,7 @@ class InstagramGraphService
             $this->lastError = $this->formatGraphError($publishResponse->json(), $publishResponse->status());
 
             Log::warning('InstagramGraphService video publish failed', [
-                'host' => InstagramSettings::apiHost(),
+                'host' => $this->apiHost(),
                 'status' => $publishResponse->status(),
                 'body' => $publishResponse->json(),
                 'creation_id' => $creationId,
@@ -342,7 +398,7 @@ class InstagramGraphService
 
     protected function resolvePublishUserId(): ?string
     {
-        if (InstagramSettings::usesInstagramLoginApi()) {
+        if ($this->usesInstagramLoginApi()) {
             $configured = $this->configuredUserId();
             if ($configured !== null) {
                 return $configured;
@@ -377,7 +433,7 @@ class InstagramGraphService
             $parts[] = "subcode={$subcode}";
         }
 
-        $host = InstagramSettings::apiHost();
+        $host = $this->apiHost();
         $parts[] = "host={$host}";
 
         if ((int) $code === 9004 || (int) $subcode === 2207052) {

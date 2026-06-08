@@ -4,6 +4,8 @@ namespace App\Filament\Admin\Pages;
 
 use App\Exports\InstagramTemplateExport;
 use App\Filament\Admin\Pages\SystemSettings;
+use App\Filament\Concerns\HasFormDraft;
+use App\Models\InstagramAccount;
 use App\Models\InstagramQueueItem;
 use App\Models\InstagramSavedList;
 use App\Models\User;
@@ -12,12 +14,14 @@ use App\Services\InstagramImportService;
 use App\Services\InstagramQueueService;
 use App\Services\InstagramSavedListService;
 use App\Support\InstagramSettings;
+use App\Support\FormDraftService;
 use App\Support\PublicStorage;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\BaseFileUpload;
 use Filament\Forms\Components\FileUpload;
@@ -47,6 +51,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SocialMediaPublish extends Page implements HasForms, HasTable
 {
+    use HasFormDraft;
     use InteractsWithForms;
     use InteractsWithTable;
 
@@ -120,6 +125,8 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             'saved_list_id' => null,
         ]);
 
+        $this->restoreFormDraft();
+
         $this->refreshQueue();
         $this->refreshInstagramAccountLabel();
     }
@@ -176,16 +183,16 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     ]),
                 Section::make('Chi tiết bài đăng Instagram')
                     ->description(fn (): string => InstagramSettings::isConfigured()
-                        ? 'AI viết caption theo ý tưởng (bỏ trống = giới thiệu cửa hàng). Mỗi bài chỉ 1 ảnh hoặc 1 video. Không gắn media = random ảnh default1–3. Video tự xóa sau khi đăng.'
-                        : 'Chưa cấu hình Instagram — vào Cài đặt hệ thống để nhập Access Token và User ID.')
+                        ? 'AI viết caption khi tới lượt đăng (bỏ trống ý tưởng = giới thiệu cửa hàng). Mỗi bài chỉ 1 ảnh hoặc 1 video. Không gắn media = random ảnh default1–3. Video tự xóa sau khi đăng.'
+                        : 'Chưa cấu hình Instagram — vào Cài đặt hệ thống để thêm tài khoản.')
                     ->schema([
                         Placeholder::make('instagram_status')
-                            ->label('Kết nối Instagram')
+                            ->label('Tài khoản Instagram')
                             ->content(fn (): string => $this->instagramAccountLabel
                                 ?? (InstagramSettings::isConfigured() ? 'Đã cấu hình' : 'Chưa cấu hình'))
                             ->helperText(fn (): ?string => InstagramSettings::isConfigured()
                                 ? null
-                                : 'Mở Cài đặt hệ thống → Instagram để nhập token và ID tài khoản.'),
+                                : 'Mở Cài đặt hệ thống → Instagram để thêm một hoặc nhiều tài khoản.'),
                         Repeater::make('records')
                             ->label('')
                             ->columns(6)
@@ -257,7 +264,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     {
         return $table
             ->query(
-                InstagramQueueItem::query()->latest('id')
+                InstagramQueueItem::query()->with('instagramAccount')->latest('id')
             )
             ->columns([
                 Tables\Columns\ImageColumn::make('image_path')
@@ -272,6 +279,10 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                         : 'data:image/svg+xml;base64,'.base64_encode(
                             '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect fill="#374151" width="48" height="48" rx="6"/><text x="24" y="28" text-anchor="middle" fill="#9CA3AF" font-size="10" font-family="sans-serif">AI</text></svg>'
                         )),
+                Tables\Columns\TextColumn::make('instagramAccount.name')
+                    ->label('Tài khoản IG')
+                    ->formatStateUsing(fn ($state, InstagramQueueItem $record): string => $record->instagramAccount?->displayLabel() ?? '—')
+                    ->placeholder('—'),
                 Tables\Columns\TextColumn::make('brand_domain')
                     ->label('Brand')
                     ->placeholder('—')
@@ -295,7 +306,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                 Tables\Columns\TextColumn::make('caption')
                     ->label('Caption')
                     ->limit(50)
-                    ->placeholder('—')
+                    ->placeholder('Tạo khi tới lượt')
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('scheduled_at')
                     ->label('Lên lịch')
@@ -316,6 +327,8 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     protected function getHeaderActions(): array
     {
         return [
+            $this->getFormDraftDiscardAction()
+                ->visible(fn (): bool => $this->activeTab === 'compose' && $this->formDraftExists()),
             Action::make('testInstagram')
                 ->label('Kiểm tra Instagram')
                 ->icon('heroicon-o-signal')
@@ -334,9 +347,11 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                 ->modalHeading('Đăng danh sách lên Instagram')
                 ->modalDescription(function (): string {
                     $service = app(InstagramQueueService::class);
-                    $count = $this->getRecordCount();
-                    $base = $count > 0
-                        ? "Sẽ xếp hàng {$count} bài. Mỗi bài cách {$this->queueIntervalMinutes} phút. AI viết caption theo ý tưởng."
+                    $postCount = $this->getRecordCount();
+                    $accountCount = count(InstagramAccount::enabledConfiguredIds());
+                    $total = $postCount * max(1, $accountCount);
+                    $base = $postCount > 0
+                        ? "Sẽ xếp hàng {$total} lượt đăng ({$postCount} bài × tài khoản đã chọn). Mỗi lượt cách {$this->queueIntervalMinutes} phút. AI tạo caption khi tới lượt."
                         : 'Chưa có bài hợp lệ — nhập dữ liệu, import file hoặc chọn danh sách đã lưu.';
 
                     if ($service->hasActiveQueue()) {
@@ -344,13 +359,25 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     }
 
                     if (! InstagramSettings::isConfigured()) {
-                        $base .= ' Instagram chưa được cấu hình — lưu token và User ID trước.';
+                        $base .= ' Instagram chưa được cấu hình — thêm tài khoản trong Cài đặt hệ thống.';
                     }
 
                     return $base;
                 })
                 ->modalSubmitActionLabel('Bắt đầu')
                 ->form([
+                    CheckboxList::make('instagram_account_ids')
+                        ->label('Tài khoản Instagram')
+                        ->options(fn (): array => InstagramAccount::optionsForSelect())
+                        ->default(fn (): array => InstagramAccount::enabledConfiguredIds())
+                        ->columns(1)
+                        ->required()
+                        ->visible(fn (): bool => InstagramAccount::optionsForSelect() !== [])
+                        ->helperText('Mặc định chọn tất cả. Bỏ chọn tài khoản không muốn đăng.'),
+                    Placeholder::make('no_instagram_accounts')
+                        ->label('Tài khoản Instagram')
+                        ->content('Chưa có tài khoản — vào Cài đặt hệ thống → Instagram để thêm.')
+                        ->visible(fn (): bool => InstagramAccount::optionsForSelect() === []),
                     Placeholder::make('active_queue_warning')
                         ->label('Cảnh báo')
                         ->content(function (): string {
@@ -557,31 +584,66 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     public function testInstagramConnection(): void
     {
-        $graph = app(InstagramGraphService::class);
-        $result = $graph->testConnection();
+        $accounts = InstagramAccount::query()
+            ->where('enabled', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (InstagramAccount $account): bool => $account->isConfigured());
 
-        if ($result === null) {
+        if ($accounts->isEmpty()) {
             Notification::make()
-                ->title('Không kết nối được Instagram')
-                ->body($graph->lastError ?? 'Kiểm tra token và User ID.')
-                ->danger()
+                ->title('Chưa có tài khoản Instagram')
+                ->body('Thêm tài khoản trong Cài đặt hệ thống → Instagram.')
+                ->warning()
                 ->send();
 
             return;
         }
 
-        $label = '@'.($result['username'] ?? $result['id']);
-        if (filled($result['name'] ?? null)) {
-            $label .= ' ('.$result['name'].')';
+        $graph = app(InstagramGraphService::class);
+        $ok = [];
+        $failed = [];
+
+        foreach ($accounts as $account) {
+            $result = $graph->forAccount($account)->testConnection($account);
+
+            if ($result === null) {
+                $failed[] = $account->displayLabel().': '.($graph->lastError ?? 'lỗi');
+                continue;
+            }
+
+            $label = '@'.($result['username'] ?? $result['id']);
+            if (filled($result['name'] ?? null)) {
+                $label .= ' ('.$result['name'].')';
+            }
+
+            $ok[] = $account->displayLabel().' → '.$label;
         }
 
-        $this->instagramAccountLabel = $label;
+        if ($ok !== []) {
+            $this->instagramAccountLabel = count($ok).' tài khoản OK';
+        }
 
-        Notification::make()
-            ->title('Kết nối Instagram thành công')
-            ->body($label)
-            ->success()
-            ->send();
+        if ($failed === []) {
+            Notification::make()
+                ->title('Kết nối Instagram thành công')
+                ->body(implode("\n", $ok))
+                ->success()
+                ->send();
+
+            return;
+        }
+
+        $notification = Notification::make()
+            ->title($ok !== [] ? 'Một số tài khoản lỗi' : 'Không kết nối được Instagram')
+            ->body(trim(collect($ok)->merge($failed)->implode("\n")));
+
+        if ($ok !== []) {
+            $notification->warning()->send();
+        } else {
+            $notification->danger()->send();
+        }
     }
 
     public function refreshInstagramAccountLabel(): void
@@ -592,16 +654,19 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return;
         }
 
-        $graph = app(InstagramGraphService::class);
-        $result = $graph->testConnection();
+        $labels = InstagramAccount::query()
+            ->where('enabled', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (InstagramAccount $account): bool => $account->isConfigured())
+            ->map(fn (InstagramAccount $account): string => $account->displayLabel())
+            ->values()
+            ->all();
 
-        if ($result === null) {
-            $this->instagramAccountLabel = 'Lỗi: '.($graph->lastError ?? 'không kết nối được');
-
-            return;
-        }
-
-        $this->instagramAccountLabel = '@'.($result['username'] ?? $result['id']);
+        $this->instagramAccountLabel = $labels !== []
+            ? implode(' · ', $labels)
+            : 'Chưa có tài khoản hợp lệ';
     }
 
     public function publishRecords(array $data): void
@@ -622,12 +687,28 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return;
         }
 
+        $accountIds = collect($data['instagram_account_ids'] ?? [])
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->values()
+            ->all();
+
+        if ($accountIds === []) {
+            Notification::make()
+                ->title('Chưa chọn tài khoản Instagram')
+                ->body('Chọn ít nhất một tài khoản trong popup đăng bài.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
         $startAt = ($data['publish_mode'] ?? 'immediate') === 'scheduled'
             ? Carbon::parse($data['scheduled_start_at'])
             : now();
 
         $service = app(InstagramQueueService::class);
-        $batchId = $service->enqueue($records, Filament::auth()->user(), $startAt);
+        $batchId = $service->enqueue($records, Filament::auth()->user(), $startAt, $accountIds);
 
         if ($batchId === null) {
             Notification::make()
@@ -639,21 +720,23 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return;
         }
 
-        $count = count($records);
-        $minutes = ($count - 1) * $this->queueIntervalMinutes;
+        $postCount = count($records);
+        $queueCount = $postCount * count($accountIds);
+        $minutes = ($queueCount - 1) * $this->queueIntervalMinutes;
         $startLabel = $startAt->isFuture()
             ? $startAt->format('d/m/Y H:i')
             : 'ngay bây giờ';
 
         Notification::make()
-            ->title('Đã xếp hàng '.$count.' bài Instagram')
+            ->title('Đã xếp hàng '.$queueCount.' lượt đăng')
             ->body($minutes > 0
-                ? "Bắt đầu {$startLabel} · cách {$this->queueIntervalMinutes} phút/bài."
-                : "Bắt đầu từ {$startLabel}.")
+                ? "({$postCount} bài × ".count($accountIds)." TK) Bắt đầu {$startLabel} · cách {$this->queueIntervalMinutes} phút/lượt."
+                : "({$postCount} bài × ".count($accountIds)." TK) Bắt đầu từ {$startLabel}.")
             ->success()
             ->send();
 
         $this->resetFormAfterPublish();
+        $this->clearFormDraft();
         $this->refreshQueue();
         $this->activeTab = 'queue';
     }
@@ -668,6 +751,36 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         if ($this->activeTab === 'queue') {
             $this->resetTable();
         }
+    }
+
+    public function releaseStuckProcessing(): void
+    {
+        $service = app(InstagramQueueService::class);
+
+        if (! $service->hasStuckProcessing()) {
+            Notification::make()
+                ->title('Không có bài bị kẹt')
+                ->body('Không có bài nào đang ở trạng thái «Đang đăng».')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        $released = $service->releaseStuckProcessingItems(force: true);
+
+        Notification::make()
+            ->title('Đã mở kẹt hàng đợi')
+            ->body("Đã đưa {$released} bài về «Chờ đăng» để thử lại.")
+            ->success()
+            ->send();
+
+        $this->refreshQueue();
+    }
+
+    public function canReleaseStuckProcessing(): bool
+    {
+        return app(InstagramQueueService::class)->hasStuckProcessing();
     }
 
     public function cancelPendingQueue(): void
@@ -721,6 +834,76 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             'import_file' => null,
             'saved_list_id' => null,
         ]);
+    }
+
+    protected function formDraftKey(): string
+    {
+        return FormDraftService::key('instagram_publish');
+    }
+
+    protected function formDraftIgnoredFields(): array
+    {
+        return ['import_file'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function formDraftHasContent(array $data): bool
+    {
+        if (filled($data['saved_list_id'] ?? null)) {
+            return true;
+        }
+
+        $records = $data['records'] ?? [];
+
+        if (! is_array($records)) {
+            return false;
+        }
+
+        return collect($records)
+            ->filter(fn (mixed $record): bool => is_array($record) && $this->recordRowHasContent($record))
+            ->isNotEmpty();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDraftBeforeRestore(array $data): array
+    {
+        $data['import_file'] = null;
+
+        if (! is_array($data['records'] ?? null) || $data['records'] === []) {
+            $data['records'] = [$this->emptyRecordRow()];
+        }
+
+        $savedListId = (int) ($data['saved_list_id'] ?? 0);
+        if ($savedListId > 0) {
+            $list = InstagramSavedList::query()->find($savedListId);
+            if ($list) {
+                $this->loadedSavedListId = $list->id;
+                $this->loadedSavedListName = $list->name;
+            } else {
+                $data['saved_list_id'] = null;
+            }
+        }
+
+        return $data;
+    }
+
+    protected function resetPageFormAfterDraftDiscard(): void
+    {
+        $this->loadedSavedListId = null;
+        $this->loadedSavedListName = null;
+
+        $this->form->fill([
+            'records' => [$this->emptyRecordRow()],
+            'import_file' => null,
+            'saved_list_id' => null,
+        ]);
+
+        $this->formDraftRestored = false;
     }
 
     /**

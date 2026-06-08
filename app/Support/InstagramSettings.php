@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\InstagramAccount;
+
 class InstagramSettings
 {
     public static function isEnabled(): bool
@@ -9,46 +11,46 @@ class InstagramSettings
         return (bool) AdminSettings::get('instagram_enabled', false);
     }
 
+    /**
+     * @deprecated Use InstagramAccount model per account.
+     */
     public static function accessToken(): ?string
     {
-        $token = AdminSettings::getEncrypted('instagram_access_token');
+        $account = static::primaryAccount();
 
-        if (! is_string($token)) {
-            return null;
-        }
-
-        $token = trim($token);
-        if ($token === '') {
-            return null;
-        }
-
-        if (str_starts_with(strtolower($token), 'bearer ')) {
-            $token = trim(substr($token, 7));
-        }
-
-        // Strip invisible / stray whitespace from paste.
-        $token = preg_replace('/[\x00-\x1F\x7F\x{200B}-\x{200D}\x{FEFF}]/u', '', $token) ?? $token;
-
-        return $token !== '' ? $token : null;
+        return $account?->normalizedAccessToken();
     }
 
+    /**
+     * @deprecated Use InstagramAccount model per account.
+     */
     public static function usesInstagramLoginApi(): bool
     {
-        $token = static::accessToken();
+        $account = static::primaryAccount();
 
-        return is_string($token) && str_starts_with($token, 'IG');
+        return $account?->usesInstagramLoginApi() ?? false;
     }
 
-    public static function apiHost(): string
+    public static function apiHostForAccount(?InstagramAccount $account = null): string
     {
-        return static::usesInstagramLoginApi()
+        $account ??= static::primaryAccount();
+
+        return ($account?->usesInstagramLoginApi() ?? false)
             ? 'graph.instagram.com'
             : 'graph.facebook.com';
     }
 
+    public static function apiHost(): string
+    {
+        return static::apiHostForAccount();
+    }
+
+    /**
+     * @deprecated Use InstagramAccount model per account.
+     */
     public static function userId(): ?string
     {
-        $id = trim((string) AdminSettings::get('instagram_user_id', ''));
+        $id = trim((string) (static::primaryAccount()?->user_id ?? ''));
 
         return $id !== '' ? $id : null;
     }
@@ -88,15 +90,23 @@ class InstagramSettings
 
     public static function isConfigured(): bool
     {
-        if (! static::isEnabled() || static::accessToken() === null) {
+        if (! static::isEnabled()) {
             return false;
         }
 
-        // Token IGAA… (Instagram Login): user_id lấy tự động từ /me.
-        if (static::usesInstagramLoginApi()) {
-            return true;
-        }
+        return InstagramAccount::query()
+            ->where('enabled', true)
+            ->get()
+            ->contains(fn (InstagramAccount $account): bool => $account->isConfigured());
+    }
 
-        return static::userId() !== null;
+    public static function primaryAccount(): ?InstagramAccount
+    {
+        return InstagramAccount::query()
+            ->where('enabled', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->first(fn (InstagramAccount $account): bool => $account->isConfigured());
     }
 }

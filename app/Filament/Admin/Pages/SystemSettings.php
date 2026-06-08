@@ -2,11 +2,14 @@
 
 namespace App\Filament\Admin\Pages;
 
+use App\Models\InstagramAccount;
 use App\Support\AdminSettings;
 use App\Support\MailSettings;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -79,8 +82,19 @@ class SystemSettings extends Page implements HasForms
             'auto_blog_variant_comparison' => (bool) AdminSettings::get('auto_blog_variant_comparison', true),
             'auto_blog_queue_interval_minutes' => (int) AdminSettings::get('auto_blog_queue_interval_minutes', 10),
             'instagram_enabled' => (bool) AdminSettings::get('instagram_enabled', false),
-            'instagram_access_token' => AdminSettings::getEncrypted('instagram_access_token') ? '********' : '',
-            'instagram_user_id' => (string) AdminSettings::get('instagram_user_id', ''),
+            'instagram_accounts' => InstagramAccount::query()
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+                ->map(fn (InstagramAccount $account): array => [
+                    'id' => $account->id,
+                    'name' => $account->name,
+                    'access_token' => filled($account->access_token) ? '********' : '',
+                    'user_id' => $account->user_id,
+                    'enabled' => $account->enabled,
+                ])
+                ->values()
+                ->all(),
             'instagram_graph_version' => (string) AdminSettings::get('instagram_graph_version', 'v21.0'),
             'instagram_queue_interval_minutes' => (int) AdminSettings::get('instagram_queue_interval_minutes', 30),
             'instagram_public_base_url' => (string) AdminSettings::get('instagram_public_base_url', ''),
@@ -173,22 +187,44 @@ class SystemSettings extends Page implements HasForms
                     ])
                     ->columns(3),
                 Section::make('Instagram (Meta Graph API)')
-                    ->description('Token IGAA… (Instagram Login) dùng graph.instagram.com — chỉ cần token. Token EAA… (Facebook Login) dùng graph.facebook.com — cần thêm Instagram User ID. Ảnh đăng phải truy cập công khai qua HTTPS.')
                     ->schema([
                         Toggle::make('instagram_enabled')
                             ->label('Bật đăng Instagram')
                             ->inline(false),
-                        TextInput::make('instagram_access_token')
-                            ->label('Access Token')
-                            ->password()
-                            ->revealable()
-                            ->helperText('Token IGAA… từ Business Login for Instagram, hoặc EAA… từ Facebook Login. Nhập key mới để lưu; để "********" giữ token hiện tại; để trống xóa.')
-                            ->maxLength(2048)
+                        Repeater::make('instagram_accounts')
+                            ->label('Tài khoản Instagram')
+                            ->schema([
+                                Hidden::make('id'),
+                                TextInput::make('name')
+                                    ->label('Tên gợi nhớ')
+                                    ->placeholder('Shop chính, Brand A…')
+                                    ->maxLength(120),
+                                TextInput::make('access_token')
+                                    ->label('Access Token')
+                                    ->password()
+                                    ->revealable()
+                                    ->helperText('Nhập token mới để lưu; "********" giữ token hiện tại; để trống bỏ qua dòng mới.')
+                                    ->maxLength(2048)
+                                    ->columnSpanFull(),
+                                TextInput::make('user_id')
+                                    ->label('Instagram User ID')
+                                    ->helperText('Có thể để trống.')
+                                    ->maxLength(64),
+                                Toggle::make('enabled')
+                                    ->label('Bật')
+                                    ->default(true)
+                                    ->inline(false),
+                            ])
+                            ->columns(2)
+                            ->defaultItems(1)
+                            ->addActionLabel('Thêm tài khoản')
+                            ->reorderable()
+                            ->collapsible()
+                            ->collapsed()
+                            ->itemLabel(fn (array $state): ?string => filled($state['name'] ?? null)
+                                ? (string) $state['name']
+                                : (filled($state['user_id'] ?? null) ? 'ID '.$state['user_id'] : 'Tài khoản mới'))
                             ->columnSpanFull(),
-                        TextInput::make('instagram_user_id')
-                            ->label('Instagram User ID')
-                            ->helperText('Bắt buộc với token EAA…. Với token IGAA… có thể để trống (hệ thống tự lấy từ token).')
-                            ->maxLength(64),
                         TextInput::make('instagram_graph_version')
                             ->label('Graph API version')
                             ->default('v21.0')
@@ -199,13 +235,12 @@ class SystemSettings extends Page implements HasForms
                             ->minValue(1)
                             ->maxValue(1440)
                             ->default(30)
-                            ->helperText('Áp dụng cho trang «Đăng bài mạng xã hội» — Instagram khuyến nghị không đăng quá dày.')
+                           
                             ->required(),
                         TextInput::make('instagram_public_base_url')
                             ->label('URL công khai (HTTPS)')
                             ->url()
                             ->placeholder('https://your-domain.com')
-                            ->helperText('Bắt buộc khi chạy localhost — Meta phải tải ảnh từ URL công khai (domain thật hoặc ngrok).')
                             ->maxLength(500)
                             ->columnSpanFull(),
                         TextInput::make('instagram_default_image_url')
@@ -363,15 +398,50 @@ class SystemSettings extends Page implements HasForms
         AdminSettings::setEncrypted('mail_password', $value !== '' ? $value : null);
     }
 
-    protected function saveInstagramAccessToken(array $data): void
+    protected function saveInstagramAccounts(array $data): void
     {
-        $value = trim((string) ($data['instagram_access_token'] ?? ''));
+        $rows = is_array($data['instagram_accounts'] ?? null) ? $data['instagram_accounts'] : [];
+        $keptIds = [];
 
-        if ($value === '********') {
-            return;
+        foreach ($rows as $index => $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $tokenInput = trim((string) ($row['access_token'] ?? ''));
+            $accountId = filled($row['id'] ?? null) ? (int) $row['id'] : null;
+
+            /** @var InstagramAccount|null $account */
+            $account = $accountId ? InstagramAccount::query()->find($accountId) : null;
+
+            if ($account === null && ($tokenInput === '' || $tokenInput === '********')) {
+                continue;
+            }
+
+            if ($account === null) {
+                $account = new InstagramAccount;
+            }
+
+            $account->name = filled($row['name'] ?? null) ? trim((string) $row['name']) : null;
+            $account->user_id = filled($row['user_id'] ?? null) ? trim((string) $row['user_id']) : null;
+            $account->enabled = (bool) ($row['enabled'] ?? true);
+            $account->sort_order = (int) $index;
+
+            if ($tokenInput !== '' && $tokenInput !== '********') {
+                $account->access_token = $tokenInput;
+            } elseif (! $account->exists) {
+                continue;
+            }
+
+            $account->save();
+            $keptIds[] = $account->id;
         }
 
-        AdminSettings::setEncrypted('instagram_access_token', $value !== '' ? $value : null);
+        if ($keptIds !== []) {
+            InstagramAccount::query()->whereNotIn('id', $keptIds)->delete();
+        } else {
+            InstagramAccount::query()->delete();
+        }
     }
 
     public function save(): void
@@ -413,8 +483,7 @@ class SystemSettings extends Page implements HasForms
         AdminSettings::set('auto_blog_queue_interval_minutes', max(1, min(1440, (int) ($data['auto_blog_queue_interval_minutes'] ?? 10))));
 
         AdminSettings::set('instagram_enabled', (bool) ($data['instagram_enabled'] ?? false));
-        $this->saveInstagramAccessToken($data);
-        AdminSettings::set('instagram_user_id', trim((string) ($data['instagram_user_id'] ?? '')));
+        $this->saveInstagramAccounts($data);
         AdminSettings::set('instagram_graph_version', trim((string) ($data['instagram_graph_version'] ?? 'v21.0')));
         AdminSettings::set('instagram_queue_interval_minutes', max(1, min(1440, (int) ($data['instagram_queue_interval_minutes'] ?? 30))));
         AdminSettings::set('instagram_public_base_url', trim((string) ($data['instagram_public_base_url'] ?? '')));
