@@ -3,11 +3,9 @@
 namespace App\Services;
 
 use App\Models\InstagramQueueItem;
-use App\Support\AdminSettings;
 use App\Support\InstagramSettings;
 use App\Support\PublicStorage;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 
 class InstagramPostImageService
 {
@@ -222,114 +220,69 @@ class InstagramPostImageService
     {
         PublicStorage::ensureDirectory('instagram-generated');
         $dest = "instagram-generated/item-{$item->id}.jpg";
+        $destAbsolute = $this->absolutePath($dest);
 
-        if (extension_loaded('gd')) {
-            $this->renderTextCard($item, $this->absolutePath($dest));
-
+        $defaultSource = $this->pickRandomDefaultImage();
+        if ($defaultSource !== null && $this->copyImageAsJpeg($defaultSource, $destAbsolute)) {
             return $dest;
-        }
-
-        $fallbackUrl = trim((string) AdminSettings::get('instagram_default_image_url', ''));
-        if ($fallbackUrl === '') {
-            $fallbackUrl = trim((string) AdminSettings::get('seo_og_image_default', ''));
-        }
-
-        if ($fallbackUrl !== '' && filter_var($fallbackUrl, FILTER_VALIDATE_URL)) {
-            try {
-                $bytes = Http::timeout(20)->get($fallbackUrl)->body();
-                if ($bytes !== '') {
-                    PublicStorage::put($dest, $bytes);
-
-                    return $dest;
-                }
-            } catch (\Throwable) {
-                // fall through
-            }
         }
 
         return $this->copyDefaultJpeg($dest);
     }
 
-    protected function renderTextCard(InstagramQueueItem $item, string $destAbsolute): void
+    protected function pickRandomDefaultImage(): ?string
     {
-        $width = 1080;
-        $height = 1080;
-        $image = imagecreatetruecolor($width, $height);
-
-        $bg = imagecolorallocate($image, 17, 24, 39);
-        $accent = imagecolorallocate($image, 245, 158, 11);
-        $white = imagecolorallocate($image, 248, 250, 252);
-        imagefill($image, 0, 0, $bg);
-
-        $title = filled($item->brand_domain)
-            ? Str::upper(GeminiBlogService::guessBrandNameFromDomain(
-                GeminiBlogService::normalizeDomain((string) $item->brand_domain) ?? (string) $item->brand_domain
-            ))
-            : config('app.name', 'Deal');
-
-        $lines = $this->wrapText(
-            filled($item->content_idea)
-                ? (string) $item->content_idea
-                : 'Exclusive deals & promo codes — link in bio.',
-            28,
-        );
-
-        if (is_array($item->coupon_codes) && $item->coupon_codes !== []) {
-            $lines[] = '';
-            $lines[] = 'CODE: '.implode(' · ', array_slice($item->coupon_codes, 0, 3));
+        $candidates = $this->defaultImagePaths();
+        if ($candidates === []) {
+            return null;
         }
 
-        imagefilledrectangle($image, 60, 60, $width - 60, 64, $accent);
-        imagestring($image, 5, 72, 100, $this->truncate($title, 32), $accent);
-
-        $y = 180;
-        foreach ($lines as $line) {
-            if ($y > $height - 120) {
-                break;
-            }
-            imagestring($image, 4, 72, $y, $this->truncate($line, 42), $white);
-            $y += 36;
-        }
-
-        imagejpeg($image, $destAbsolute, 90);
-        imagedestroy($image);
+        return $candidates[array_rand($candidates)];
     }
 
     /**
      * @return array<int, string>
      */
-    protected function wrapText(string $text, int $maxCharsPerLine): array
+    protected function defaultImagePaths(): array
     {
-        $text = preg_replace('/\s+/u', ' ', trim($text)) ?? trim($text);
-        $words = explode(' ', $text);
-        $lines = [];
-        $current = '';
+        $paths = [];
+        $directory = public_path('images/instagram');
 
-        foreach ($words as $word) {
-            $candidate = $current === '' ? $word : $current.' '.$word;
-            if (mb_strlen($candidate) <= $maxCharsPerLine) {
-                $current = $candidate;
-                continue;
-            }
-
-            if ($current !== '') {
-                $lines[] = $current;
-            }
-            $current = $word;
+        if (! is_dir($directory)) {
+            return [];
         }
 
-        if ($current !== '') {
-            $lines[] = $current;
+        foreach (['default1', 'default2', 'default3'] as $name) {
+            foreach (['webp', 'jpg', 'jpeg', 'png'] as $extension) {
+                $absolute = $directory.DIRECTORY_SEPARATOR.$name.'.'.$extension;
+                if (is_file($absolute)) {
+                    $paths[] = $absolute;
+                    break;
+                }
+            }
         }
 
-        return array_slice($lines, 0, 12);
+        return $paths;
     }
 
-    protected function truncate(string $text, int $max): string
+    protected function copyImageAsJpeg(string $sourceAbsolute, string $destAbsolute): bool
     {
-        $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        if (extension_loaded('gd')) {
+            $image = $this->loadImage($sourceAbsolute);
+            if ($image !== null) {
+                $saved = imagejpeg($image, $destAbsolute, 90);
+                imagedestroy($image);
 
-        return mb_strlen($text) <= $max ? $text : mb_substr($text, 0, $max - 1).'…';
+                return $saved && is_file($destAbsolute);
+            }
+        }
+
+        $mime = mime_content_type($sourceAbsolute) ?: '';
+        if (str_contains($mime, 'jpeg') || str_contains($mime, 'jpg')) {
+            return copy($sourceAbsolute, $destAbsolute);
+        }
+
+        return false;
     }
 
     protected function loadImage(string $absolutePath): ?\GdImage

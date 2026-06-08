@@ -176,7 +176,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     ]),
                 Section::make('Chi tiết bài đăng Instagram')
                     ->description(fn (): string => InstagramSettings::isConfigured()
-                        ? 'AI viết caption theo ý tưởng (bỏ trống = giới thiệu cửa hàng). Mỗi bài chỉ 1 ảnh hoặc 1 video. Video tự xóa sau khi đăng.'
+                        ? 'AI viết caption theo ý tưởng (bỏ trống = giới thiệu cửa hàng). Mỗi bài chỉ 1 ảnh hoặc 1 video. Không gắn media = random ảnh default1–3. Video tự xóa sau khi đăng.'
                         : 'Chưa cấu hình Instagram — vào Cài đặt hệ thống để nhập Access Token và User ID.')
                     ->schema([
                         Placeholder::make('instagram_status')
@@ -224,7 +224,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
                                         return PublicStorage::syncUploadedPath($stored);
                                     })
-                                    ->helperText('Chỉ 1 file: ảnh (JPG/PNG, ≤8MB) hoặc video (MP4/MOV, ≤100MB). Bỏ trống = tự tạo ảnh. Video tự xóa sau khi đăng.')
+                                    ->helperText('Chỉ 1 file: ảnh (JPG/PNG, ≤8MB) hoặc video (MP4/MOV, ≤100MB). Bỏ trống = random ảnh default1–3 trong public/images/instagram. Video tự xóa sau khi đăng.')
                                     ->columnSpan(['default' => 6, 'md' => 2]),
                                 TextInput::make('brand_domain')
                                     ->label('Domain brand')
