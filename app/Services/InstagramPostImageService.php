@@ -40,7 +40,11 @@ class InstagramPostImageService
 
     public function signedPublicUrl(InstagramQueueItem $item): ?string
     {
-        $this->ensureStoredJpegForItem($item);
+        if (filled($item->video_path)) {
+            PublicStorage::syncUploadedPath((string) $item->video_path);
+        } else {
+            $this->ensureStoredJpegForItem($item);
+        }
 
         $base = InstagramSettings::publicBaseUrl();
         if ($base === null) {
@@ -93,6 +97,76 @@ class InstagramPostImageService
         }
 
         return null;
+    }
+
+    public function validatePublicVideoUrl(string $url): ?string
+    {
+        try {
+            $response = Http::timeout(20)
+                ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; InstagramBot/1.0)'])
+                ->head($url);
+
+            if (! $response->successful()) {
+                $response = Http::timeout(30)
+                    ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; InstagramBot/1.0)'])
+                    ->withOptions(['stream' => true])
+                    ->get($url);
+            }
+
+            if (! $response->successful()) {
+                return 'Meta không truy cập được URL video (HTTP '.$response->status().'). Kiểm tra URL công khai HTTPS.';
+            }
+
+            $contentType = strtolower((string) $response->header('Content-Type', ''));
+            if ($contentType !== '' && ! str_contains($contentType, 'video/')) {
+                return 'URL video trả về Content-Type không phải video ('.$contentType.').';
+            }
+        } catch (\Throwable $e) {
+            return 'Không kiểm tra được URL video: '.$e->getMessage();
+        }
+
+        return null;
+    }
+
+    public function resolveMediaAbsolutePath(InstagramQueueItem $item): string
+    {
+        if (filled($item->video_path)) {
+            $path = $this->normalizeStoragePath($item->video_path);
+            if ($path === null) {
+                throw new \RuntimeException('File video không tồn tại trên máy chủ.');
+            }
+
+            return $this->absolutePath($path);
+        }
+
+        $path = $this->ensureStoredJpegForItem($item);
+
+        return $this->absolutePath($path);
+    }
+
+    public function mediaContentType(InstagramQueueItem $item): string
+    {
+        if (filled($item->video_path)) {
+            $path = $this->normalizeStoragePath($item->video_path);
+            if ($path !== null) {
+                $mime = mime_content_type($this->absolutePath($path)) ?: 'video/mp4';
+
+                return $mime;
+            }
+        }
+
+        return 'image/jpeg';
+    }
+
+    public function deleteStoredVideo(InstagramQueueItem $item): void
+    {
+        $path = $this->normalizeStoragePath($item->video_path);
+        if ($path === null) {
+            return;
+        }
+
+        PublicStorage::delete($path);
+        $item->update(['video_path' => null]);
     }
 
     protected function normalizeStoragePath(?string $path): ?string

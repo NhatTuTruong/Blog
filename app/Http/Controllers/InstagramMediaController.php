@@ -16,11 +16,10 @@ class InstagramMediaController extends Controller
             abort(403);
         }
 
-        $path = $images->ensureStoredJpegForItem($item);
-        $absolutePath = $images->absolutePath($path);
+        $absolutePath = $images->resolveMediaAbsolutePath($item);
 
         return response()->file($absolutePath, [
-            'Content-Type' => 'image/jpeg',
+            'Content-Type' => $images->mediaContentType($item),
             'Cache-Control' => 'public, max-age=3600',
         ]);
     }

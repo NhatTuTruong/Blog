@@ -107,13 +107,7 @@ class InstagramQueueService
             ->values();
 
         if ($validRecords->isEmpty()) {
-            $this->lastError = 'Chưa có bản ghi hợp lệ (nhập domain, ý tưởng caption hoặc tải ảnh).';
-
-            return null;
-        }
-
-        if (! AdminSettings::hasGeminiApiKey()) {
-            $this->lastError = 'Gemini API key chưa được cấu hình trong Cài đặt hệ thống.';
+            $this->lastError = 'Chưa có bản ghi hợp lệ (nhập domain, ý tưởng, tải ảnh/video, hoặc link AFF/coupon).';
 
             return null;
         }
@@ -136,15 +130,30 @@ class InstagramQueueService
                 ->values()
                 ->all();
 
+            $brandDomain = filled($record['brand_domain'] ?? null) ? trim((string) $record['brand_domain']) : null;
+            $contentIdea = filled($record['content_idea'] ?? null) ? trim((string) $record['content_idea']) : null;
+            $affLink = filled($record['aff_link'] ?? null) ? trim((string) $record['aff_link']) : null;
+
+            $gemini = app(GeminiInstagramService::class);
+            $caption = $gemini->generateCaption(
+                $brandDomain,
+                $contentIdea,
+                $affLink,
+                $couponCodes,
+            );
+
             InstagramQueueItem::query()->create([
                 'batch_id' => $batchId,
                 'user_id' => $user?->id,
                 'sort_order' => $index,
-                'brand_domain' => filled($record['brand_domain'] ?? null) ? trim((string) $record['brand_domain']) : null,
-                'content_idea' => filled($record['content_idea'] ?? null) ? trim((string) $record['content_idea']) : null,
-                'aff_link' => filled($record['aff_link'] ?? null) ? trim((string) $record['aff_link']) : null,
+                'brand_domain' => $brandDomain,
+                'content_idea' => $contentIdea,
+                'aff_link' => $affLink,
                 'coupon_codes' => $couponCodes !== [] ? $couponCodes : null,
                 'image_path' => filled($record['image'] ?? null) ? trim((string) $record['image']) : null,
+                'video_path' => filled($record['video'] ?? null) ? trim((string) $record['video']) : null,
+                'caption' => $caption,
+                'used_default_caption' => $gemini->usedDefaultCaption,
                 'status' => InstagramQueueItem::STATUS_PENDING,
                 'scheduled_at' => $baseTime->copy()->addMinutes($index * $interval),
             ]);
@@ -192,7 +201,12 @@ class InstagramQueueService
                 'error_message' => null,
             ]);
 
-            return ['processed' => true, 'item' => $item->fresh(), 'media_id' => $mediaId];
+            $item = $item->fresh();
+            if ($item instanceof InstagramQueueItem && filled($item->video_path)) {
+                app(InstagramPostImageService::class)->deleteStoredVideo($item);
+            }
+
+            return ['processed' => true, 'item' => $item, 'media_id' => $mediaId];
         } catch (\Throwable $e) {
             $message = $e->getMessage();
             $this->lastError = $message;
@@ -218,6 +232,8 @@ class InstagramQueueService
     public function publishQueueItem(InstagramQueueItem $item): string
     {
         $caption = $item->caption;
+        $usedDefaultCaption = (bool) $item->used_default_caption;
+
         if (! filled($caption)) {
             $gemini = app(GeminiInstagramService::class);
             $caption = $gemini->generateCaption(
@@ -226,28 +242,38 @@ class InstagramQueueService
                 $item->aff_link,
                 is_array($item->coupon_codes) ? $item->coupon_codes : [],
             );
+            $usedDefaultCaption = $gemini->usedDefaultCaption;
 
-            if (! filled($caption)) {
-                throw new \RuntimeException($gemini->lastError ?? 'Không thể tạo caption từ AI.');
-            }
-
-            $item->update(['caption' => $caption]);
+            $item->update([
+                'caption' => $caption,
+                'used_default_caption' => $usedDefaultCaption,
+            ]);
         }
 
-        $images = app(InstagramPostImageService::class);
-        $imageUrl = $images->signedPublicUrl($item);
+        $media = app(InstagramPostImageService::class);
+        $mediaUrl = $media->signedPublicUrl($item);
 
-        if ($imageUrl === null) {
-            throw new \RuntimeException($images->lastError ?? 'Không tạo được URL ảnh công khai.');
-        }
-
-        $urlError = $images->validatePublicImageUrl($imageUrl);
-        if ($urlError !== null) {
-            throw new \RuntimeException($urlError);
+        if ($mediaUrl === null) {
+            throw new \RuntimeException($media->lastError ?? 'Không tạo được URL media công khai.');
         }
 
         $graph = app(InstagramGraphService::class);
-        $mediaId = $graph->publishImage($imageUrl, (string) $caption);
+
+        if (filled($item->video_path)) {
+            $urlError = $media->validatePublicVideoUrl($mediaUrl);
+            if ($urlError !== null) {
+                throw new \RuntimeException($urlError);
+            }
+
+            $mediaId = $graph->publishVideo($mediaUrl, (string) $caption);
+        } else {
+            $urlError = $media->validatePublicImageUrl($mediaUrl);
+            if ($urlError !== null) {
+                throw new \RuntimeException($urlError);
+            }
+
+            $mediaId = $graph->publishImage($mediaUrl, (string) $caption);
+        }
 
         if ($mediaId === null) {
             throw new \RuntimeException($graph->lastError ?? 'Không thể đăng lên Instagram.');
@@ -261,7 +287,15 @@ class InstagramQueueService
      */
     protected function recordHasContent(array $record): bool
     {
+        if (filled($record['media'] ?? null)) {
+            return true;
+        }
+
         if (filled($record['image'] ?? null)) {
+            return true;
+        }
+
+        if (filled($record['video'] ?? null)) {
             return true;
         }
 
@@ -305,5 +339,12 @@ class InstagramQueueService
         return InstagramQueueItem::query()
             ->where('status', InstagramQueueItem::STATUS_PENDING)
             ->delete();
+    }
+
+    public function hasPendingQueue(): bool
+    {
+        return InstagramQueueItem::query()
+            ->where('status', InstagramQueueItem::STATUS_PENDING)
+            ->exists();
     }
 }

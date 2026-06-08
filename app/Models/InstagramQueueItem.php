@@ -24,7 +24,9 @@ class InstagramQueueItem extends Model
         'aff_link',
         'coupon_codes',
         'image_path',
+        'video_path',
         'caption',
+        'used_default_caption',
         'instagram_media_id',
         'status',
         'scheduled_at',
@@ -37,6 +39,7 @@ class InstagramQueueItem extends Model
         'scheduled_at' => 'datetime',
         'processed_at' => 'datetime',
         'sort_order' => 'integer',
+        'used_default_caption' => 'boolean',
     ];
 
     public function user(): BelongsTo
@@ -44,8 +47,18 @@ class InstagramQueueItem extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function usesDefaultCaptionInQueue(): bool
+    {
+        return (bool) $this->used_default_caption
+            && in_array($this->status, [self::STATUS_PENDING, self::STATUS_PROCESSING], true);
+    }
+
     public function statusLabel(): string
     {
+        if ($this->usesDefaultCaptionInQueue()) {
+            return 'Chờ đăng';
+        }
+
         return match ($this->status) {
             self::STATUS_PENDING => 'Chờ đăng',
             self::STATUS_PROCESSING => 'Đang đăng',

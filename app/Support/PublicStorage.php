@@ -111,6 +111,21 @@ class PublicStorage
         return asset('storage/'.$path);
     }
 
+    public static function delete(string $relativePath): bool
+    {
+        $path = static::normalizePath($relativePath);
+        if ($path === '') {
+            return false;
+        }
+
+        $absolute = static::absolutePath($path);
+        if (! is_file($absolute)) {
+            return false;
+        }
+
+        return unlink($absolute);
+    }
+
     public static function put(string $relativePath, string $contents): bool
     {
         $path = static::normalizePath($relativePath);

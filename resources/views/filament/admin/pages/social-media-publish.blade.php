@@ -50,7 +50,7 @@
 
             >
 
-                Soạn bài
+                Soạn danh sách
 
                 @if ($recordCount > 0)
 
