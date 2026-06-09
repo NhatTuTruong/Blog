@@ -70,17 +70,7 @@ trait ManagesFacebookPublish
                                 }
                             })
                             ->columnSpan(['default' => 12, 'md' => 5]),
-                        FileUpload::make('import_file')
-                            ->label('Import Excel / CSV')
-                            ->disk('local')
-                            ->directory('facebook-imports')
-                            ->visibility('private')
-                            ->acceptedFileTypes([
-                                'text/csv', 'text/plain',
-                                'application/vnd.ms-excel',
-                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                            ])
-                            ->maxSize(5120)
+                        $this->importExcelFileUploadField('facebook-imports')
                             ->columnSpan(['default' => 12, 'md' => 4]),
                         Placeholder::make('summary')
                             ->label('Tóm tắt')
@@ -342,7 +332,7 @@ trait ManagesFacebookPublish
 
     public function importFacebookFromFile(): void
     {
-        $count = $this->runImportFromForm($this->facebookData, 'facebook');
+        $count = $this->runImportFromForm(null, 'facebook');
 
         if ($count === null) {
             return;

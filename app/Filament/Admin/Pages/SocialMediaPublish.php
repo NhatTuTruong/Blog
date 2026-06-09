@@ -307,6 +307,12 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         ] as $directory) {
             PublicStorage::ensureDirectory($directory);
         }
+
+        foreach (['instagram-imports', 'facebook-imports'] as $directory) {
+            if (! Storage::disk('local')->exists($directory)) {
+                Storage::disk('local')->makeDirectory($directory);
+            }
+        }
     }
 
     /**
@@ -468,18 +474,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                                         }
                                     })
                                     ->columnSpan(['default' => 12, 'md' => 5]),
-                                FileUpload::make('import_file')
-                                    ->label('Import Excel / CSV')
-                                    ->disk('local')
-                                    ->directory('instagram-imports')
-                                    ->visibility('private')
-                                    ->acceptedFileTypes([
-                                        'text/csv',
-                                        'text/plain',
-                                        'application/vnd.ms-excel',
-                                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                                    ])
-                                    ->maxSize(5120)
+                                $this->importExcelFileUploadField('instagram-imports')
                                     ->columnSpan(['default' => 12, 'md' => 4]),
                                 Placeholder::make('summary')
                                     ->label('Tóm tắt')
@@ -1177,15 +1172,80 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         return $this->runImportFromForm($state, $platform) !== null;
     }
 
-    protected function syncComposeFormState(string $platform): void
+    protected function syncComposeFormState(string $platform, bool $shouldValidate = true): void
     {
+        $this->normalizeComposeFormFileState($platform);
+
         if ($platform === 'facebook') {
-            $this->facebookData = $this->facebookForm->getState();
+            $this->facebookData = $this->facebookForm->getState($shouldValidate);
 
             return;
         }
 
-        $this->instagramData = $this->instagramForm->getState();
+        $this->instagramData = $this->instagramForm->getState($shouldValidate);
+    }
+
+    protected function syncImportFileState(string $platform): void
+    {
+        $property = $platform === 'facebook' ? 'facebookData' : 'instagramData';
+        $form = $platform === 'facebook' ? $this->facebookForm : $this->instagramForm;
+        $data = is_array($this->{$property}) ? $this->{$property} : [];
+
+        if (is_array($data['import_file'] ?? null)) {
+            $data['import_file'] = $this->normalizeImportFileState($data['import_file']);
+            $this->{$property} = $data;
+            $form->fill($data);
+        }
+
+        $importField = collect($form->getFlatFields(withHidden: true))
+            ->first(fn (mixed $field): bool => $field instanceof FileUpload && $field->getName() === 'import_file');
+
+        if (! $importField instanceof FileUpload) {
+            return;
+        }
+
+        $importField->saveUploadedFiles();
+
+        $data['import_file'] = $importField->getState();
+        $this->{$property} = $data;
+    }
+
+    protected function normalizeComposeFormFileState(string $platform): void
+    {
+        $property = $platform === 'facebook' ? 'facebookData' : 'instagramData';
+        $data = $this->{$property};
+
+        if (! is_array($data)) {
+            return;
+        }
+
+        if (is_array($data['import_file'] ?? null)) {
+            $data['import_file'] = $this->normalizeImportFileState($data['import_file']);
+        }
+
+        if (is_array($data['records'] ?? null)) {
+            $data['records'] = collect($data['records'])
+                ->map(function (mixed $record): mixed {
+                    if (! is_array($record)) {
+                        return $record;
+                    }
+
+                    if (is_array($record['media'] ?? null)) {
+                        $record['media'] = $record['media'][array_key_first($record['media'])] ?? null;
+                    }
+
+                    return $record;
+                })
+                ->all();
+        }
+
+        $this->{$property} = $data;
+
+        if ($platform === 'facebook') {
+            $this->facebookForm->fill($data);
+        } else {
+            $this->instagramForm->fill($data);
+        }
     }
 
     protected function validFacebookRecordsFromForm(): array
@@ -1382,13 +1442,22 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     protected function runImportFromForm(?array $state = null, ?string $platform = null): ?int
     {
         $platform = $this->sanitizePlatform($platform ?? $this->activePlatform);
-        $state ??= $this->platformFormData($platform);
+
+        if ($state === null) {
+            $this->syncImportFileState($platform);
+            $state = $this->platformFormData($platform);
+        }
+
         $path = $this->resolveImportPathFromState($state);
 
         if ($path === null) {
+            $hasUpload = filled($this->normalizeImportFileState($state['import_file'] ?? null));
+
             Notification::make()
-                ->title('Chưa chọn file')
-                ->body('Upload file Excel/CSV trước.')
+                ->title($hasUpload ? 'File chưa sẵn sàng' : 'Chưa chọn file')
+                ->body($hasUpload
+                    ? 'Đợi file hiển thị «Tải lên thành công» rồi bấm Import lại.'
+                    : 'Upload file Excel/CSV trước.')
                 ->warning()
                 ->send();
 
@@ -1446,27 +1515,58 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
      */
     protected function resolveImportPathFromState(array $state): ?string
     {
-        $file = $state['import_file'] ?? null;
+        $file = $this->normalizeImportFileState($state['import_file'] ?? null);
 
-        if (blank($file)) {
-            return null;
-        }
-
-        if (is_array($file)) {
-            $file = $file[array_key_first($file)] ?? null;
-        }
-
-        if (blank($file)) {
+        if ($file === null) {
             return null;
         }
 
         $disk = Storage::disk('local');
 
-        if (! $disk->exists((string) $file)) {
+        if ($disk->exists($file)) {
+            return $disk->path($file);
+        }
+
+        foreach (['instagram-imports', 'facebook-imports'] as $directory) {
+            $candidate = $directory.'/'.$file;
+            if ($disk->exists($candidate)) {
+                return $disk->path($candidate);
+            }
+        }
+
+        return is_file($file) ? $file : null;
+    }
+
+    protected function normalizeImportFileState(mixed $file): ?string
+    {
+        if (is_array($file)) {
+            $file = $file[array_key_first($file)] ?? null;
+        }
+
+        if (! is_string($file) || blank($file)) {
             return null;
         }
 
-        return $disk->path((string) $file);
+        return ltrim(str_replace('\\', '/', trim($file)), '/');
+    }
+
+    protected function importExcelFileUploadField(string $directory): FileUpload
+    {
+        return FileUpload::make('import_file')
+            ->label('Import Excel / CSV')
+            ->disk('local')
+            ->directory($directory)
+            ->visibility('private')
+            ->extraInputAttributes([
+                'accept' => '.csv,.txt,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])
+            ->rule(File::types(['csv', 'txt', 'xls', 'xlsx'])->max(5120))
+            ->maxSize(5120)
+            ->fetchFileInformation(false)
+            ->live()
+            ->afterStateUpdated(function (FileUpload $component): void {
+                $component->saveUploadedFiles();
+            });
     }
 
     protected function deleteImportFile(string $absolutePath): void
@@ -1607,7 +1707,6 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                 ->disk('public')
                 ->directory($uploadDir)
                 ->visibility('public')
-                ->maxFiles(1)
                 ->maxSize(UploadLimits::mediaMaxSizeKilobytes())
                 ->fetchFileInformation(false)
                 ->live()
