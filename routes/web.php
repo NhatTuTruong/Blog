@@ -71,6 +71,9 @@ Route::middleware(['web', 'auth'])->prefix('admin/received-emails')->group(funct
 Route::get('/instagram/media/{item}', [App\Http\Controllers\InstagramMediaController::class, 'show'])
     ->name('instagram.media');
 
+Route::get('/facebook/media/{item}', [App\Http\Controllers\FacebookMediaController::class, 'show'])
+    ->name('facebook.media');
+
 Route::get('/terms', function () {
     return view('legal.terms');
 })->name('legal.terms');

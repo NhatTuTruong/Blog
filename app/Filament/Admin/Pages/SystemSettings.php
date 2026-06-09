@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Pages;
 
+use App\Models\FacebookAccount;
 use App\Models\InstagramAccount;
 use App\Support\AdminSettings;
 use App\Support\MailSettings;
@@ -99,6 +100,23 @@ class SystemSettings extends Page implements HasForms
             'instagram_queue_interval_minutes' => (int) AdminSettings::get('instagram_queue_interval_minutes', 30),
             'instagram_public_base_url' => (string) AdminSettings::get('instagram_public_base_url', ''),
             'instagram_default_image_url' => (string) AdminSettings::get('instagram_default_image_url', ''),
+            'facebook_enabled' => (bool) AdminSettings::get('facebook_enabled', false),
+            'facebook_accounts' => FacebookAccount::query()
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get()
+                ->map(fn (FacebookAccount $account): array => [
+                    'id' => $account->id,
+                    'name' => $account->name,
+                    'page_id' => $account->page_id,
+                    'access_token' => filled($account->access_token) ? '********' : '',
+                    'enabled' => $account->enabled,
+                ])
+                ->values()
+                ->all(),
+            'facebook_graph_version' => (string) AdminSettings::get('facebook_graph_version', 'v21.0'),
+            'facebook_queue_interval_minutes' => (int) AdminSettings::get('facebook_queue_interval_minutes', 30),
+            'facebook_public_base_url' => (string) AdminSettings::get('facebook_public_base_url', ''),
             'seo_title_suffix' => (string) AdminSettings::get('seo_title_suffix', '- ' . config('app.name')),
             'seo_meta_description_default' => (string) AdminSettings::get('seo_meta_description_default', 'Latest articles and insights from our blog.'),
             'seo_og_image_default' => (string) AdminSettings::get('seo_og_image_default', ''),
@@ -248,6 +266,66 @@ class SystemSettings extends Page implements HasForms
                             ->label('Ảnh mặc định (URL, tùy chọn)')
                             ->url()
                             ->helperText('Dùng khi không tải ảnh và server không tạo được ảnh tự động.')
+                            ->maxLength(500)
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(3),
+                Section::make('Facebook Page (Meta Graph API)')
+                    ->description('Cần Page Access Token (EAA…) với quyền pages_manage_posts và Page ID. Ảnh/video phải truy cập công khai qua HTTPS.')
+                    ->schema([
+                        Toggle::make('facebook_enabled')
+                            ->label('Bật đăng Facebook')
+                            ->inline(false),
+                        Repeater::make('facebook_accounts')
+                            ->label('Trang Facebook')
+                            ->schema([
+                                Hidden::make('id'),
+                                TextInput::make('name')
+                                    ->label('Tên gợi nhớ')
+                                    ->placeholder('Fanpage chính…')
+                                    ->maxLength(120),
+                                TextInput::make('page_id')
+                                    ->label('Page ID')
+                                    ->required()
+                                    ->maxLength(64),
+                                TextInput::make('access_token')
+                                    ->label('Page Access Token')
+                                    ->password()
+                                    ->revealable()
+                                    ->helperText('Token EAA… của Page. Nhập mới để lưu; "********" giữ token hiện tại.')
+                                    ->maxLength(2048)
+                                    ->columnSpanFull(),
+                                Toggle::make('enabled')
+                                    ->label('Bật')
+                                    ->default(true)
+                                    ->inline(false),
+                            ])
+                            ->columns(2)
+                            ->defaultItems(1)
+                            ->addActionLabel('Thêm trang')
+                            ->reorderable()
+                            ->collapsible()
+                            ->collapsed()
+                            ->itemLabel(fn (array $state): ?string => filled($state['name'] ?? null)
+                                ? (string) $state['name']
+                                : (filled($state['page_id'] ?? null) ? 'Page '.$state['page_id'] : 'Trang mới'))
+                            ->columnSpanFull(),
+                        TextInput::make('facebook_graph_version')
+                            ->label('Graph API version')
+                            ->default('v21.0')
+                            ->maxLength(20),
+                        TextInput::make('facebook_queue_interval_minutes')
+                            ->label('Khoảng cách đăng hàng đợi (phút)')
+                            ->numeric()
+                            ->minValue(1)
+                            ->maxValue(1440)
+                            ->default(30)
+                            ->required(),
+                        TextInput::make('facebook_public_base_url')
+                            ->label('URL công khai (HTTPS)')
+                            ->url()
+                            ->placeholder('https://your-domain.com')
+                            ->helperText('Để trống = dùng URL Instagram hoặc APP_URL.')
                             ->maxLength(500)
                             ->columnSpanFull(),
                     ])
@@ -445,6 +523,57 @@ class SystemSettings extends Page implements HasForms
         }
     }
 
+    protected function saveFacebookAccounts(array $data): void
+    {
+        $rows = is_array($data['facebook_accounts'] ?? null) ? $data['facebook_accounts'] : [];
+        $keptIds = [];
+
+        foreach ($rows as $index => $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $tokenInput = trim((string) ($row['access_token'] ?? ''));
+            $accountId = filled($row['id'] ?? null) ? (int) $row['id'] : null;
+            $pageId = filled($row['page_id'] ?? null) ? trim((string) $row['page_id']) : '';
+
+            /** @var FacebookAccount|null $account */
+            $account = $accountId ? FacebookAccount::query()->find($accountId) : null;
+
+            if ($account === null && ($tokenInput === '' || $tokenInput === '********')) {
+                continue;
+            }
+
+            if ($account === null) {
+                $account = new FacebookAccount;
+            }
+
+            if ($pageId === '' && ! $account->exists) {
+                continue;
+            }
+
+            $account->name = filled($row['name'] ?? null) ? trim((string) $row['name']) : null;
+            $account->page_id = $pageId !== '' ? $pageId : $account->page_id;
+            $account->enabled = (bool) ($row['enabled'] ?? true);
+            $account->sort_order = (int) $index;
+
+            if ($tokenInput !== '' && $tokenInput !== '********') {
+                $account->access_token = $tokenInput;
+            } elseif (! $account->exists) {
+                continue;
+            }
+
+            $account->save();
+            $keptIds[] = $account->id;
+        }
+
+        if ($keptIds !== []) {
+            FacebookAccount::query()->whereNotIn('id', $keptIds)->delete();
+        } else {
+            FacebookAccount::query()->delete();
+        }
+    }
+
     public function save(): void
     {
         $data = $this->form->getState();
@@ -489,6 +618,12 @@ class SystemSettings extends Page implements HasForms
         AdminSettings::set('instagram_queue_interval_minutes', max(1, min(1440, (int) ($data['instagram_queue_interval_minutes'] ?? 30))));
         AdminSettings::set('instagram_public_base_url', trim((string) ($data['instagram_public_base_url'] ?? '')));
         AdminSettings::set('instagram_default_image_url', trim((string) ($data['instagram_default_image_url'] ?? '')));
+
+        AdminSettings::set('facebook_enabled', (bool) ($data['facebook_enabled'] ?? false));
+        $this->saveFacebookAccounts($data);
+        AdminSettings::set('facebook_graph_version', trim((string) ($data['facebook_graph_version'] ?? 'v21.0')));
+        AdminSettings::set('facebook_queue_interval_minutes', max(1, min(1440, (int) ($data['facebook_queue_interval_minutes'] ?? 30))));
+        AdminSettings::set('facebook_public_base_url', trim((string) ($data['facebook_public_base_url'] ?? '')));
 
         AdminSettings::set('seo_title_suffix', trim((string) ($data['seo_title_suffix'] ?? ('- ' . config('app.name')))));
         AdminSettings::set('seo_meta_description_default', trim((string) ($data['seo_meta_description_default'] ?? 'Latest articles and insights from our blog.')));

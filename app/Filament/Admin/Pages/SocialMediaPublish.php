@@ -4,11 +4,13 @@ namespace App\Filament\Admin\Pages;
 
 use App\Exports\InstagramTemplateExport;
 use App\Filament\Admin\Pages\SystemSettings;
+use App\Filament\Admin\Concerns\ManagesFacebookPublish;
 use App\Filament\Concerns\HasFormDraft;
 use App\Models\InstagramAccount;
 use App\Models\InstagramQueueItem;
 use App\Models\InstagramSavedList;
 use App\Models\User;
+use App\Services\FacebookImportService;
 use App\Services\InstagramGraphService;
 use App\Services\InstagramImportService;
 use App\Services\InstagramQueueService;
@@ -54,6 +56,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     use HasFormDraft;
     use InteractsWithForms;
     use InteractsWithTable;
+    use ManagesFacebookPublish;
 
     protected static ?string $navigationIcon = 'heroicon-o-share';
 
@@ -87,6 +90,12 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     public ?string $instagramAccountLabel = null;
 
+    protected ?array $instagramFormSnapshot = null;
+
+    protected ?int $instagramLoadedSavedListId = null;
+
+    protected ?string $instagramLoadedSavedListName = null;
+
     public ?int $loadedSavedListId = null;
 
     public ?string $loadedSavedListName = null;
@@ -119,22 +128,42 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     {
         $this->queueIntervalMinutes = app(InstagramQueueService::class)->intervalMinutes();
 
-        $this->form->fill([
-            'records' => [$this->emptyRecordRow()],
-            'import_file' => null,
-            'saved_list_id' => null,
-        ]);
+        $this->form->fill($this->defaultComposeFormState());
 
         $this->restoreFormDraft();
 
         $this->refreshQueue();
         $this->refreshInstagramAccountLabel();
+        $this->refreshFacebookAccountLabel();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function defaultComposeFormState(): array
+    {
+        return [
+            'records' => [$this->emptyRecordRow()],
+            'import_file' => null,
+            'saved_list_id' => null,
+        ];
     }
 
     public function form(Form $form): Form
     {
         return $form
-            ->schema([
+            ->schema($this->activePlatform === 'facebook'
+                ? $this->getFacebookFormSchema()
+                : $this->getInstagramFormSchema())
+            ->statePath('data');
+    }
+
+    /**
+     * @return array<int, \Filament\Forms\Components\Component>
+     */
+    protected function getInstagramFormSchema(): array
+    {
+        return [
                 Section::make('Nguồn dữ liệu')
                     ->description('Chọn danh sách đã lưu (tự tải) hoặc upload Excel. File sẽ được import khi bạn nhấn «Đăng bài» hoặc «Import file».')
                     ->schema([
@@ -256,12 +285,15 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                                     ->columnSpan(['default' => 6, 'md' => 2]),
                             ]),
                     ]),
-            ])
-            ->statePath('data');
+        ];
     }
 
     public function table(Table $table): Table
     {
+        if ($this->activePlatform === 'facebook') {
+            return $this->facebookTable($table);
+        }
+
         return $table
             ->query(
                 InstagramQueueItem::query()->with('instagramAccount')->latest('id')
@@ -328,6 +360,13 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     protected function getHeaderActions(): array
     {
+        if ($this->activePlatform === 'facebook') {
+            return array_merge([
+                $this->getFormDraftDiscardAction()
+                    ->visible(fn (): bool => $this->activeTab === 'compose' && $this->formDraftExists()),
+            ], $this->getFacebookHeaderActions());
+        }
+
         return [
             $this->getFormDraftDiscardAction()
                 ->visible(fn (): bool => $this->activeTab === 'compose' && $this->formDraftExists()),
@@ -345,7 +384,6 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                 ->label('Đăng bài')
                 ->icon('heroicon-o-sparkles')
                 ->color('success')
-                ->visible(fn (): bool => $this->activePlatform === 'instagram')
                 ->modalHeading('Đăng danh sách lên Instagram')
                 ->modalDescription(function (): string {
                     $service = app(InstagramQueueService::class);
@@ -745,6 +783,12 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     public function refreshQueue(): void
     {
+        if ($this->activePlatform === 'facebook') {
+            $this->refreshFacebookQueue();
+
+            return;
+        }
+
         $service = app(InstagramQueueService::class);
         $service->recoverStaleProcessingItems();
         $this->queueStats = $service->queueStats();
@@ -757,6 +801,12 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     public function releaseStuckProcessing(): void
     {
+        if ($this->activePlatform === 'facebook') {
+            $this->releaseFacebookStuckProcessing();
+
+            return;
+        }
+
         $service = app(InstagramQueueService::class);
 
         if (! $service->hasStuckProcessing()) {
@@ -782,11 +832,21 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     public function canReleaseStuckProcessing(): bool
     {
+        if ($this->activePlatform === 'facebook') {
+            return $this->canReleaseFacebookStuckProcessing();
+        }
+
         return app(InstagramQueueService::class)->hasStuckProcessing();
     }
 
     public function cancelPendingQueue(): void
     {
+        if ($this->activePlatform === 'facebook') {
+            $this->cancelFacebookPendingQueue();
+
+            return;
+        }
+
         $service = app(InstagramQueueService::class);
 
         if (! $service->hasPendingQueue()) {
@@ -811,6 +871,10 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     public function canCancelPendingQueue(): bool
     {
+        if ($this->activePlatform === 'facebook') {
+            return $this->canCancelFacebookPendingQueue();
+        }
+
         return app(InstagramQueueService::class)->hasPendingQueue();
     }
 
@@ -831,16 +895,14 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         $this->loadedSavedListId = null;
         $this->loadedSavedListName = null;
 
-        $this->form->fill([
-            'records' => [$this->emptyRecordRow()],
-            'import_file' => null,
-            'saved_list_id' => null,
-        ]);
+        $this->form->fill($this->defaultComposeFormState());
     }
 
     protected function formDraftKey(): string
     {
-        return FormDraftService::key('instagram_publish');
+        return $this->activePlatform === 'facebook'
+            ? $this->facebookFormDraftKey()
+            : FormDraftService::key('instagram_publish');
     }
 
     protected function formDraftIgnoredFields(): array
@@ -882,7 +944,9 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
         $savedListId = (int) ($data['saved_list_id'] ?? 0);
         if ($savedListId > 0) {
-            $list = InstagramSavedList::query()->find($savedListId);
+            $list = $this->activePlatform === 'facebook'
+                ? \App\Models\FacebookSavedList::query()->find($savedListId)
+                : InstagramSavedList::query()->find($savedListId);
             if ($list) {
                 $this->loadedSavedListId = $list->id;
                 $this->loadedSavedListName = $list->name;
@@ -899,11 +963,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         $this->loadedSavedListId = null;
         $this->loadedSavedListName = null;
 
-        $this->form->fill([
-            'records' => [$this->emptyRecordRow()],
-            'import_file' => null,
-            'saved_list_id' => null,
-        ]);
+        $this->form->fill($this->defaultComposeFormState());
 
         $this->formDraftRestored = false;
     }
@@ -926,7 +986,9 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return null;
         }
 
-        $import = app(InstagramImportService::class);
+        $import = $this->activePlatform === 'facebook'
+            ? app(FacebookImportService::class)
+            : app(InstagramImportService::class);
         $items = $import->parseFile($path);
 
         if ($items === []) {
