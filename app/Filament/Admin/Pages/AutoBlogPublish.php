@@ -190,7 +190,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                                     ->placeholder('General')
                                     ->columnSpan(['default' => 6, 'md' => 2]),
                                 TextInput::make('aff_link')
-                                    ->label('Link AFF')
+                                    ->label('Link Affiliate')
                                     ->url()
                                     ->maxLength(2048)
                                     ->placeholder('https://…')

@@ -110,7 +110,7 @@ class AutoBlogImportService
                 in_array($normalized, ['domain brand', 'brand domain', 'domain', 'brand_domain', 'brand'], true) => 'brand_domain',
                 in_array($normalized, ['danh muc bai viet', 'danh mục bài viết', 'category', 'blog category', 'blog_category'], true) => 'blog_category_id',
                 in_array($normalized, ['noi dung y tuong', 'nội dung ý tưởng', 'nội dung / ý tưởng', 'content idea', 'content_idea', 'content', 'idea'], true) => 'content_idea',
-                in_array($normalized, ['link aff', 'aff link', 'aff_link', 'affiliate', 'aff'], true) => 'aff_link',
+                in_array($normalized, ['Link Affiliate', 'aff link', 'aff_link', 'affiliate', 'aff'], true) => 'aff_link',
                 in_array($normalized, ['coupon code', 'coupon codes', 'coupon_code', 'coupon_codes', 'coupon', 'coupons'], true) => 'coupon_codes',
                 default => null,
             };
@@ -196,7 +196,7 @@ class AutoBlogImportService
     public static function templateCsvContent(): string
     {
         $lines = [
-            'Domain brand,Danh mục bài viết,Nội dung / ý tưởng,Link AFF,Coupon code',
+            'Domain brand,Danh mục bài viết,Nội dung / ý tưởng,Link Affiliate,Coupon code',
             'nike.com,Shoes,Review giày chạy bộ mới,https://example.com/aff,SAVE10',
             'amazon.com,Tech,Top laptop 2026,,DEAL20;EXTRA5',
         ];

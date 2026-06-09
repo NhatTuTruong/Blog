@@ -54,11 +54,11 @@ class ListBlogs extends ListRecords
                         ->placeholder('Mô tả góc bài, sản phẩm cần nhắc, điểm nhấn muốn AI viết…')
                         ->helperText('AI sẽ viết bài theo ý tưởng này. Không bắt buộc.'),
                     Forms\Components\TextInput::make('aff_link')
-                        ->label('Link AFF')
+                        ->label('Link Affiliate')
                         ->url()
                         ->maxLength(2048)
                         ->placeholder('https://…')
-                        ->helperText('Link affiliate dùng cho CTA trong bài. Không bắt buộc — nếu trống sẽ dùng website chính thức của brand.'),
+                        ->helperText('Link Affiliateiliate dùng cho CTA trong bài. Không bắt buộc — nếu trống sẽ dùng website chính thức của brand.'),
                     Forms\Components\TagsInput::make('coupon_codes')
                         ->label('Coupon code')
                         ->placeholder('Nhập mã rồi nhấn Enter')

@@ -72,7 +72,7 @@ class InstagramImportService
         }
 
         if ($items === []) {
-            $this->lastError = 'Không có dòng hợp lệ (cần ít nhất Domain, ý tưởng, Link AFF hoặc Coupon).';
+            $this->lastError = 'Không có dòng hợp lệ (cần ít nhất Domain, ý tưởng, Link Affiliate hoặc Coupon).';
         }
 
         return $items;
@@ -96,7 +96,7 @@ class InstagramImportService
             $field = match (true) {
                 in_array($normalized, ['domain brand', 'brand domain', 'domain', 'brand_domain', 'brand'], true) => 'brand_domain',
                 in_array($normalized, ['noi dung y tuong', 'nội dung ý tưởng', 'nội dung / ý tưởng', 'content idea', 'content_idea', 'content', 'idea', 'y tuong caption', 'ý tưởng caption'], true) => 'content_idea',
-                in_array($normalized, ['link aff', 'aff link', 'aff_link', 'affiliate', 'aff'], true) => 'aff_link',
+                in_array($normalized, ['Link Affiliate', 'aff link', 'aff_link', 'affiliate', 'aff'], true) => 'aff_link',
                 in_array($normalized, ['coupon code', 'coupon codes', 'coupon_code', 'coupon_codes', 'coupon', 'coupons'], true) => 'coupon_codes',
                 default => null,
             };

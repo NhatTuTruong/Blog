@@ -12,7 +12,7 @@ class FacebookTemplateExport implements FromArray, WithHeadings
         return [
             'Domain brand',
             'Nội dung / ý tưởng',
-            'Link AFF',
+            'Link Affiliate',
             'Coupon code',
         ];
     }

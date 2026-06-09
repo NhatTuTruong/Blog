@@ -13,6 +13,7 @@ use App\Services\FacebookSavedListService;
 use App\Support\FacebookSettings;
 use App\Support\FormDraftService;
 use App\Support\PublicStorage;
+use App\Filament\Admin\Support\SocialMediaQueueTable;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -105,7 +106,6 @@ trait ManagesFacebookPublish
                         ->columns(6)
                         ->defaultItems(1)
                         ->collapsible()
-                        ->collapsed()
                         ->cloneable()
                         ->addActionLabel('Thêm dòng')
                         ->itemLabel(fn (array $state): ?string => filled($state['brand_domain'] ?? null)
@@ -116,7 +116,7 @@ trait ManagesFacebookPublish
                         ->schema([
                             ...$this->socialMediaRepeaterUploadFields('facebook-uploads', 'facebook-temp-videos'),
                             TextInput::make('brand_domain')->label('Domain brand')->placeholder('nike.com')->maxLength(255)->columnSpan(['default' => 6, 'md' => 2]),
-                            TextInput::make('aff_link')->label('Link AFF')->url()->maxLength(2048)->columnSpan(['default' => 6, 'md' => 2]),
+                            TextInput::make('aff_link')->label('Link Affiliate')->url()->maxLength(2048)->columnSpan(['default' => 6, 'md' => 2]),
                             Textarea::make('content_idea')->label('Ý tưởng nội dung cho AI')->rows(4)->maxLength(2000)->columnSpan(['default' => 6, 'md' => 4]),
                             TagsInput::make('coupon_codes')->label('Coupon')->placeholder('Enter')->columnSpan(['default' => 6, 'md' => 2]),
                         ]),
@@ -136,20 +136,7 @@ trait ManagesFacebookPublish
                 Tables\Columns\TextColumn::make('facebookAccount.name')->label('Trang FB')
                     ->formatStateUsing(fn ($state, FacebookQueueItem $record): string => $record->facebookAccount?->displayLabel() ?? '—'),
                 Tables\Columns\TextColumn::make('brand_domain')->label('Brand')->searchable(),
-                Tables\Columns\TextColumn::make('status')->label('Trạng thái')->badge()
-                    ->formatStateUsing(fn (string $state, FacebookQueueItem $record): string => $record->statusLabel())
-                    ->color(fn (string $state): string => match ($state) {
-                        FacebookQueueItem::STATUS_PENDING => 'warning',
-                        FacebookQueueItem::STATUS_PROCESSING => 'info',
-                        FacebookQueueItem::STATUS_COMPLETED => 'success',
-                        FacebookQueueItem::STATUS_FAILED => 'danger',
-                        default => 'gray',
-                    })
-                    ->description(fn (FacebookQueueItem $record): ?string => match (true) {
-                        $record->status === FacebookQueueItem::STATUS_FAILED => $record->error_message,
-                        $record->used_default_caption && $record->status === FacebookQueueItem::STATUS_COMPLETED => filled($record->error_message) ? $record->error_message : 'Đã đăng với nội dung mặc định (AI lỗi)',
-                        default => null,
-                    }),
+                SocialMediaQueueTable::statusColumn(),
                 Tables\Columns\TextColumn::make('caption')->label('Nội dung')->limit(50)->placeholder('Tạo khi tới lượt')->toggleable(),
                 Tables\Columns\TextColumn::make('scheduled_at')->label('Lên lịch')->dateTime('d/m/Y H:i')->sortable(),
                 Tables\Columns\TextColumn::make('facebook_post_id')->label('Post ID')->toggleable(isToggledHiddenByDefault: true),
@@ -157,6 +144,10 @@ trait ManagesFacebookPublish
             ->defaultSort('id', 'desc')
             ->paginated([10, 25, 50])
             ->poll('30s')
+            ->actions([
+                SocialMediaQueueTable::detailAction('facebook'),
+            ])
+            ->bulkActions(SocialMediaQueueTable::bulkActions())
             ->emptyStateHeading('Chưa có bài trong hàng đợi Facebook');
     }
 

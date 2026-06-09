@@ -260,7 +260,7 @@ PROMPT;
         }
 
         if (filter_var($input, FILTER_VALIDATE_URL) === false) {
-            $this->lastError = 'Link AFF không hợp lệ.';
+            $this->lastError = 'Link Affiliate không hợp lệ.';
 
             return null;
         }

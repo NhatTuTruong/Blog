@@ -20,6 +20,7 @@ use App\Support\InstagramSettings;
 use App\Support\FormDraftService;
 use App\Support\PublicStorage;
 use App\Support\UploadLimits;
+use App\Filament\Admin\Support\SocialMediaQueueTable;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -29,6 +30,7 @@ use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\BaseFileUpload;
 use Filament\Forms\Components\FileUpload;
+use Illuminate\Validation\Rules\File;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
@@ -177,6 +179,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         $this->applyActivePlatformQueueStats();
         $this->syncLoadedSavedListMetaFromPlatform();
 
+        $this->ensureMediaUploadDirectories();
         $this->instagramForm->fill($this->instagramData);
         $this->facebookForm->fill($this->facebookData);
 
@@ -287,7 +290,23 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return;
         }
 
+        if (str_contains($property, '.media')) {
+            return;
+        }
+
         $this->persistFormDraft();
+    }
+
+    protected function ensureMediaUploadDirectories(): void
+    {
+        foreach ([
+            'instagram-uploads',
+            'instagram-temp-videos',
+            'facebook-uploads',
+            'facebook-temp-videos',
+        ] as $directory) {
+            PublicStorage::ensureDirectory($directory);
+        }
     }
 
     /**
@@ -480,7 +499,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     ]),
                 Section::make('Chi tiết bài đăng Instagram')
                     ->description(fn (): string => InstagramSettings::isConfigured()
-                        ? 'AI viết caption khi tới lượt đăng (bỏ trống ý tưởng = giới thiệu cửa hàng). Mỗi bài chỉ 1 ảnh hoặc 1 video. Không gắn media = random ảnh default1–3. Video tự xóa sau khi đăng.'
+                        ? ''
                         : 'Chưa cấu hình Instagram — vào Cài đặt hệ thống để thêm tài khoản.')
                     ->schema([
                         Placeholder::make('instagram_status')
@@ -495,7 +514,6 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                             ->columns(6)
                             ->defaultItems(1)
                             ->collapsible()
-                            ->collapsed()
                             ->cloneable()
                             ->addActionLabel('Thêm dòng')
                             ->itemLabel(fn (array $state): ?string => filled($state['brand_domain'] ?? null)
@@ -511,7 +529,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                                     ->maxLength(255)
                                     ->columnSpan(['default' => 6, 'md' => 2]),
                                 TextInput::make('aff_link')
-                                    ->label('Link AFF')
+                                    ->label('Link Affiliate')
                                     ->url()
                                     ->maxLength(2048)
                                     ->placeholder('https://…')
@@ -520,7 +538,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                                     ->label('Ý tưởng caption cho AI')
                                     ->rows(4)
                                     ->maxLength(2000)
-                                    ->helperText('Tùy chọn. Bỏ trống = AI viết đoạn Instagram ngắn giới thiệu cửa hàng. Có ý tưởng chi tiết (nhiều dòng/bullet) = caption bám sát hơn.')
+                                    ->helperText('Để trống AI viết đoạn Instagram ngắn giới thiệu cửa hàng. Có ý tưởng sẽ bám sát hơn.')
                                     ->columnSpan(['default' => 6, 'md' => 4]),
                                 TagsInput::make('coupon_codes')
                                     ->label('Coupon')
@@ -562,24 +580,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     ->label('Brand')
                     ->placeholder('—')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('status')
-                    ->label('Trạng thái')
-                    ->badge()
-                    ->formatStateUsing(fn (string $state, InstagramQueueItem $record): string => $record->statusLabel())
-                    ->color(fn (string $state): string => match ($state) {
-                        InstagramQueueItem::STATUS_PENDING => 'warning',
-                        InstagramQueueItem::STATUS_PROCESSING => 'info',
-                        InstagramQueueItem::STATUS_COMPLETED => 'success',
-                        InstagramQueueItem::STATUS_FAILED => 'danger',
-                        default => 'gray',
-                    })
-                    ->description(fn (InstagramQueueItem $record): ?string => match (true) {
-                        $record->status === InstagramQueueItem::STATUS_FAILED => $record->error_message,
-                        $record->used_default_caption && $record->status === InstagramQueueItem::STATUS_COMPLETED => filled($record->error_message)
-                            ? $record->error_message
-                            : 'Đã đăng với nội dung mặc định (AI lỗi)',
-                        default => null,
-                    }),
+                SocialMediaQueueTable::statusColumn(),
                 Tables\Columns\TextColumn::make('caption')
                     ->label('Caption')
                     ->limit(50)
@@ -597,6 +598,10 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             ->defaultSort('id', 'desc')
             ->paginated([10, 25, 50])
             ->poll('30s')
+            ->actions([
+                SocialMediaQueueTable::detailAction('instagram'),
+            ])
+            ->bulkActions(SocialMediaQueueTable::bulkActions())
             ->emptyStateHeading('Chưa có bài trong hàng đợi')
             ->emptyStateDescription('Đăng danh sách bài Instagram để bắt đầu xếp hàng tự động.');
     }
@@ -1161,6 +1166,8 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     protected function preparePlatformRecordsFromForm(string $platform): bool
     {
+        $this->syncComposeFormState($platform);
+
         $state = $this->platformFormData($platform);
 
         if (! filled($state['import_file'] ?? null)) {
@@ -1170,6 +1177,17 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         return $this->runImportFromForm($state, $platform) !== null;
     }
 
+    protected function syncComposeFormState(string $platform): void
+    {
+        if ($platform === 'facebook') {
+            $this->facebookData = $this->facebookForm->getState();
+
+            return;
+        }
+
+        $this->instagramData = $this->instagramForm->getState();
+    }
+
     protected function validFacebookRecordsFromForm(): array
     {
         return $this->validRecordsFromPlatform('facebook');
@@ -1177,6 +1195,8 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     protected function validRecordsFromPlatform(string $platform): array
     {
+        $this->syncComposeFormState($platform);
+
         return collect($this->platformFormData($platform)['records'] ?? [])
             ->filter(fn (array $record): bool => $this->recordRowHasContent($record))
             ->map(function (array $record): array {
@@ -1335,7 +1355,25 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
      */
     protected function formDraftDataForStorage(): array
     {
-        return $this->activeFormData();
+        $data = $this->activeFormData();
+
+        if (! is_array($data['records'] ?? null)) {
+            return $data;
+        }
+
+        $data['records'] = collect($data['records'])
+            ->map(function (mixed $record): mixed {
+                if (! is_array($record)) {
+                    return $record;
+                }
+
+                $record['media'] = null;
+
+                return $record;
+            })
+            ->all();
+
+        return $data;
     }
 
     /**
@@ -1526,7 +1564,9 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return null;
         }
 
-        return trim($media);
+        $path = trim($media);
+
+        return PublicStorage::syncUploadedPath($path) ?? $path;
     }
 
     /**
@@ -1560,28 +1600,50 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         return [
             FileUpload::make('media')
                 ->label('Ảnh hoặc video (tùy chọn)')
-                ->acceptedFileTypes([
-                    'image/jpeg',
-                    'image/png',
-                    'image/webp',
-                    'image/gif',
-                    'video/mp4',
-                    'video/quicktime',
-                    'video/webm',
+                ->mimeTypeMap(UploadLimits::mediaMimeTypeMap())
+                ->extraInputAttributes([
+                    'accept' => 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.webp,.gif,.mp4,.mov,.m4v,.webm',
                 ])
                 ->disk('public')
                 ->directory($uploadDir)
                 ->visibility('public')
                 ->maxFiles(1)
-                ->maxSize(102400)
+                ->maxSize(UploadLimits::mediaMaxSizeKilobytes())
+                ->fetchFileInformation(false)
+                ->live()
+                ->afterStateUpdated(function (FileUpload $component): void {
+                    $component->saveUploadedFiles();
+                })
+                ->rule(File::types(UploadLimits::mediaFileExtensions())->max(UploadLimits::mediaMaxSizeKilobytes()))
                 ->saveUploadedFileUsing(function ($file, BaseFileUpload $component) use ($uploadDir, $videoDir): ?string {
-                    $directory = str_starts_with((string) $file->getMimeType(), 'video/')
-                        ? $videoDir
-                        : $uploadDir;
-                    $filename = $component->getUploadedFileNameForStorage($file);
-                    $stored = PublicStorage::storeUploadedFile($file, $directory, $filename);
+                    if (! $file instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+                        return null;
+                    }
 
-                    return PublicStorage::syncUploadedPath($stored);
+                    try {
+                        $extension = strtolower((string) $file->getClientOriginalExtension());
+                        $mimeType = strtolower((string) $file->getMimeType());
+                        $isVideo = in_array($extension, ['mp4', 'mov', 'qt', 'm4v', 'webm'], true)
+                            || str_starts_with($mimeType, 'video/');
+
+                        $directory = $isVideo ? $videoDir : $uploadDir;
+                        PublicStorage::ensureDirectory($directory);
+
+                        $filename = $component->getUploadedFileNameForStorage($file);
+                        $stored = PublicStorage::storeUploadedFile($file, $directory, $filename);
+
+                        return PublicStorage::syncUploadedPath($stored);
+                    } catch (\Throwable $exception) {
+                        report($exception);
+
+                        Notification::make()
+                            ->title('Không lưu được file')
+                            ->body($exception->getMessage())
+                            ->danger()
+                            ->send();
+
+                        return null;
+                    }
                 })
                 ->helperText(fn (): string => UploadLimits::mediaUploadHelperText())
                 ->columnSpan(['default' => 6, 'md' => 2]),

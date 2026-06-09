@@ -129,7 +129,7 @@ class InstagramQueueService
             ->values();
 
         if ($validRecords->isEmpty()) {
-            $this->lastError = 'Chưa có bản ghi hợp lệ (nhập domain, ý tưởng, tải ảnh/video, hoặc link AFF/coupon).';
+            $this->lastError = 'Chưa có bản ghi hợp lệ (nhập domain, ý tưởng, tải ảnh/video, hoặc Link Affiliate/coupon).';
 
             return null;
         }

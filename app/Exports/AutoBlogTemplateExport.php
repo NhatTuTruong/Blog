@@ -13,7 +13,7 @@ class AutoBlogTemplateExport implements FromArray, WithHeadings
             'Domain brand',
             'Danh mục bài viết',
             'Nội dung / ý tưởng',
-            'Link AFF',
+            'Link Affiliate',
             'Coupon code',
         ];
     }

@@ -180,17 +180,19 @@
             </x-filament::button>
         </div>
 
-        {{-- Soạn bài: cả hai form luôn có trong DOM, Alpine ẩn/hiện tức thì --}}
+        {{-- Chỉ render form của platform đang chọn — tránh xung đột upload Livewire --}}
         <div x-show="tab === 'compose'" x-cloak>
-            <div wire:poll.10s="saveFormDraft" class="hidden" aria-hidden="true"></div>
+            <div wire:poll.30s="saveFormDraft" class="hidden" aria-hidden="true"></div>
 
-            <div x-show="platform === 'instagram'">
-                {{ $this->instagramForm }}
-            </div>
-
-            <div x-show="platform === 'facebook'">
-                {{ $this->facebookForm }}
-            </div>
+            @if ($activePlatform === 'instagram')
+                <div wire:key="compose-instagram-form">
+                    {{ $this->instagramForm }}
+                </div>
+            @else
+                <div wire:key="compose-facebook-form">
+                    {{ $this->facebookForm }}
+                </div>
+            @endif
         </div>
 
         {{-- Hàng đợi: stats đổi ngay qua Alpine; bảng sync nền qua Livewire --}}
@@ -246,10 +248,6 @@
             </section>
 
             @if ($activeTab === 'queue')
-                <div wire:loading.delay.shortest wire:target="switchPlatform,switchTab,refreshQueue" class="text-sm text-gray-500 dark:text-gray-400">
-                    Đang cập nhật bảng hàng đợi…
-                </div>
-
                 <div wire:loading.remove wire:target="switchPlatform,switchTab">
                     {{ $this->table }}
                 </div>
