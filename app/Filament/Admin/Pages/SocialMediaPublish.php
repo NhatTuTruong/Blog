@@ -193,13 +193,10 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     public function switchPlatform(string $platform): void
     {
         $platform = $this->sanitizePlatform($platform);
+        $previousPlatform = $this->sanitizePlatform($this->activePlatform);
 
-        if ($platform === $this->activePlatform) {
-            return;
-        }
-
-        if ($this->activeTab === 'compose') {
-            $this->persistFormDraft();
+        if ($this->activeTab === 'compose' && $platform !== $previousPlatform) {
+            $this->persistFormDraftForPlatform($previousPlatform);
         }
 
         $this->activePlatform = $platform;
@@ -207,7 +204,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         $this->applyActivePlatformQueueStats();
         $this->dispatchQueueStatsToBrowser();
 
-        if ($this->activeTab === 'queue') {
+        if ($this->activeTab === 'queue' && $platform !== $previousPlatform) {
             $this->resetTable();
         }
     }
@@ -215,20 +212,40 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     public function switchTab(string $tab): void
     {
         $tab = $this->sanitizeTab($tab);
+        $previousTab = $this->sanitizeTab($this->activeTab);
 
-        if ($tab === $this->activeTab) {
-            return;
-        }
-
-        if ($this->activeTab === 'compose') {
+        if ($previousTab === 'compose' && $tab !== $previousTab) {
             $this->persistFormDraft();
         }
 
         $this->activeTab = $tab;
 
-        if ($tab === 'queue') {
+        if ($tab === 'queue' && $tab !== $previousTab) {
             $this->refreshQueue();
         }
+    }
+
+    protected function persistFormDraftForPlatform(string $platform): void
+    {
+        $userId = $this->formDraftUserId();
+
+        if ($userId === null) {
+            return;
+        }
+
+        $key = $platform === 'facebook'
+            ? $this->facebookFormDraftKey()
+            : FormDraftService::key('instagram_publish');
+
+        $data = $platform === 'facebook' ? $this->facebookData : $this->instagramData;
+
+        if (! $this->formDraftHasContent($data)) {
+            FormDraftService::delete($userId, $key);
+
+            return;
+        }
+
+        FormDraftService::save($userId, $key, $data);
     }
 
     public function updatedActivePlatform(): void
@@ -1134,13 +1151,47 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     protected function prepareRecordsFromForm(): bool
     {
-        $state = $this->activeFormData();
+        return $this->preparePlatformRecordsFromForm($this->activePlatform);
+    }
+
+    protected function prepareFacebookRecordsFromForm(): bool
+    {
+        return $this->preparePlatformRecordsFromForm('facebook');
+    }
+
+    protected function preparePlatformRecordsFromForm(string $platform): bool
+    {
+        $state = $this->platformFormData($platform);
 
         if (! filled($state['import_file'] ?? null)) {
             return true;
         }
 
-        return $this->runImportFromForm($state) !== null;
+        return $this->runImportFromForm($state, $platform) !== null;
+    }
+
+    protected function validFacebookRecordsFromForm(): array
+    {
+        return $this->validRecordsFromPlatform('facebook');
+    }
+
+    protected function validRecordsFromPlatform(string $platform): array
+    {
+        return collect($this->platformFormData($platform)['records'] ?? [])
+            ->filter(fn (array $record): bool => $this->recordRowHasContent($record))
+            ->map(function (array $record): array {
+                $media = $this->normalizeMediaPath($record['media'] ?? null);
+                $split = $this->splitMediaUpload($media);
+
+                return [
+                    ...$record,
+                    'media' => $media,
+                    'image' => $split['image'],
+                    'video' => $split['video'],
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     protected function resetFormAfterPublish(): void
@@ -1290,9 +1341,10 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     /**
      * @param  array<string, mixed>|null  $state
      */
-    protected function runImportFromForm(?array $state = null): ?int
+    protected function runImportFromForm(?array $state = null, ?string $platform = null): ?int
     {
-        $state ??= $this->activeFormData();
+        $platform = $this->sanitizePlatform($platform ?? $this->activePlatform);
+        $state ??= $this->platformFormData($platform);
         $path = $this->resolveImportPathFromState($state);
 
         if ($path === null) {
@@ -1305,7 +1357,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return null;
         }
 
-        $import = $this->activePlatform === 'facebook'
+        $import = $platform === 'facebook'
             ? app(FacebookImportService::class)
             : app(InstagramImportService::class);
         $items = $import->parseFile($path);
@@ -1331,7 +1383,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             'saved_list_id' => null,
         ];
 
-        if ($this->activePlatform === 'facebook') {
+        if ($platform === 'facebook') {
             $this->facebookLoadedSavedListId = null;
             $this->facebookLoadedSavedListName = null;
             $this->fillFacebookForm($imported);
@@ -1341,8 +1393,10 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             $this->fillInstagramForm($imported);
         }
 
-        $this->loadedSavedListId = null;
-        $this->loadedSavedListName = null;
+        if ($this->activePlatform === $platform) {
+            $this->loadedSavedListId = null;
+            $this->loadedSavedListName = null;
+        }
 
         $this->deleteImportFile($path);
 

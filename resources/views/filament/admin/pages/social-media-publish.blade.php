@@ -1,4 +1,4 @@
-<x-filament-panels::page>
+<x-filament-panels::page class="[&>section]:!gap-y-3 [&>section]:!pt-4 [&_.fi-page-header]:!mb-0">
 
     @php
         $instagramRecordCount = $this->getRecordCountForPlatform('instagram');
@@ -9,8 +9,8 @@
 
     <div
         x-data="{
-            platform: @js($activePlatform),
-            tab: @js($activeTab),
+            platform: $wire.$entangle('activePlatform'),
+            tab: $wire.$entangle('activeTab'),
             igStats: @js($instagramQueueStats),
             fbStats: @js($facebookQueueStats),
             igInterval: @js($instagramQueueIntervalMinutes),
@@ -50,7 +50,7 @@
             fbInterval = $event.detail.facebookInterval;
         "
     >
-        <div class="mb-4 flex flex-wrap gap-2">
+        <div class="mb-2 flex flex-wrap gap-2">
             <x-filament::button
                 tag="button"
                 type="button"
@@ -110,7 +110,7 @@
             </x-filament::button>
         </div>
 
-        <div class="mb-4 flex flex-wrap gap-2">
+        <div class="mb-2 flex flex-wrap gap-2">
             <x-filament::button
                 tag="button"
                 type="button"
@@ -245,15 +245,18 @@
                 </div>
             </section>
 
-            <div wire:loading.delay.shortest wire:target="switchPlatform,switchTab,refreshQueue" class="text-sm text-gray-500 dark:text-gray-400">
-                Đang cập nhật bảng hàng đợi…
-            </div>
+            @if ($activeTab === 'queue')
+                <div wire:loading.delay.shortest wire:target="switchPlatform,switchTab,refreshQueue" class="text-sm text-gray-500 dark:text-gray-400">
+                    Đang cập nhật bảng hàng đợi…
+                </div>
 
-            <div wire:loading.remove wire:target="switchPlatform,switchTab">
-                {{ $this->table }}
-            </div>
+                <div wire:loading.remove wire:target="switchPlatform,switchTab">
+                    {{ $this->table }}
+                </div>
+            @endif
         </div>
     </div>
 
+    {{-- Modals ngoài vùng x-show; đặt cuối để không chiếm khoảng trắng phía trên --}}
     <x-filament-actions::modals />
 </x-filament-panels::page>

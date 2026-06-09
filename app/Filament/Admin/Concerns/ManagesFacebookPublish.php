@@ -8,7 +8,6 @@ use App\Models\FacebookAccount;
 use App\Models\FacebookQueueItem;
 use App\Models\FacebookSavedList;
 use App\Services\FacebookGraphService;
-use App\Services\FacebookImportService;
 use App\Services\FacebookQueueService;
 use App\Services\FacebookSavedListService;
 use App\Support\FacebookSettings;
@@ -275,11 +274,11 @@ trait ManagesFacebookPublish
 
     public function publishFacebookRecords(array $data): void
     {
-        if (! $this->prepareRecordsFromForm()) {
+        if (! $this->prepareFacebookRecordsFromForm()) {
             return;
         }
 
-        $records = $this->validRecordsFromForm();
+        $records = $this->validFacebookRecordsFromForm();
         if ($records === []) {
             Notification::make()
                 ->title('Chưa có bài')
@@ -352,38 +351,21 @@ trait ManagesFacebookPublish
 
     public function importFacebookFromFile(): void
     {
-        $state = $this->facebookData;
-        $path = $this->resolveImportPathFromState($state);
-        if ($path === null) {
-            Notification::make()->title('Chưa chọn file')->warning()->send();
+        $count = $this->runImportFromForm($this->facebookData, 'facebook');
 
+        if ($count === null) {
             return;
         }
-        $import = app(FacebookImportService::class);
-        $items = $import->parseFile($path);
-        if ($items === []) {
-            Notification::make()->title('Import thất bại')->body($import->lastError ?? '')->danger()->send();
 
-            return;
-        }
-        $existing = collect($state['records'] ?? [])->filter(fn (array $r): bool => $this->recordRowHasContent($r))->values()->all();
-        $this->facebookLoadedSavedListId = null;
-        $this->facebookLoadedSavedListName = null;
-        if ($this->activePlatform === 'facebook') {
-            $this->loadedSavedListId = null;
-            $this->loadedSavedListName = null;
-        }
-        $this->fillFacebookForm(['records' => array_values(array_merge($existing, $items)), 'import_file' => null, 'saved_list_id' => null]);
-        $this->deleteImportFile($path);
-        Notification::make()->title('Đã import '.count($items).' bài')->success()->send();
+        Notification::make()->title('Đã import '.$count.' bài')->success()->send();
     }
 
     public function saveFacebookCurrentList(array $data): void
     {
-        if (! $this->prepareRecordsFromForm()) {
+        if (! $this->prepareFacebookRecordsFromForm()) {
             return;
         }
-        $records = $this->validRecordsFromForm();
+        $records = $this->validFacebookRecordsFromForm();
         $service = app(FacebookSavedListService::class);
         $list = $service->save((string) ($data['name'] ?? ''), $records, Filament::auth()->user(), $this->loadedSavedListId);
         if ($list === null) {
