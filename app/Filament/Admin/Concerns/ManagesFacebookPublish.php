@@ -44,63 +44,9 @@ trait ManagesFacebookPublish
 {
     public ?string $facebookAccountLabel = null;
 
-    protected ?array $facebookFormSnapshot = null;
-
     protected ?int $facebookLoadedSavedListId = null;
 
     protected ?string $facebookLoadedSavedListName = null;
-
-    public function switchPlatform(string $platform): void
-    {
-        if (! in_array($platform, ['instagram', 'facebook'], true) || $platform === $this->activePlatform) {
-            return;
-        }
-
-        $this->persistCurrentPlatformFormState();
-
-        $this->activePlatform = $platform;
-        $this->restorePlatformFormState();
-
-        $this->refreshQueue();
-
-        if ($platform === 'facebook') {
-            $this->refreshFacebookAccountLabel();
-        } else {
-            $this->refreshInstagramAccountLabel();
-        }
-
-        if ($this->activeTab === 'queue') {
-            $this->resetTable();
-        }
-    }
-
-    protected function persistCurrentPlatformFormState(): void
-    {
-        $state = $this->form->getState();
-
-        if ($this->activePlatform === 'facebook') {
-            $this->facebookFormSnapshot = $state;
-            $this->facebookLoadedSavedListId = $this->loadedSavedListId;
-            $this->facebookLoadedSavedListName = $this->loadedSavedListName;
-        } else {
-            $this->instagramFormSnapshot = $state;
-            $this->instagramLoadedSavedListId = $this->loadedSavedListId;
-            $this->instagramLoadedSavedListName = $this->loadedSavedListName;
-        }
-    }
-
-    protected function restorePlatformFormState(): void
-    {
-        if ($this->activePlatform === 'facebook') {
-            $this->loadedSavedListId = $this->facebookLoadedSavedListId;
-            $this->loadedSavedListName = $this->facebookLoadedSavedListName;
-            $this->form->fill($this->facebookFormSnapshot ?? $this->defaultComposeFormState());
-        } else {
-            $this->loadedSavedListId = $this->instagramLoadedSavedListId;
-            $this->loadedSavedListName = $this->instagramLoadedSavedListName;
-            $this->form->fill($this->instagramFormSnapshot ?? $this->defaultComposeFormState());
-        }
-    }
 
     /**
      * @return array<int, \Filament\Forms\Components\Component>
@@ -139,9 +85,9 @@ trait ManagesFacebookPublish
                         Placeholder::make('summary')
                             ->label('Tóm tắt')
                             ->content(fn (): string => implode(' · ', array_filter([
-                                $this->getRecordCount().' bài sẵn sàng',
-                                $this->loadedSavedListName ? 'Đang mở: '.$this->loadedSavedListName : null,
-                                'Cách '.$this->queueIntervalMinutes.' phút/bài',
+                                $this->getRecordCountForPlatform('facebook').' bài sẵn sàng',
+                                $this->facebookLoadedSavedListName ? 'Đang mở: '.$this->facebookLoadedSavedListName : null,
+                                'Cách '.$this->facebookQueueIntervalMinutes.' phút/bài',
                             ])))
                             ->columnSpan(['default' => 12, 'md' => 3]),
                     ]),
@@ -169,23 +115,7 @@ trait ManagesFacebookPublish
                                 ? Str::limit((string) $state['content_idea'], 40)
                                 : $this->mediaRepeaterItemLabel($state)))
                         ->schema([
-                            FileUpload::make('media')
-                                ->label('Ảnh hoặc video (tùy chọn)')
-                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/quicktime'])
-                                ->disk('public')
-                                ->directory('facebook-uploads')
-                                ->visibility('public')
-                                ->maxFiles(1)
-                                ->maxSize(102400)
-                                ->saveUploadedFileUsing(function ($file, BaseFileUpload $component): ?string {
-                                    $directory = str_starts_with((string) $file->getMimeType(), 'video/')
-                                        ? 'facebook-temp-videos' : 'facebook-uploads';
-                                    $stored = PublicStorage::storeUploadedFile($file, $directory, $component->getUploadedFileNameForStorage($file));
-
-                                    return PublicStorage::syncUploadedPath($stored);
-                                })
-                                ->helperText('Ảnh hoặc video MP4/MOV. Bỏ trống = ảnh default. Video tự xóa sau khi đăng.')
-                                ->columnSpan(['default' => 6, 'md' => 2]),
+                            ...$this->socialMediaRepeaterUploadFields('facebook-uploads', 'facebook-temp-videos'),
                             TextInput::make('brand_domain')->label('Domain brand')->placeholder('nike.com')->maxLength(255)->columnSpan(['default' => 6, 'md' => 2]),
                             TextInput::make('aff_link')->label('Link AFF')->url()->maxLength(2048)->columnSpan(['default' => 6, 'md' => 2]),
                             Textarea::make('content_idea')->label('Ý tưởng nội dung cho AI')->rows(4)->maxLength(2000)->columnSpan(['default' => 6, 'md' => 4]),
@@ -288,7 +218,7 @@ trait ManagesFacebookPublish
                     ->form([TextInput::make('name')->label('Tên')->required()->maxLength(120)->default(fn (): ?string => $this->loadedSavedListName)])
                     ->action(fn (array $data) => $this->saveFacebookCurrentList($data)),
                 Action::make('deleteFacebookSavedList')->label('Xóa danh sách')->icon('heroicon-o-trash')->color('danger')->requiresConfirmation()
-                    ->visible(fn (): bool => $this->loadedSavedListId !== null || filled($this->data['saved_list_id'] ?? null))
+                    ->visible(fn (): bool => $this->facebookLoadedSavedListId !== null || filled($this->facebookData['saved_list_id'] ?? null))
                     ->action(fn () => $this->deleteFacebookSavedList()),
                 Action::make('downloadFacebookTemplate')->label('Tải file mẫu')->icon('heroicon-o-arrow-down-tray')
                     ->action(fn (): BinaryFileResponse => Excel::download(new FacebookTemplateExport, 'facebook-template.xlsx')),
@@ -351,7 +281,11 @@ trait ManagesFacebookPublish
 
         $records = $this->validRecordsFromForm();
         if ($records === []) {
-            Notification::make()->title('Chưa có bài')->warning()->send();
+            Notification::make()
+                ->title('Chưa có bài')
+                ->body('Nhập dữ liệu hoặc import file.')
+                ->warning()
+                ->send();
 
             return;
         }
@@ -378,17 +312,6 @@ trait ManagesFacebookPublish
         $this->clearFormDraft();
         $this->refreshQueue();
         $this->activeTab = 'queue';
-    }
-
-    public function refreshFacebookQueue(): void
-    {
-        $service = app(FacebookQueueService::class);
-        $service->recoverStaleProcessingItems();
-        $this->queueStats = $service->queueStats();
-        $this->queueIntervalMinutes = $service->intervalMinutes();
-        if ($this->activeTab === 'queue') {
-            $this->resetTable();
-        }
     }
 
     public function releaseFacebookStuckProcessing(): void
@@ -429,7 +352,7 @@ trait ManagesFacebookPublish
 
     public function importFacebookFromFile(): void
     {
-        $state = $this->form->getState();
+        $state = $this->facebookData;
         $path = $this->resolveImportPathFromState($state);
         if ($path === null) {
             Notification::make()->title('Chưa chọn file')->warning()->send();
@@ -444,9 +367,13 @@ trait ManagesFacebookPublish
             return;
         }
         $existing = collect($state['records'] ?? [])->filter(fn (array $r): bool => $this->recordRowHasContent($r))->values()->all();
-        $this->loadedSavedListId = null;
-        $this->loadedSavedListName = null;
-        $this->form->fill(['records' => array_values(array_merge($existing, $items)), 'import_file' => null, 'saved_list_id' => null]);
+        $this->facebookLoadedSavedListId = null;
+        $this->facebookLoadedSavedListName = null;
+        if ($this->activePlatform === 'facebook') {
+            $this->loadedSavedListId = null;
+            $this->loadedSavedListName = null;
+        }
+        $this->fillFacebookForm(['records' => array_values(array_merge($existing, $items)), 'import_file' => null, 'saved_list_id' => null]);
         $this->deleteImportFile($path);
         Notification::make()->title('Đã import '.count($items).' bài')->success()->send();
     }
@@ -464,9 +391,13 @@ trait ManagesFacebookPublish
 
             return;
         }
-        $this->loadedSavedListId = $list->id;
-        $this->loadedSavedListName = $list->name;
-        $this->form->fill([...$this->form->getState(), 'saved_list_id' => $list->id]);
+        $this->facebookLoadedSavedListId = $list->id;
+        $this->facebookLoadedSavedListName = $list->name;
+        if ($this->activePlatform === 'facebook') {
+            $this->loadedSavedListId = $list->id;
+            $this->loadedSavedListName = $list->name;
+        }
+        $this->fillFacebookForm([...$this->facebookData, 'saved_list_id' => $list->id]);
         Notification::make()->title('Đã lưu «'.$list->name.'»')->success()->send();
     }
 
@@ -481,9 +412,13 @@ trait ManagesFacebookPublish
             return;
         }
         $records = app(FacebookSavedListService::class)->recordsForForm($savedListId);
-        $this->loadedSavedListId = $list->id;
-        $this->loadedSavedListName = $list->name;
-        $this->form->fill(['records' => $records, 'import_file' => null, 'saved_list_id' => $list->id]);
+        $this->facebookLoadedSavedListId = $list->id;
+        $this->facebookLoadedSavedListName = $list->name;
+        if ($this->activePlatform === 'facebook') {
+            $this->loadedSavedListId = $list->id;
+            $this->loadedSavedListName = $list->name;
+        }
+        $this->fillFacebookForm(['records' => $records, 'import_file' => null, 'saved_list_id' => $list->id]);
         if (! $silent) {
             Notification::make()->title('Đã tải «'.$list->name.'»')->success()->send();
         }
@@ -491,7 +426,7 @@ trait ManagesFacebookPublish
 
     public function deleteFacebookSavedList(): void
     {
-        $id = (int) ($this->form->getState()['saved_list_id'] ?? $this->loadedSavedListId ?? 0);
+        $id = (int) ($this->facebookData['saved_list_id'] ?? $this->facebookLoadedSavedListId ?? 0);
         if ($id <= 0) {
             Notification::make()->title('Chưa chọn danh sách')->warning()->send();
 
@@ -502,9 +437,15 @@ trait ManagesFacebookPublish
 
             return;
         }
-        $this->loadedSavedListId = null;
-        $this->loadedSavedListName = null;
-        $this->form->fill([...$this->form->getState(), 'saved_list_id' => null]);
+        if ($this->facebookLoadedSavedListId === $id) {
+            $this->facebookLoadedSavedListId = null;
+            $this->facebookLoadedSavedListName = null;
+        }
+        if ($this->loadedSavedListId === $id) {
+            $this->loadedSavedListId = null;
+            $this->loadedSavedListName = null;
+        }
+        $this->fillFacebookForm([...$this->facebookData, 'saved_list_id' => null]);
         Notification::make()->title('Đã xóa')->success()->send();
     }
 

@@ -26,9 +26,17 @@ class AppServiceProvider extends ServiceProvider
     {
         Schema::defaultStringLength(191);
 
+        app()->setLocale((string) config('app.locale', 'vi'));
+
         PublicStorage::ensureDirectory('');
 
         FileUpload::configureUsing(function (FileUpload $component): void {
+            $component->validationMessages([
+                'max' => 'Dung lượng file không được vượt quá :max KB.',
+                'uploaded' => 'Tải file lên thất bại — file vượt giới hạn PHP (upload_max_filesize '.ini_get('upload_max_filesize').', post_max_size '.ini_get('post_max_size').'). Khởi động lại Apache/WAMP sau khi sửa php.ini.',
+                'mimes' => 'Định dạng file không được hỗ trợ.',
+            ]);
+
             if ($component->getDiskName() !== 'public') {
                 return;
             }

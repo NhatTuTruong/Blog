@@ -11,6 +11,7 @@ use App\Models\InstagramQueueItem;
 use App\Models\InstagramSavedList;
 use App\Models\User;
 use App\Services\FacebookImportService;
+use App\Services\FacebookQueueService;
 use App\Services\InstagramGraphService;
 use App\Services\InstagramImportService;
 use App\Services\InstagramQueueService;
@@ -18,6 +19,7 @@ use App\Services\InstagramSavedListService;
 use App\Support\InstagramSettings;
 use App\Support\FormDraftService;
 use App\Support\PublicStorage;
+use App\Support\UploadLimits;
 use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -48,6 +50,7 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Livewire\Attributes\Url;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -72,10 +75,16 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     protected static ?string $slug = 'social-media-publish';
 
-    public ?array $data = [];
+    /** @var array<string, mixed> */
+    public array $instagramData = [];
 
+    /** @var array<string, mixed> */
+    public array $facebookData = [];
+
+    #[Url(as: 'platform', history: true)]
     public string $activePlatform = 'instagram';
 
+    #[Url(as: 'tab', history: true)]
     public string $activeTab = 'compose';
 
     /** @var array{pending: int, processing: int, completed: int, failed: int} */
@@ -86,11 +95,29 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         'failed' => 0,
     ];
 
+    /** @var array{pending: int, processing: int, completed: int, failed: int} */
+    public array $instagramQueueStats = [
+        'pending' => 0,
+        'processing' => 0,
+        'completed' => 0,
+        'failed' => 0,
+    ];
+
+    /** @var array{pending: int, processing: int, completed: int, failed: int} */
+    public array $facebookQueueStats = [
+        'pending' => 0,
+        'processing' => 0,
+        'completed' => 0,
+        'failed' => 0,
+    ];
+
     public int $queueIntervalMinutes = 30;
 
-    public ?string $instagramAccountLabel = null;
+    public int $instagramQueueIntervalMinutes = 30;
 
-    protected ?array $instagramFormSnapshot = null;
+    public int $facebookQueueIntervalMinutes = 30;
+
+    public ?string $instagramAccountLabel = null;
 
     protected ?int $instagramLoadedSavedListId = null;
 
@@ -119,22 +146,255 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     public function getRecordCount(): int
     {
-        return collect($this->data['records'] ?? [])
+        return $this->getRecordCountForPlatform($this->activePlatform);
+    }
+
+    public function getRecordCountForPlatform(string $platform): int
+    {
+        $data = $this->platformFormData($platform);
+
+        return collect($data['records'] ?? [])
             ->filter(fn (array $record): bool => $this->recordRowHasContent($record))
             ->count();
     }
 
+    public function getPendingCountForPlatform(string $platform): int
+    {
+        $stats = $platform === 'facebook' ? $this->facebookQueueStats : $this->instagramQueueStats;
+
+        return ($stats['pending'] ?? 0) + ($stats['processing'] ?? 0);
+    }
+
     public function mount(): void
     {
-        $this->queueIntervalMinutes = app(InstagramQueueService::class)->intervalMinutes();
+        $this->activePlatform = $this->sanitizePlatform($this->activePlatform);
+        $this->activeTab = $this->sanitizeTab($this->activeTab);
 
-        $this->form->fill($this->defaultComposeFormState());
+        $this->instagramData = $this->defaultComposeFormState();
+        $this->facebookData = $this->defaultComposeFormState();
+
+        $this->loadAllQueueStats();
+        $this->applyActivePlatformQueueStats();
+        $this->syncLoadedSavedListMetaFromPlatform();
+
+        $this->instagramForm->fill($this->instagramData);
+        $this->facebookForm->fill($this->facebookData);
 
         $this->restoreFormDraft();
 
-        $this->refreshQueue();
         $this->refreshInstagramAccountLabel();
         $this->refreshFacebookAccountLabel();
+
+        if ($this->activeTab === 'queue') {
+            $this->refreshQueue();
+        }
+    }
+
+    public function switchPlatform(string $platform): void
+    {
+        $platform = $this->sanitizePlatform($platform);
+
+        if ($platform === $this->activePlatform) {
+            return;
+        }
+
+        if ($this->activeTab === 'compose') {
+            $this->persistFormDraft();
+        }
+
+        $this->activePlatform = $platform;
+        $this->syncLoadedSavedListMetaFromPlatform();
+        $this->applyActivePlatformQueueStats();
+        $this->dispatchQueueStatsToBrowser();
+
+        if ($this->activeTab === 'queue') {
+            $this->resetTable();
+        }
+    }
+
+    public function switchTab(string $tab): void
+    {
+        $tab = $this->sanitizeTab($tab);
+
+        if ($tab === $this->activeTab) {
+            return;
+        }
+
+        if ($this->activeTab === 'compose') {
+            $this->persistFormDraft();
+        }
+
+        $this->activeTab = $tab;
+
+        if ($tab === 'queue') {
+            $this->refreshQueue();
+        }
+    }
+
+    public function updatedActivePlatform(): void
+    {
+        $this->activePlatform = $this->sanitizePlatform($this->activePlatform);
+        $this->syncLoadedSavedListMetaFromPlatform();
+        $this->applyActivePlatformQueueStats();
+
+        if ($this->activeTab === 'queue') {
+            $this->resetTable();
+        }
+    }
+
+    public function updatedActiveTab(): void
+    {
+        $this->activeTab = $this->sanitizeTab($this->activeTab);
+
+        if ($this->activeTab === 'queue') {
+            $this->refreshQueue();
+        }
+    }
+
+    public function updated(mixed $property): void
+    {
+        if (! is_string($property)) {
+            return;
+        }
+
+        $isInstagram = $property === 'instagramData' || str_starts_with($property, 'instagramData.');
+        $isFacebook = $property === 'facebookData' || str_starts_with($property, 'facebookData.');
+
+        if (! $isInstagram && ! $isFacebook) {
+            return;
+        }
+
+        $editedPlatform = $isFacebook ? 'facebook' : 'instagram';
+
+        if ($editedPlatform !== $this->activePlatform) {
+            return;
+        }
+
+        $this->persistFormDraft();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function getForms(): array
+    {
+        return [
+            'instagramForm',
+            'facebookForm',
+        ];
+    }
+
+    public function instagramForm(Form $form): Form
+    {
+        return $form
+            ->schema($this->getInstagramFormSchema())
+            ->statePath('instagramData');
+    }
+
+    public function facebookForm(Form $form): Form
+    {
+        return $form
+            ->schema($this->getFacebookFormSchema())
+            ->statePath('facebookData');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function activeFormData(): array
+    {
+        return $this->activePlatform === 'facebook' ? $this->facebookData : $this->instagramData;
+    }
+
+    /**
+     * @param  array<string, mixed>  $state
+     */
+    protected function fillActivePlatformForm(array $state): void
+    {
+        if ($this->activePlatform === 'facebook') {
+            $this->facebookData = $state;
+            $this->facebookForm->fill($state);
+
+            return;
+        }
+
+        $this->instagramData = $state;
+        $this->instagramForm->fill($state);
+    }
+
+    /**
+     * @param  array<string, mixed>  $state
+     */
+    protected function fillInstagramForm(array $state): void
+    {
+        $this->instagramData = $state;
+        $this->instagramForm->fill($state);
+    }
+
+    /**
+     * @param  array<string, mixed>  $state
+     */
+    protected function fillFacebookForm(array $state): void
+    {
+        $this->facebookData = $state;
+        $this->facebookForm->fill($state);
+    }
+
+    protected function sanitizePlatform(string $platform): string
+    {
+        return in_array($platform, ['instagram', 'facebook'], true) ? $platform : 'instagram';
+    }
+
+    protected function sanitizeTab(string $tab): string
+    {
+        return in_array($tab, ['compose', 'queue'], true) ? $tab : 'compose';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function platformFormData(string $platform): array
+    {
+        $stored = $platform === 'facebook' ? $this->facebookData : $this->instagramData;
+
+        return $stored !== [] ? $stored : $this->defaultComposeFormState();
+    }
+
+    protected function syncLoadedSavedListMetaFromPlatform(): void
+    {
+        if ($this->activePlatform === 'facebook') {
+            $this->loadedSavedListId = $this->facebookLoadedSavedListId;
+            $this->loadedSavedListName = $this->facebookLoadedSavedListName;
+
+            return;
+        }
+
+        $this->loadedSavedListId = $this->instagramLoadedSavedListId;
+        $this->loadedSavedListName = $this->instagramLoadedSavedListName;
+    }
+
+    protected function loadAllQueueStats(): void
+    {
+        $instagramService = app(InstagramQueueService::class);
+        $this->instagramQueueStats = $instagramService->queueStats();
+        $this->instagramQueueIntervalMinutes = $instagramService->intervalMinutes();
+
+        $facebookService = app(FacebookQueueService::class);
+        $this->facebookQueueStats = $facebookService->queueStats();
+        $this->facebookQueueIntervalMinutes = $facebookService->intervalMinutes();
+    }
+
+    protected function applyActivePlatformQueueStats(): void
+    {
+        if ($this->activePlatform === 'facebook') {
+            $this->queueStats = $this->facebookQueueStats;
+            $this->queueIntervalMinutes = $this->facebookQueueIntervalMinutes;
+
+            return;
+        }
+
+        $this->queueStats = $this->instagramQueueStats;
+        $this->queueIntervalMinutes = $this->instagramQueueIntervalMinutes;
     }
 
     /**
@@ -147,15 +407,6 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             'import_file' => null,
             'saved_list_id' => null,
         ];
-    }
-
-    public function form(Form $form): Form
-    {
-        return $form
-            ->schema($this->activePlatform === 'facebook'
-                ? $this->getFacebookFormSchema()
-                : $this->getInstagramFormSchema())
-            ->statePath('data');
     }
 
     /**
@@ -197,13 +448,13 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                                 Placeholder::make('summary')
                                     ->label('Tóm tắt')
                                     ->content(function (): string {
-                                        $parts = [$this->getRecordCount().' bài sẵn sàng'];
+                                        $parts = [$this->getRecordCountForPlatform('instagram').' bài sẵn sàng'];
 
-                                        if ($this->loadedSavedListName) {
-                                            $parts[] = 'Đang mở: '.$this->loadedSavedListName;
+                                        if ($this->instagramLoadedSavedListName) {
+                                            $parts[] = 'Đang mở: '.$this->instagramLoadedSavedListName;
                                         }
 
-                                        $parts[] = 'Cách '.$this->queueIntervalMinutes.' phút/bài';
+                                        $parts[] = 'Cách '.$this->instagramQueueIntervalMinutes.' phút/bài';
 
                                         return implode(' · ', $parts);
                                     })
@@ -236,32 +487,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                                     ? Str::limit((string) $state['content_idea'], 40)
                                     : $this->mediaRepeaterItemLabel($state)))
                             ->schema([
-                                FileUpload::make('media')
-                                    ->label('Ảnh hoặc video (tùy chọn)')
-                                    ->acceptedFileTypes([
-                                        'image/jpeg',
-                                        'image/png',
-                                        'image/webp',
-                                        'image/gif',
-                                        'video/mp4',
-                                        'video/quicktime',
-                                    ])
-                                    ->disk('public')
-                                    ->directory('instagram-uploads')
-                                    ->visibility('public')
-                                    ->maxFiles(1)
-                                    ->maxSize(102400)
-                                    ->saveUploadedFileUsing(function ($file, BaseFileUpload $component): ?string {
-                                        $directory = str_starts_with((string) $file->getMimeType(), 'video/')
-                                            ? 'instagram-temp-videos'
-                                            : 'instagram-uploads';
-                                        $filename = $component->getUploadedFileNameForStorage($file);
-                                        $stored = PublicStorage::storeUploadedFile($file, $directory, $filename);
-
-                                        return PublicStorage::syncUploadedPath($stored);
-                                    })
-                                    ->helperText('Chỉ 1 file: ảnh (JPG/PNG, ≤8MB) hoặc video (MP4/MOV, ≤100MB). Bỏ trống = random ảnh default1–3 trong public/images/instagram. Video tự xóa sau khi đăng.')
-                                    ->columnSpan(['default' => 6, 'md' => 2]),
+                                ...$this->socialMediaRepeaterUploadFields('instagram-uploads', 'instagram-temp-videos'),
                                 TextInput::make('brand_domain')
                                     ->label('Domain brand')
                                     ->placeholder('nike.com')
@@ -471,8 +697,8 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     ->icon('heroicon-o-trash')
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->visible(fn (): bool => $this->loadedSavedListId !== null
-                        || filled($this->data['saved_list_id'] ?? null))
+                    ->visible(fn (): bool => $this->instagramLoadedSavedListId !== null
+                        || filled($this->instagramData['saved_list_id'] ?? null))
                     ->action(fn () => $this->deleteSavedList()),
                 Action::make('downloadTemplate')
                     ->label('Tải file mẫu Excel')
@@ -528,11 +754,16 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return;
         }
 
-        $this->loadedSavedListId = $list->id;
-        $this->loadedSavedListName = $list->name;
+        $this->instagramLoadedSavedListId = $list->id;
+        $this->instagramLoadedSavedListName = $list->name;
 
-        $this->form->fill([
-            ...$this->form->getState(),
+        if ($this->activePlatform === 'instagram') {
+            $this->loadedSavedListId = $list->id;
+            $this->loadedSavedListName = $list->name;
+        }
+
+        $this->fillInstagramForm([
+            ...$this->instagramData,
             'saved_list_id' => $list->id,
         ]);
 
@@ -569,10 +800,15 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return;
         }
 
-        $this->loadedSavedListId = $list->id;
-        $this->loadedSavedListName = $list->name;
+        $this->instagramLoadedSavedListId = $list->id;
+        $this->instagramLoadedSavedListName = $list->name;
 
-        $this->form->fill([
+        if ($this->activePlatform === 'instagram') {
+            $this->loadedSavedListId = $list->id;
+            $this->loadedSavedListName = $list->name;
+        }
+
+        $this->fillInstagramForm([
             'records' => $records,
             'import_file' => null,
             'saved_list_id' => $list->id,
@@ -589,7 +825,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     public function deleteSavedList(): void
     {
-        $savedListId = (int) ($this->form->getState()['saved_list_id'] ?? $this->loadedSavedListId ?? 0);
+        $savedListId = (int) ($this->instagramData['saved_list_id'] ?? $this->instagramLoadedSavedListId ?? 0);
 
         if ($savedListId <= 0) {
             Notification::make()->title('Chưa chọn danh sách')->warning()->send();
@@ -609,13 +845,18 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return;
         }
 
+        if ($this->instagramLoadedSavedListId === $savedListId) {
+            $this->instagramLoadedSavedListId = null;
+            $this->instagramLoadedSavedListName = null;
+        }
+
         if ($this->loadedSavedListId === $savedListId) {
             $this->loadedSavedListId = null;
             $this->loadedSavedListName = null;
         }
 
-        $this->form->fill([
-            ...$this->form->getState(),
+        $this->fillInstagramForm([
+            ...$this->instagramData,
             'saved_list_id' => null,
         ]);
 
@@ -783,20 +1024,33 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     public function refreshQueue(): void
     {
-        if ($this->activePlatform === 'facebook') {
-            $this->refreshFacebookQueue();
+        $instagramService = app(InstagramQueueService::class);
+        $instagramService->recoverStaleProcessingItems();
+        $this->instagramQueueStats = $instagramService->queueStats();
+        $this->instagramQueueIntervalMinutes = $instagramService->intervalMinutes();
 
-            return;
-        }
+        $facebookService = app(FacebookQueueService::class);
+        $facebookService->recoverStaleProcessingItems();
+        $this->facebookQueueStats = $facebookService->queueStats();
+        $this->facebookQueueIntervalMinutes = $facebookService->intervalMinutes();
 
-        $service = app(InstagramQueueService::class);
-        $service->recoverStaleProcessingItems();
-        $this->queueStats = $service->queueStats();
-        $this->queueIntervalMinutes = $service->intervalMinutes();
+        $this->applyActivePlatformQueueStats();
+        $this->dispatchQueueStatsToBrowser();
 
         if ($this->activeTab === 'queue') {
             $this->resetTable();
         }
+    }
+
+    protected function dispatchQueueStatsToBrowser(): void
+    {
+        $this->dispatch(
+            'queue-stats-synced',
+            instagram: $this->instagramQueueStats,
+            facebook: $this->facebookQueueStats,
+            instagramInterval: $this->instagramQueueIntervalMinutes,
+            facebookInterval: $this->facebookQueueIntervalMinutes,
+        );
     }
 
     public function releaseStuckProcessing(): void
@@ -880,8 +1134,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     protected function prepareRecordsFromForm(): bool
     {
-        $state = $this->form->getState();
-        $this->data = $state;
+        $state = $this->activeFormData();
 
         if (! filled($state['import_file'] ?? null)) {
             return true;
@@ -892,10 +1145,23 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     protected function resetFormAfterPublish(): void
     {
+        $state = $this->defaultComposeFormState();
+
+        if ($this->activePlatform === 'facebook') {
+            $this->facebookLoadedSavedListId = null;
+            $this->facebookLoadedSavedListName = null;
+            $this->loadedSavedListId = null;
+            $this->loadedSavedListName = null;
+            $this->fillFacebookForm($state);
+
+            return;
+        }
+
+        $this->instagramLoadedSavedListId = null;
+        $this->instagramLoadedSavedListName = null;
         $this->loadedSavedListId = null;
         $this->loadedSavedListName = null;
-
-        $this->form->fill($this->defaultComposeFormState());
+        $this->fillInstagramForm($state);
     }
 
     protected function formDraftKey(): string
@@ -948,6 +1214,14 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                 ? \App\Models\FacebookSavedList::query()->find($savedListId)
                 : InstagramSavedList::query()->find($savedListId);
             if ($list) {
+                if ($this->activePlatform === 'facebook') {
+                    $this->facebookLoadedSavedListId = $list->id;
+                    $this->facebookLoadedSavedListName = $list->name;
+                } else {
+                    $this->instagramLoadedSavedListId = $list->id;
+                    $this->instagramLoadedSavedListName = $list->name;
+                }
+
                 $this->loadedSavedListId = $list->id;
                 $this->loadedSavedListName = $list->name;
             } else {
@@ -960,12 +1234,57 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     protected function resetPageFormAfterDraftDiscard(): void
     {
-        $this->loadedSavedListId = null;
-        $this->loadedSavedListName = null;
+        $state = $this->defaultComposeFormState();
 
-        $this->form->fill($this->defaultComposeFormState());
+        if ($this->activePlatform === 'facebook') {
+            $this->facebookLoadedSavedListId = null;
+            $this->facebookLoadedSavedListName = null;
+            $this->loadedSavedListId = null;
+            $this->loadedSavedListName = null;
+            $this->fillFacebookForm($state);
+        } else {
+            $this->instagramLoadedSavedListId = null;
+            $this->instagramLoadedSavedListName = null;
+            $this->loadedSavedListId = null;
+            $this->loadedSavedListName = null;
+            $this->fillInstagramForm($state);
+        }
 
         $this->formDraftRestored = false;
+    }
+
+    protected function restoreFormDraft(): void
+    {
+        $userId = $this->formDraftUserId();
+
+        if ($userId === null) {
+            return;
+        }
+
+        $data = FormDraftService::get($userId, $this->formDraftKey());
+
+        if ($data === null || ! $this->formDraftHasContent($data)) {
+            return;
+        }
+
+        $data = $this->mutateFormDraftBeforeRestore($data);
+
+        $this->fillActivePlatformForm($data);
+        $this->formDraftRestored = true;
+
+        Notification::make()
+            ->title('Đã khôi phục bản nháp')
+            ->body('Nội dung chỉnh sửa trước đó đã được tải lại. Bạn có thể tiếp tục chỉnh sửa.')
+            ->info()
+            ->send();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function formDraftDataForStorage(): array
+    {
+        return $this->activeFormData();
     }
 
     /**
@@ -973,7 +1292,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
      */
     protected function runImportFromForm(?array $state = null): ?int
     {
-        $state ??= $this->form->getState();
+        $state ??= $this->activeFormData();
         $path = $this->resolveImportPathFromState($state);
 
         if ($path === null) {
@@ -1006,14 +1325,24 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             ->values()
             ->all();
 
-        $this->loadedSavedListId = null;
-        $this->loadedSavedListName = null;
-
-        $this->form->fill([
+        $imported = [
             'records' => array_values(array_merge($existing, $items)),
             'import_file' => null,
             'saved_list_id' => null,
-        ]);
+        ];
+
+        if ($this->activePlatform === 'facebook') {
+            $this->facebookLoadedSavedListId = null;
+            $this->facebookLoadedSavedListName = null;
+            $this->fillFacebookForm($imported);
+        } else {
+            $this->instagramLoadedSavedListId = null;
+            $this->instagramLoadedSavedListName = null;
+            $this->fillInstagramForm($imported);
+        }
+
+        $this->loadedSavedListId = null;
+        $this->loadedSavedListName = null;
 
         $this->deleteImportFile($path);
 
@@ -1063,7 +1392,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
      */
     protected function validRecordsFromForm(): array
     {
-        return collect($this->data['records'] ?? [])
+        return collect($this->activeFormData()['records'] ?? [])
             ->filter(fn (array $record): bool => $this->recordRowHasContent($record))
             ->map(function (array $record): array {
                 $media = $this->normalizeMediaPath($record['media'] ?? null);
@@ -1166,6 +1495,42 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     {
         $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
-        return in_array($extension, ['mp4', 'mov', 'qt', 'm4v'], true);
+        return in_array($extension, ['mp4', 'mov', 'qt', 'm4v', 'webm'], true);
+    }
+
+    /**
+     * @return array<int, \Filament\Forms\Components\Component>
+     */
+    protected function socialMediaRepeaterUploadFields(string $uploadDir, string $videoDir): array
+    {
+        return [
+            FileUpload::make('media')
+                ->label('Ảnh hoặc video (tùy chọn)')
+                ->acceptedFileTypes([
+                    'image/jpeg',
+                    'image/png',
+                    'image/webp',
+                    'image/gif',
+                    'video/mp4',
+                    'video/quicktime',
+                    'video/webm',
+                ])
+                ->disk('public')
+                ->directory($uploadDir)
+                ->visibility('public')
+                ->maxFiles(1)
+                ->maxSize(102400)
+                ->saveUploadedFileUsing(function ($file, BaseFileUpload $component) use ($uploadDir, $videoDir): ?string {
+                    $directory = str_starts_with((string) $file->getMimeType(), 'video/')
+                        ? $videoDir
+                        : $uploadDir;
+                    $filename = $component->getUploadedFileNameForStorage($file);
+                    $stored = PublicStorage::storeUploadedFile($file, $directory, $filename);
+
+                    return PublicStorage::syncUploadedPath($stored);
+                })
+                ->helperText(fn (): string => UploadLimits::mediaUploadHelperText())
+                ->columnSpan(['default' => 6, 'md' => 2]),
+        ];
     }
 }
