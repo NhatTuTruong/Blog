@@ -8,24 +8,23 @@ use Filament\Facades\Filament;
 use Filament\Http\Responses\Auth\Contracts\LoginResponse as Responsable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Features\SupportRedirects\Redirector;
 
 class LoginResponse implements Responsable
 {
-    public function toResponse($request): RedirectResponse
+    public function toResponse($request): RedirectResponse|Redirector
     {
         $panel = Filament::getCurrentPanel();
         $user = Auth::user();
 
         if ($user instanceof User && ! $user->isAdmin()) {
-            $url = SocialMediaPublish::getUrl();
-        } elseif ($panel !== null) {
-            $url = $panel->getUrl();
-        } else {
-            $url = '/admin';
+            return redirect()->to(SocialMediaPublish::getUrl());
         }
 
-        $request->session()->save();
+        if ($panel !== null) {
+            return redirect()->intended($panel->getUrl());
+        }
 
-        return new RedirectResponse($url);
+        return redirect()->intended('/admin');
     }
 }
