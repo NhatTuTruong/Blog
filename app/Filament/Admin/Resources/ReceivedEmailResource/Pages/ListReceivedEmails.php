@@ -73,7 +73,7 @@ class ListReceivedEmails extends ListRecords
         } elseif (! $service->isConfigured()) {
             Notification::make()
                 ->title('Chưa cấu hình IMAP')
-                ->body('Cấu hình Email tại Cài đặt hệ thống (hoặc file .env).')
+                ->body('Cấu hình Email tại Cài đặt tùy chỉnh (hoặc file .env).')
                 ->warning()
                 ->persistent()
                 ->send();

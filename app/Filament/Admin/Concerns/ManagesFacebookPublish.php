@@ -3,7 +3,7 @@
 namespace App\Filament\Admin\Concerns;
 
 use App\Exports\FacebookTemplateExport;
-use App\Filament\Admin\Pages\SystemSettings;
+use App\Filament\Admin\Pages\UserIntegrationSettings;
 use App\Models\FacebookAccount;
 use App\Models\FacebookQueueItem;
 use App\Models\FacebookSavedList;
@@ -85,7 +85,7 @@ trait ManagesFacebookPublish
             Section::make('Chi tiết bài đăng Facebook')
                 ->description(fn (): string => FacebookSettings::isConfigured()
                     ? 'AI viết nội dung khi tới lượt đăng. Mỗi bài 1 ảnh hoặc 1 video. Không media = random ảnh mặc định.'
-                    : 'Chưa cấu hình Facebook — vào Cài đặt hệ thống để thêm Page và token.')
+                    : 'Chưa cấu hình Facebook — vào Cài đặt tùy chỉnh để thêm Page và token.')
                 ->schema([
                     Placeholder::make('facebook_status')
                         ->label('Trang Facebook')
@@ -96,6 +96,7 @@ trait ManagesFacebookPublish
                         ->columns(6)
                         ->defaultItems(1)
                         ->collapsible()
+                        ->collapsed()
                         ->cloneable()
                         ->addActionLabel('Thêm dòng')
                         ->itemLabel(fn (array $state): ?string => filled($state['brand_domain'] ?? null)
@@ -150,7 +151,7 @@ trait ManagesFacebookPublish
             Action::make('testFacebook')->label('Kiểm tra Facebook')->icon('heroicon-o-signal')->color('gray')
                 ->action(fn () => $this->testFacebookConnection()),
             Action::make('openFacebookSettings')->label('Cài đặt Facebook')->icon('heroicon-o-cog-6-tooth')->color('gray')
-                ->url(SystemSettings::getUrl()),
+                ->url(UserIntegrationSettings::getUrl()),
             Action::make('publishFacebook')->label('Đăng bài')->icon('heroicon-o-sparkles')->color('success')
                 ->modalHeading('Đăng danh sách lên Facebook')
                 ->modalDescription(function (): string {
@@ -165,7 +166,7 @@ trait ManagesFacebookPublish
                         $base .= ' Lưu ý: đang có hàng đợi ('.$service->activeQueueSummary().').';
                     }
                     if (! FacebookSettings::isConfigured()) {
-                        $base .= ' Facebook chưa cấu hình — thêm Page trong Cài đặt hệ thống.';
+                        $base .= ' Facebook chưa cấu hình — thêm Page trong Cài đặt tùy chỉnh.';
                     }
 
                     return $base;
@@ -178,7 +179,7 @@ trait ManagesFacebookPublish
                         ->columns(1)->required()
                         ->visible(fn (): bool => FacebookAccount::optionsForSelect() !== [])
                         ->helperText('Mặc định chọn tất cả.'),
-                    Placeholder::make('no_fb')->label('Trang Facebook')->content('Chưa có trang — vào Cài đặt hệ thống.')
+                    Placeholder::make('no_fb')->label('Trang Facebook')->content('Chưa có trang — vào Cài đặt tùy chỉnh.')
                         ->visible(fn (): bool => FacebookAccount::optionsForSelect() === []),
                     Placeholder::make('active_queue_warning')->label('Cảnh báo')
                         ->content(fn (): string => 'Đang có hàng đợi ('.app(FacebookQueueService::class)->activeQueueSummary().').')
@@ -190,6 +191,7 @@ trait ManagesFacebookPublish
                     DateTimePicker::make('scheduled_start_at')->label('Bắt đầu lúc')->seconds(false)->native(false)->default(now())
                         ->visible(fn (Get $get): bool => $get('publish_mode') === 'scheduled')
                         ->required(fn (Get $get): bool => $get('publish_mode') === 'scheduled'),
+                    ...$this->crossPlatformPublishFormSchema('facebook'),
                 ])
                 ->action(fn (array $data) => $this->publishFacebookRecords($data)),
             ActionGroup::make([
@@ -287,7 +289,15 @@ trait ManagesFacebookPublish
             return;
         }
 
-        Notification::make()->title('Đã xếp hàng '.(count($records) * count($accountIds)).' lượt Facebook')->success()->send();
+        $queueCount = count($records) * count($accountIds);
+        $crossResults = $this->publishRecordsToCrossPlatforms('facebook', $records, $startAt, $data);
+
+        if ($crossResults !== []) {
+            $this->notifyCrossPlatformPublishResults('Facebook', $queueCount.' lượt', $crossResults);
+        } else {
+            Notification::make()->title('Đã xếp hàng '.$queueCount.' lượt Facebook')->success()->send();
+        }
+
         $this->resetFormAfterPublish();
         $this->clearFormDraft();
         $this->refreshQueue();

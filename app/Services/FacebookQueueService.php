@@ -15,9 +15,9 @@ class FacebookQueueService
 {
     public ?string $lastError = null;
 
-    public function intervalMinutes(): int
+    public function intervalMinutes(?int $userId = null): int
     {
-        return FacebookSettings::queueIntervalMinutes();
+        return FacebookSettings::queueIntervalMinutes($userId);
     }
 
     public function hasActiveQueue(): bool
@@ -134,18 +134,21 @@ class FacebookQueueService
             return null;
         }
 
-        if (! FacebookSettings::isConfigured()) {
-            $this->lastError = 'Facebook chưa được cấu hình — thêm ít nhất một tài khoản trong Cài đặt hệ thống.';
+        $ownerUserId = $user?->id;
+
+        if (! FacebookSettings::isConfigured($ownerUserId)) {
+            $this->lastError = 'Facebook chưa được cấu hình — thêm ít nhất một tài khoản trong Cài đặt tích hợp.';
 
             return null;
         }
 
         $accountIds = array_values(array_unique(array_map('intval', $accountIds)));
         if ($accountIds === []) {
-            $accountIds = FacebookAccount::enabledConfiguredIds();
+            $accountIds = FacebookAccount::enabledConfiguredIds($ownerUserId);
         }
 
         $accounts = FacebookAccount::query()
+            ->where('owner_user_id', \App\Support\IntegrationSettingsStore::for($ownerUserId)->userId())
             ->whereIn('id', $accountIds)
             ->where('enabled', true)
             ->orderBy('sort_order')
@@ -161,7 +164,7 @@ class FacebookQueueService
         }
 
         $batchId = (string) Str::uuid();
-        $interval = $this->intervalMinutes();
+        $interval = $this->intervalMinutes($ownerUserId);
         $baseTime = ($startAt ?? now())->copy();
         $queueIndex = 0;
 
@@ -281,6 +284,7 @@ class FacebookQueueService
                 $item->content_idea,
                 $item->aff_link,
                 is_array($item->coupon_codes) ? $item->coupon_codes : [],
+                $item->user_id,
             );
             $usedDefaultCaption = $gemini->usedDefaultCaption;
 
@@ -298,7 +302,7 @@ class FacebookQueueService
         /** @var FacebookAccount|null $account */
         $account = $item->facebookAccount;
         if ($account === null || ! $account->isConfigured()) {
-            $account = FacebookSettings::primaryAccount();
+            $account = FacebookSettings::primaryAccount($item->user_id);
         }
         if ($account === null || ! $account->isConfigured()) {
             throw new \RuntimeException('Tài khoản Facebook không hợp lệ hoặc đã bị xóa.');

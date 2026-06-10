@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\AdminSettings;
+use App\Support\IntegrationSettingsStore;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -16,8 +17,10 @@ class GeminiBlogService
 
     public function generateBlog(string $category, string $variant): ?array
     {
-        $model = (string) AdminSettings::get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest'));
-        $timeout = $this->resolveTimeoutSeconds();
+        $ownerUserId = IntegrationSettingsStore::fallbackAdminUserId();
+        $store = IntegrationSettingsStore::for($ownerUserId);
+        $model = (string) $store->get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest'));
+        $timeout = $this->resolveTimeoutSeconds($ownerUserId);
 
         $topicPrompt = match ($variant) {
             'best' => "Write a \"Best {$category}\" style article (e.g. best products or options in {$category}).",
@@ -42,7 +45,7 @@ PROMPT;
 
         return $this->callGeminiWithFallback($model, $prompt, $timeout, [
             'maxOutputTokens' => 8192,
-        ]);
+        ], $ownerUserId);
     }
 
     /**
@@ -75,8 +78,10 @@ PROMPT;
             $ctaUrl = $normalizedAffLink;
         }
 
-        $model = (string) AdminSettings::get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest'));
-        $timeout = max(90, $this->resolveTimeoutSeconds());
+        $ownerUserId = IntegrationSettingsStore::fallbackAdminUserId();
+        $store = IntegrationSettingsStore::for($ownerUserId);
+        $model = (string) $store->get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest'));
+        $timeout = max(90, $this->resolveTimeoutSeconds($ownerUserId));
 
         $brandLabel = self::guessBrandNameFromDomain($host);
         $year = (int) now()->format('Y');
@@ -142,7 +147,7 @@ PROMPT;
         $result = $this->callGeminiWithFallback($model, $prompt, $timeout, [
             'maxOutputTokens' => 8192,
             'temperature' => 0.85,
-        ]);
+        ], $ownerUserId);
 
         if ($result === null) {
             return null;
@@ -268,9 +273,9 @@ PROMPT;
         return $input;
     }
 
-    protected function resolveTimeoutSeconds(): int
+    protected function resolveTimeoutSeconds(?int $ownerUserId = null): int
     {
-        $configured = (int) AdminSettings::get('gemini_timeout', config('gemini.timeout', 120));
+        $configured = (int) IntegrationSettingsStore::for($ownerUserId)->get('gemini_timeout', config('gemini.timeout', 120));
 
         return max(self::MIN_TIMEOUT_SECONDS, min(600, $configured));
     }
@@ -278,12 +283,13 @@ PROMPT;
     /**
      * @param  array<string, mixed>  $generationConfigOverrides
      */
-    public function generatePlainText(string $prompt, array $generationConfigOverrides = []): ?string
+    public function generatePlainText(string $prompt, array $generationConfigOverrides = [], ?int $ownerUserId = null): ?string
     {
-        $model = (string) AdminSettings::get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest'));
-        $timeout = max(60, $this->resolveTimeoutSeconds());
+        $store = IntegrationSettingsStore::for($ownerUserId);
+        $model = (string) $store->get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest'));
+        $timeout = max(60, $this->resolveTimeoutSeconds($ownerUserId));
 
-        $result = $this->callGeminiWithFallback($model, $prompt, $timeout, $generationConfigOverrides);
+        $result = $this->callGeminiWithFallback($model, $prompt, $timeout, $generationConfigOverrides, $ownerUserId);
 
         if (! $result) {
             return null;
@@ -297,9 +303,9 @@ PROMPT;
     /**
      * @param  array<string, mixed>  $generationConfigOverrides
      */
-    protected function callGeminiWithFallback(string $model, string $prompt, int $timeout, array $generationConfigOverrides = []): ?array
+    protected function callGeminiWithFallback(string $model, string $prompt, int $timeout, array $generationConfigOverrides = [], ?int $ownerUserId = null): ?array
     {
-        $apiKeys = AdminSettings::getGeminiApiKeys();
+        $apiKeys = IntegrationSettingsStore::for($ownerUserId)->getGeminiApiKeys();
 
         if ($apiKeys === []) {
             $this->lastError = 'GEMINI_API_KEY chưa được cấu hình.';

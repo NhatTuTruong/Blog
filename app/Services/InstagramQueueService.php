@@ -15,9 +15,9 @@ class InstagramQueueService
 {
     public ?string $lastError = null;
 
-    public function intervalMinutes(): int
+    public function intervalMinutes(?int $userId = null): int
     {
-        return InstagramSettings::queueIntervalMinutes();
+        return InstagramSettings::queueIntervalMinutes($userId);
     }
 
     public function hasActiveQueue(): bool
@@ -134,18 +134,21 @@ class InstagramQueueService
             return null;
         }
 
-        if (! InstagramSettings::isConfigured()) {
-            $this->lastError = 'Instagram chưa được cấu hình — thêm ít nhất một tài khoản trong Cài đặt hệ thống.';
+        $ownerUserId = $user?->id;
+
+        if (! InstagramSettings::isConfigured($ownerUserId)) {
+            $this->lastError = 'Instagram chưa được cấu hình — thêm ít nhất một tài khoản trong Cài đặt tích hợp.';
 
             return null;
         }
 
         $accountIds = array_values(array_unique(array_map('intval', $accountIds)));
         if ($accountIds === []) {
-            $accountIds = InstagramAccount::enabledConfiguredIds();
+            $accountIds = InstagramAccount::enabledConfiguredIds($ownerUserId);
         }
 
         $accounts = InstagramAccount::query()
+            ->where('owner_user_id', \App\Support\IntegrationSettingsStore::for($ownerUserId)->userId())
             ->whereIn('id', $accountIds)
             ->where('enabled', true)
             ->orderBy('sort_order')
@@ -161,7 +164,7 @@ class InstagramQueueService
         }
 
         $batchId = (string) Str::uuid();
-        $interval = $this->intervalMinutes();
+        $interval = $this->intervalMinutes($ownerUserId);
         $baseTime = ($startAt ?? now())->copy();
         $queueIndex = 0;
 
@@ -281,6 +284,7 @@ class InstagramQueueService
                 $item->content_idea,
                 $item->aff_link,
                 is_array($item->coupon_codes) ? $item->coupon_codes : [],
+                $item->user_id,
             );
             $usedDefaultCaption = $gemini->usedDefaultCaption;
 
@@ -298,7 +302,7 @@ class InstagramQueueService
         /** @var InstagramAccount|null $account */
         $account = $item->instagramAccount;
         if ($account === null || ! $account->isConfigured()) {
-            $account = InstagramSettings::primaryAccount();
+            $account = InstagramSettings::primaryAccount($item->user_id);
         }
         if ($account === null || ! $account->isConfigured()) {
             throw new \RuntimeException('Tài khoản Instagram không hợp lệ hoặc đã bị xóa.');

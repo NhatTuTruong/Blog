@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Support;
 
 use App\Models\FacebookQueueItem;
 use App\Models\InstagramQueueItem;
+use App\Models\PinterestQueueItem;
 use App\Support\PublicStorage;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Tables;
@@ -26,19 +27,19 @@ class SocialMediaQueueTable
             ->badge()
             ->width('8rem')
             ->wrap(false)
-            ->formatStateUsing(fn (string $state, InstagramQueueItem|FacebookQueueItem $record): string => static::truncate(
+            ->formatStateUsing(fn (string $state, InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $record): string => static::truncate(
                 $record->statusLabel(),
                 self::STATUS_NOTE_LIMIT,
             ))
             ->color(fn (string $state): string => match ($state) {
-                InstagramQueueItem::STATUS_PENDING, FacebookQueueItem::STATUS_PENDING => 'warning',
-                InstagramQueueItem::STATUS_PROCESSING, FacebookQueueItem::STATUS_PROCESSING => 'info',
-                InstagramQueueItem::STATUS_COMPLETED, FacebookQueueItem::STATUS_COMPLETED => 'success',
-                InstagramQueueItem::STATUS_FAILED, FacebookQueueItem::STATUS_FAILED => 'danger',
+                InstagramQueueItem::STATUS_PENDING, FacebookQueueItem::STATUS_PENDING, PinterestQueueItem::STATUS_PENDING => 'warning',
+                InstagramQueueItem::STATUS_PROCESSING, FacebookQueueItem::STATUS_PROCESSING, PinterestQueueItem::STATUS_PROCESSING => 'info',
+                InstagramQueueItem::STATUS_COMPLETED, FacebookQueueItem::STATUS_COMPLETED, PinterestQueueItem::STATUS_COMPLETED => 'success',
+                InstagramQueueItem::STATUS_FAILED, FacebookQueueItem::STATUS_FAILED, PinterestQueueItem::STATUS_FAILED => 'danger',
                 default => 'gray',
             })
-            ->description(fn (InstagramQueueItem|FacebookQueueItem $record): ?string => static::truncatedStatusNote($record))
-            ->tooltip(function (InstagramQueueItem|FacebookQueueItem $record): ?string {
+            ->description(fn (InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $record): ?string => static::truncatedStatusNote($record))
+            ->tooltip(function (InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $record): ?string {
                 $note = static::statusNote($record);
                 $label = $record->statusLabel();
 
@@ -65,9 +66,9 @@ class SocialMediaQueueTable
             ->icon('heroicon-o-eye')
             ->tooltip('Chi tiết')
             ->color('gray')
-            ->modalHeading(fn (InstagramQueueItem|FacebookQueueItem $record): string => 'Chi tiết hàng đợi #'.$record->id)
+            ->modalHeading(fn (InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $record): string => 'Chi tiết hàng đợi #'.$record->id)
             ->modalWidth(MaxWidth::TwoExtraLarge)
-            ->modalContent(fn (InstagramQueueItem|FacebookQueueItem $record) => view(
+            ->modalContent(fn (InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $record) => view(
                 'filament.admin.components.social-media-queue-item-detail',
                 ['record' => $record, 'platform' => $platform],
             ))
@@ -93,14 +94,14 @@ class SocialMediaQueueTable
         ];
     }
 
-    public static function truncatedStatusNote(InstagramQueueItem|FacebookQueueItem $record): ?string
+    public static function truncatedStatusNote(InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $record): ?string
     {
         $note = static::statusNote($record);
 
         return $note === null ? null : static::truncate($note, self::STATUS_NOTE_LIMIT);
     }
 
-    public static function statusNote(InstagramQueueItem|FacebookQueueItem $record): ?string
+    public static function statusNote(InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $record): ?string
     {
         if ($record->status === InstagramQueueItem::STATUS_FAILED && filled($record->error_message)) {
             return trim((string) $record->error_message);
@@ -130,7 +131,7 @@ class SocialMediaQueueTable
     protected static function cleanupMediaBeforeDelete(Collection $records): void
     {
         foreach ($records as $record) {
-            if (! $record instanceof InstagramQueueItem && ! $record instanceof FacebookQueueItem) {
+            if (! $record instanceof InstagramQueueItem && ! $record instanceof FacebookQueueItem && ! $record instanceof PinterestQueueItem) {
                 continue;
             }
 

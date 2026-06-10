@@ -3,6 +3,7 @@
     @php
         $instagramRecordCount = $this->getRecordCountForPlatform('instagram');
         $facebookRecordCount = $this->getRecordCountForPlatform('facebook');
+        $pinterestRecordCount = $this->getRecordCountForPlatform('pinterest');
         $recordCount = $this->getRecordCount();
         $pendingCount = $queueStats['pending'] + $queueStats['processing'];
     @endphp
@@ -13,8 +14,10 @@
             tab: $wire.$entangle('activeTab'),
             igStats: @js($instagramQueueStats),
             fbStats: @js($facebookQueueStats),
+            pinStats: @js($pinterestQueueStats),
             igInterval: @js($instagramQueueIntervalMinutes),
             fbInterval: @js($facebookQueueIntervalMinutes),
+            pinInterval: @js($pinterestQueueIntervalMinutes),
             setPlatform(next) {
                 if (this.platform === next) return;
                 this.platform = next;
@@ -34,151 +37,230 @@
                 window.history.replaceState({}, '', url);
             },
             activeStats() {
-                return this.platform === 'facebook' ? this.fbStats : this.igStats;
+                if (this.platform === 'facebook') return this.fbStats;
+                if (this.platform === 'pinterest') return this.pinStats;
+                return this.igStats;
             },
             activeInterval() {
-                return this.platform === 'facebook' ? this.fbInterval : this.igInterval;
+                if (this.platform === 'facebook') return this.fbInterval;
+                if (this.platform === 'pinterest') return this.pinInterval;
+                return this.igInterval;
             },
             pendingFor(stats) {
                 return (stats.pending ?? 0) + (stats.processing ?? 0);
+            },
+            childAccentBorder() {
+                if (this.platform === 'facebook') return 'border-blue-500/70';
+                if (this.platform === 'pinterest') return 'border-red-500/70';
+                return 'border-fuchsia-500/70';
+            },
+            childAccentActive() {
+                if (this.platform === 'facebook') return 'smp-child-active-fb';
+                if (this.platform === 'pinterest') return 'smp-child-active-pin';
+                return 'smp-child-active-ig';
             },
         }"
         x-on:queue-stats-synced.window="
             igStats = $event.detail.instagram;
             fbStats = $event.detail.facebook;
+            pinStats = $event.detail.pinterest;
             igInterval = $event.detail.instagramInterval;
             fbInterval = $event.detail.facebookInterval;
+            pinInterval = $event.detail.pinterestInterval;
         "
     >
-        <div class="mb-2 flex flex-wrap gap-2">
-            <x-filament::button
-                tag="button"
-                type="button"
-                color="primary"
-                icon="heroicon-o-camera"
-                x-show="platform === 'instagram'"
-                style="{{ $activePlatform !== 'instagram' ? 'display: none;' : '' }}"
-                x-on:click="setPlatform('instagram')"
-            >
-                Instagram
-                @if ($instagramRecordCount > 0)
-                    <span class="ms-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{{ $instagramRecordCount }}</span>
-                @endif
-            </x-filament::button>
-            <x-filament::button
-                tag="button"
-                type="button"
-                color="gray"
-                icon="heroicon-o-camera"
-                x-show="platform !== 'instagram'"
-                style="{{ $activePlatform === 'instagram' ? 'display: none;' : '' }}"
-                x-on:click="setPlatform('instagram')"
-            >
-                Instagram
-                @if ($instagramRecordCount > 0)
-                    <span class="ms-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{{ $instagramRecordCount }}</span>
-                @endif
-            </x-filament::button>
+        <div class="smp-tag-nav mb-3 space-y-2">
+            {{-- Tag cha: nền tảng --}}
+            <div class="flex flex-wrap items-center gap-2">
+                <button
+                    type="button"
+                    class="smp-tag smp-tag-parent smp-tag-ig"
+                    :class="platform === 'instagram' ? 'is-active' : ''"
+                    x-on:click="setPlatform('instagram')"
+                >
+                    <x-filament::icon icon="heroicon-o-camera" class="h-4 w-4 shrink-0" />
+                    <span>Instagram</span>
+                    @if ($instagramRecordCount > 0)
+                        <span class="smp-tag-count">{{ $instagramRecordCount }}</span>
+                    @endif
+                </button>
 
-            <x-filament::button
-                tag="button"
-                type="button"
-                color="primary"
-                icon="heroicon-o-globe-alt"
-                x-show="platform === 'facebook'"
-                style="{{ $activePlatform !== 'facebook' ? 'display: none;' : '' }}"
-                x-on:click="setPlatform('facebook')"
+                <button
+                    type="button"
+                    class="smp-tag smp-tag-parent smp-tag-fb"
+                    :class="platform === 'facebook' ? 'is-active' : ''"
+                    x-on:click="setPlatform('facebook')"
+                >
+                    <x-filament::icon icon="heroicon-o-globe-alt" class="h-4 w-4 shrink-0" />
+                    <span>Facebook</span>
+                    @if ($facebookRecordCount > 0)
+                        <span class="smp-tag-count">{{ $facebookRecordCount }}</span>
+                    @endif
+                </button>
+
+                <button
+                    type="button"
+                    class="smp-tag smp-tag-parent smp-tag-pin"
+                    :class="platform === 'pinterest' ? 'is-active' : ''"
+                    x-on:click="setPlatform('pinterest')"
+                >
+                    <x-filament::icon icon="heroicon-o-bookmark" class="h-4 w-4 shrink-0" />
+                    <span>Pinterest</span>
+                    @if ($pinterestRecordCount > 0)
+                        <span class="smp-tag-count">{{ $pinterestRecordCount }}</span>
+                    @endif
+                </button>
+            </div>
+
+            {{-- Tag con: thuộc nền tảng đang chọn --}}
+            <div
+                class="smp-tag-children flex flex-wrap items-center gap-2 border-l-2 pl-3 mb-2"
+                :class="childAccentBorder()"
             >
-                Facebook
-                @if ($facebookRecordCount > 0)
-                    <span class="ms-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{{ $facebookRecordCount }}</span>
-                @endif
-            </x-filament::button>
-            <x-filament::button
-                tag="button"
-                type="button"
-                color="gray"
-                icon="heroicon-o-globe-alt"
-                x-show="platform !== 'facebook'"
-                style="{{ $activePlatform === 'facebook' ? 'display: none;' : '' }}"
-                x-on:click="setPlatform('facebook')"
-            >
-                Facebook
-                @if ($facebookRecordCount > 0)
-                    <span class="ms-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{{ $facebookRecordCount }}</span>
-                @endif
-            </x-filament::button>
+                <button
+                    type="button"
+                    class="smp-tag smp-tag-child"
+                    :class="tab === 'compose' ? childAccentActive() : ''"
+                    x-on:click="setTab('compose')"
+                >
+                    <x-filament::icon icon="heroicon-o-pencil-square" class="h-3.5 w-3.5 shrink-0 opacity-80" />
+                    <span>Soạn danh sách</span>
+                    @if ($instagramRecordCount > 0)
+                        <span x-show="platform === 'instagram'" class="smp-tag-count smp-tag-count-sm">{{ $instagramRecordCount }}</span>
+                    @endif
+                    @if ($facebookRecordCount > 0)
+                        <span x-show="platform === 'facebook'" class="smp-tag-count smp-tag-count-sm">{{ $facebookRecordCount }}</span>
+                    @endif
+                    @if ($pinterestRecordCount > 0)
+                        <span x-show="platform === 'pinterest'" class="smp-tag-count smp-tag-count-sm">{{ $pinterestRecordCount }}</span>
+                    @endif
+                </button>
+
+                <button
+                    type="button"
+                    class="smp-tag smp-tag-child"
+                    :class="tab === 'queue' ? childAccentActive() : ''"
+                    x-on:click="setTab('queue')"
+                >
+                    <x-filament::icon icon="heroicon-o-queue-list" class="h-3.5 w-3.5 shrink-0 opacity-80" />
+                    <span>Hàng đợi</span>
+                    <span
+                        x-show="pendingFor(activeStats()) > 0"
+                        class="smp-tag-count smp-tag-count-sm smp-tag-count-warn"
+                        x-text="pendingFor(activeStats())"
+                    ></span>
+                </button>
+            </div>
         </div>
 
-        <div class="mb-2 flex flex-wrap gap-2">
-            <x-filament::button
-                tag="button"
-                type="button"
-                color="primary"
-                icon="heroicon-o-pencil-square"
-                x-show="tab === 'compose'"
-                style="{{ $activeTab !== 'compose' ? 'display: none;' : '' }}"
-                x-on:click="setTab('compose')"
-            >
-                Soạn danh sách
-                @if ($instagramRecordCount > 0)
-                    <span x-show="platform === 'instagram'" class="ms-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{{ $instagramRecordCount }}</span>
-                @endif
-                @if ($facebookRecordCount > 0)
-                    <span x-show="platform === 'facebook'" class="ms-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{{ $facebookRecordCount }}</span>
-                @endif
-            </x-filament::button>
-            <x-filament::button
-                tag="button"
-                type="button"
-                color="gray"
-                icon="heroicon-o-pencil-square"
-                x-show="tab !== 'compose'"
-                style="{{ $activeTab === 'compose' ? 'display: none;' : '' }}"
-                x-on:click="setTab('compose')"
-            >
-                Soạn danh sách
-                @if ($instagramRecordCount > 0)
-                    <span x-show="platform === 'instagram'" class="ms-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{{ $instagramRecordCount }}</span>
-                @endif
-                @if ($facebookRecordCount > 0)
-                    <span x-show="platform === 'facebook'" class="ms-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{{ $facebookRecordCount }}</span>
-                @endif
-            </x-filament::button>
+        <style>
+            .smp-tag-nav .smp-tag {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.4rem;
+                border-radius: 9999px;
+                font-weight: 600;
+                line-height: 1.2;
+                transition: all 0.15s ease;
+                cursor: pointer;
+                border: 1px solid transparent;
+            }
 
-            <x-filament::button
-                tag="button"
-                type="button"
-                color="primary"
-                icon="heroicon-o-queue-list"
-                x-show="tab === 'queue'"
-                style="{{ $activeTab !== 'queue' ? 'display: none;' : '' }}"
-                x-on:click="setTab('queue')"
-            >
-                Hàng đợi
-                <span
-                    x-show="pendingFor(activeStats()) > 0"
-                    class="ms-1 rounded-full bg-amber-500/90 px-1.5 py-0.5 text-xs text-white"
-                    x-text="pendingFor(activeStats())"
-                ></span>
-            </x-filament::button>
-            <x-filament::button
-                tag="button"
-                type="button"
-                color="gray"
-                icon="heroicon-o-queue-list"
-                x-show="tab !== 'queue'"
-                style="{{ $activeTab === 'queue' ? 'display: none;' : '' }}"
-                x-on:click="setTab('queue')"
-            >
-                Hàng đợi
-                <span
-                    x-show="pendingFor(activeStats()) > 0"
-                    class="ms-1 rounded-full bg-amber-500/90 px-1.5 py-0.5 text-xs text-white"
-                    x-text="pendingFor(activeStats())"
-                ></span>
-            </x-filament::button>
-        </div>
+            .smp-tag-nav .smp-tag-parent {
+                padding: 0.45rem 0.95rem;
+                font-size: 0.875rem;
+                color: #fff;
+                background: rgb(31 41 55 / 0.55);
+                border-color: rgb(75 85 99 / 0.45);
+            }
+
+            .smp-tag-nav .smp-tag-parent:hover {
+                color: rgb(229 231 235);
+                background: rgb(55 65 81 / 0.65);
+            }
+
+            .smp-tag-nav .smp-tag-ig.is-active {
+                color: #fff;
+                border-color: transparent;
+                background: linear-gradient(135deg, #833ab4 0%, #c13584 45%, #e1306c 100%);
+                box-shadow: 0 0 0 1px rgb(192 38 211 / 0.35), 0 4px 14px rgb(131 58 180 / 0.35);
+            }
+
+            .smp-tag-nav .smp-tag-fb.is-active {
+                color: #fff;
+                border-color: transparent;
+                background: linear-gradient(135deg, #1877f2 0%, #0d65d9 100%);
+                box-shadow: 0 0 0 1px rgb(59 130 246 / 0.35), 0 4px 14px rgb(24 119 242 / 0.35);
+            }
+
+            .smp-tag-nav .smp-tag-pin.is-active {
+                color: #fff;
+                border-color: transparent;
+                background: linear-gradient(135deg, #e60023 0%, #bd081c 100%);
+                box-shadow: 0 0 0 1px rgb(239 68 68 / 0.35), 0 4px 14px rgb(230 0 35 / 0.35);
+            }
+
+            .smp-tag-nav .smp-tag-children {
+                min-height: 2rem;
+                margin-bottom: 10px !important;
+            }
+
+            .smp-tag-nav .smp-tag-child {
+                padding: 0.3rem 0.75rem;
+                font-size: 0.8125rem;
+                font-weight: 500;
+                color: #fff;
+                background: rgb(17 24 39 / 0.45);
+                border-color: rgb(55 65 81 / 0.6);
+            }
+
+            .smp-tag-nav .smp-tag-child:hover {
+                color: rgb(229 231 235);
+                background: rgb(31 41 55 / 0.75);
+            }
+
+            .smp-tag-nav .smp-child-active-ig {
+                color: #fff;
+                background: rgb(131 58 180 / 0.22);
+                border-color: rgb(192 38 211 / 0.55);
+            }
+
+            .smp-tag-nav .smp-child-active-fb {
+                color: #fff;
+                background: rgb(24 119 242 / 0.2);
+                border-color: rgb(59 130 246 / 0.55);
+            }
+
+            .smp-tag-nav .smp-child-active-pin {
+                color: #fff;
+                background: rgb(230 0 35 / 0.2);
+                border-color: rgb(239 68 68 / 0.55);
+            }
+
+            .smp-tag-nav .smp-tag-count {
+                display: inline-flex;
+                min-width: 1.25rem;
+                align-items: center;
+                justify-content: center;
+                border-radius: 9999px;
+                padding: 0.1rem 0.4rem;
+                font-size: 0.6875rem;
+                font-weight: 700;
+                background: rgb(255 255 255 / 0.18);
+                color: inherit;
+            }
+
+            .smp-tag-nav .smp-tag-count-sm {
+                font-size: 0.625rem;
+                min-width: 1.1rem;
+                padding: 0.05rem 0.35rem;
+            }
+
+            .smp-tag-nav .smp-tag-count-warn {
+                background: rgb(245 158 11 / 0.9);
+                color: #fff;
+            }
+        </style>
 
         {{-- Chỉ render form của platform đang chọn — tránh xung đột upload Livewire --}}
         <div x-show="tab === 'compose'" x-cloak>
@@ -187,6 +269,10 @@
             @if ($activePlatform === 'instagram')
                 <div wire:key="compose-instagram-form">
                     {{ $this->instagramForm }}
+                </div>
+            @elseif ($activePlatform === 'pinterest')
+                <div wire:key="compose-pinterest-form">
+                    {{ $this->pinterestForm }}
                 </div>
             @else
                 <div wire:key="compose-facebook-form">
@@ -203,7 +289,7 @@
                 <div class="flex flex-wrap items-center justify-between gap-3 p-4">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="fi-section-header-heading text-sm font-semibold">
-                            Hàng đợi <span x-text="platform === 'facebook' ? 'Facebook' : 'Instagram'"></span>
+                            Hàng đợi <span x-text="platform === 'facebook' ? 'Facebook' : (platform === 'pinterest' ? 'Pinterest' : 'Instagram')"></span>
                         </span>
                         <x-filament::badge color="gray" size="sm">
                             <span x-text="activeInterval()"></span> phút/bài

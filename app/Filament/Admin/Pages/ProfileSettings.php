@@ -25,7 +25,7 @@ class ProfileSettings extends Page implements HasForms
 
     protected static ?string $title = 'Hồ sơ cá nhân';
 
-    protected static ?string $navigationGroup = 'Blog';
+    protected static ?string $navigationGroup = 'Cài đặt';
 
     protected static ?int $navigationSort = 999;
 

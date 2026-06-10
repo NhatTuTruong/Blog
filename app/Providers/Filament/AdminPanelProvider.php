@@ -8,6 +8,8 @@ use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
 use App\Filament\Admin\Pages\Dashboard as AdminDashboard;
+use App\Filament\Admin\Pages\SocialMediaPublish;
+use App\Models\User;
 use App\Filament\Admin\Widgets\BlogCategoryChartWidget;
 use App\Filament\Admin\Widgets\BlogPostsChartWidget;
 use App\Filament\Admin\Widgets\BlogStatsOverviewWidget;
@@ -32,6 +34,15 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->homeUrl(function (): string {
+                $user = auth()->user();
+
+                if ($user instanceof User && ! $user->isAdmin()) {
+                    return SocialMediaPublish::getUrl();
+                }
+
+                return AdminDashboard::getUrl();
+            })
             ->login()
             ->authGuard('web')
             ->authMiddleware([Authenticate::class])
@@ -71,6 +82,10 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
                 RememberAdminIpMiddleware::class,
             ])
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn () => view('components.filament-file-upload-fouc-fix')
+            )
             ->renderHook(
                 PanelsRenderHook::SCRIPTS_AFTER,
                 fn () => view('components.rich-editor-paste-normalize')

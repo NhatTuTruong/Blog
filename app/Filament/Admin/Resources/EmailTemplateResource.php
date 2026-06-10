@@ -32,7 +32,7 @@ class EmailTemplateResource extends Resource
     {
         $user = auth()->user();
 
-        return $user instanceof User && $user->isAdmin();
+        return $user instanceof User;
     }
 
     public static function shouldRegisterNavigation(): bool

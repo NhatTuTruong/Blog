@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Support\AdminSettings;
+use App\Support\IntegrationSettingsStore;
 
 class GeminiInstagramService
 {
@@ -20,17 +20,18 @@ class GeminiInstagramService
         ?string $contentIdea = null,
         ?string $affLink = null,
         array $couponCodes = [],
+        ?int $ownerUserId = null,
     ): string {
         $this->usedDefaultCaption = false;
         $this->lastError = null;
         $couponCodes = array_values(array_filter(array_map('trim', $couponCodes)));
 
-        if (! AdminSettings::hasGeminiApiKey()) {
+        if (! IntegrationSettingsStore::for($ownerUserId)->hasGeminiApiKey()) {
             return $this->useDefaultCaption($affLink, $couponCodes);
         }
 
         try {
-            $caption = $this->attemptSingleAiCaption($brandDomain, $contentIdea, $affLink, $couponCodes);
+            $caption = $this->attemptSingleAiCaption($brandDomain, $contentIdea, $affLink, $couponCodes, $ownerUserId);
             if ($caption !== null) {
                 return $caption;
             }
@@ -94,6 +95,7 @@ class GeminiInstagramService
         ?string $contentIdea,
         ?string $affLink,
         array $couponCodes,
+        ?int $ownerUserId = null,
     ): ?string {
         $contentIdea = filled($contentIdea) ? trim((string) $contentIdea) : '';
         if ($contentIdea === '') {
@@ -116,7 +118,7 @@ class GeminiInstagramService
         $text = $gemini->generatePlainText($prompt, [
             'maxOutputTokens' => 2048,
             'temperature' => 0.55,
-        ]);
+        ], $ownerUserId);
 
         if ($text === null) {
             $this->lastError = $gemini->lastError ?? 'AI không trả về caption.';

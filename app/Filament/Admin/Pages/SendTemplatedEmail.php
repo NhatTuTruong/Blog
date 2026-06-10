@@ -7,6 +7,7 @@ use App\Models\EmailSendLog;
 use App\Models\EmailTemplate;
 use App\Models\User;
 use App\Support\FormDraftService;
+use App\Services\EmailRecurringService;
 use App\Services\TemplatedEmailService;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -45,7 +46,7 @@ class SendTemplatedEmail extends Page implements HasForms
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof User && $user->isAdmin();
+        return $user instanceof User;
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -211,7 +212,7 @@ class SendTemplatedEmail extends Page implements HasForms
         return $form
             ->schema([
                 Forms\Components\Section::make('Chọn mẫu & người nhận')
-                    ->description('Mail gửi qua SMTP theo cấu hình tại Cài đặt hệ thống → Email. Có thể chọn mẫu hoặc tự nhập tiêu đề/nội dung.')
+                    ->description('Mail gửi qua SMTP theo cấu hình tại Cài đặt → Gemini & MXH & Email. Có thể chọn mẫu hoặc tự nhập tiêu đề/nội dung.')
                     ->schema([
                         Forms\Components\Select::make('email_template_id')
                             ->label('Mẫu email')
@@ -330,7 +331,7 @@ class SendTemplatedEmail extends Page implements HasForms
 
     protected function variableSectionDescription(mixed $templateId): string
     {
-        $base = 'Lấy từ «Nội dung biến thể» trong mẫu email. Bạn có thể sửa từng giá trị trước khi nhấn Gửi ngay.';
+        $base = 'Lấy từ «Nội dung biến thể» trong mẫu email. Bạn có thể sửa từng giá trị trước khi nhấn Gửi Mail.';
 
         $template = $this->resolveTemplate($templateId);
 
@@ -457,14 +458,38 @@ class SendTemplatedEmail extends Page implements HasForms
         return [
             $this->getFormDraftDiscardAction(),
             Action::make('send')
-                ->label('Gửi ngay')
+                ->label('Gửi Mail')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('success')
-                ->action('sendEmails'),
+                ->modalHeading('Gửi email')
+                ->modalSubmitActionLabel('Gửi')
+                ->form([
+                    Forms\Components\Radio::make('send_mode')
+                        ->label('Chế độ gửi')
+                        ->options([
+                            'once' => 'Gửi 1 lần',
+                            'recurring' => 'Gửi lại nhiều lần',
+                        ])
+                        ->default('once')
+                        ->live()
+                        ->required(),
+                    Forms\Components\TextInput::make('repeat_interval_hours')
+                        ->label('Khoảng cách gửi lại (giờ)')
+                        ->numeric()
+                        ->minValue(1)
+                        ->maxValue(8760)
+                        ->default(24)
+                        ->required(fn (Get $get): bool => $get('send_mode') === 'recurring')
+                        ->visible(fn (Get $get): bool => $get('send_mode') === 'recurring'),
+                ])
+                ->action(fn (array $data) => $this->sendEmails($data)),
         ];
     }
 
-    public function sendEmails(): void
+    /**
+     * @param  array<string, mixed>  $sendOptions
+     */
+    public function sendEmails(array $sendOptions = []): void
     {
         $data = $this->form->getState();
         $template = EmailTemplate::query()->find($data['email_template_id'] ?? null);
@@ -505,11 +530,6 @@ class SendTemplatedEmail extends Page implements HasForms
             $attachmentPaths,
         );
 
-        if ($attachmentPaths !== []) {
-            Storage::disk('local')->delete($attachmentPaths);
-            $this->data['attachments'] = [];
-        }
-
         if ($result['sent'] === 0) {
             Notification::make()
                 ->title('Gửi email thất bại')
@@ -520,13 +540,41 @@ class SendTemplatedEmail extends Page implements HasForms
             return;
         }
 
+        $sendMode = (string) ($sendOptions['send_mode'] ?? 'once');
+        $isRecurring = $sendMode === 'recurring';
+
+        if ($isRecurring) {
+            $intervalHours = max(1, min(8760, (int) ($sendOptions['repeat_interval_hours'] ?? 24)));
+            $recurringService = app(EmailRecurringService::class);
+            $schedule = $recurringService->createSchedule(
+                template: $template,
+                recipients: $result['recipients'],
+                variableValues: $variables,
+                subject: $result['subject'],
+                body: $result['body'],
+                extraAttachmentPaths: $attachmentPaths,
+                intervalHours: $intervalHours,
+                sender: $sender,
+            );
+            $recurringService->linkLogToSchedule($result['log'], $schedule);
+        }
+
+        if ($attachmentPaths !== []) {
+            Storage::disk('local')->delete($attachmentPaths);
+            $this->data['attachments'] = [];
+        }
+
         $body = "Đã gửi thành công {$result['sent']} email.";
         if ($result['failed'] > 0) {
             $body .= " Thất bại: {$result['failed']}.";
         }
+        if ($isRecurring) {
+            $intervalHours = max(1, min(8760, (int) ($sendOptions['repeat_interval_hours'] ?? 24)));
+            $body .= " Đã bật gửi lại mỗi {$intervalHours} giờ — có thể dừng tại Lịch sử gửi mail.";
+        }
 
         Notification::make()
-            ->title('Gửi email hoàn tất')
+            ->title($isRecurring ? 'Đã gửi và lên lịch gửi lại' : 'Gửi email hoàn tất')
             ->body($body)
             ->success()
             ->send();

@@ -322,7 +322,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                 ->action(fn (array $data) => $this->publishRecords($data)),
             ActionGroup::make([
                 Action::make('importFromFile')
-                    ->label('Import file vào danh sách')
+                    ->label('Import file')
                     ->icon('heroicon-o-arrow-up-tray')
                     ->action(fn () => $this->importFromFile()),
                 Action::make('saveList')

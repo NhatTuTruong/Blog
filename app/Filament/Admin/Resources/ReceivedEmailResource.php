@@ -34,7 +34,7 @@ class ReceivedEmailResource extends Resource
     {
         $user = auth()->user();
 
-        return $user instanceof User && $user->isAdmin();
+        return $user instanceof User;
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -50,6 +50,18 @@ class ReceivedEmailResource extends Resource
     public static function canDelete($record): bool
     {
         return static::canViewAny();
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user instanceof User && ! $user->isAdmin()) {
+            $query->where('user_id', $user->id);
+        }
+
+        return $query;
     }
 
     public static function form(Form $form): Form

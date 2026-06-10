@@ -3,8 +3,12 @@
 namespace App\Filament\Admin\Pages;
 
 use App\Exports\InstagramTemplateExport;
-use App\Filament\Admin\Pages\SystemSettings;
+use App\Filament\Admin\Pages\UserIntegrationSettings;
+use App\Filament\Admin\Concerns\ManagesCrossPlatformPublish;
 use App\Filament\Admin\Concerns\ManagesFacebookPublish;
+use App\Filament\Admin\Concerns\ManagesPinterestPublish;
+use App\Services\PinterestImportService;
+use App\Services\PinterestQueueService;
 use App\Filament\Concerns\HasFormDraft;
 use App\Models\InstagramAccount;
 use App\Models\InstagramQueueItem;
@@ -61,7 +65,9 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     use HasFormDraft;
     use InteractsWithForms;
     use InteractsWithTable;
+    use ManagesCrossPlatformPublish;
     use ManagesFacebookPublish;
+    use ManagesPinterestPublish;
 
     protected static ?string $navigationIcon = 'heroicon-o-share';
 
@@ -82,6 +88,9 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     /** @var array<string, mixed> */
     public array $facebookData = [];
+
+    /** @var array<string, mixed> */
+    public array $pinterestData = [];
 
     #[Url(as: 'platform', history: true)]
     public string $activePlatform = 'instagram';
@@ -119,6 +128,16 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     public int $facebookQueueIntervalMinutes = 30;
 
+    /** @var array{pending: int, processing: int, completed: int, failed: int} */
+    public array $pinterestQueueStats = [
+        'pending' => 0,
+        'processing' => 0,
+        'completed' => 0,
+        'failed' => 0,
+    ];
+
+    public int $pinterestQueueIntervalMinutes = 30;
+
     public ?string $instagramAccountLabel = null;
 
     protected ?int $instagramLoadedSavedListId = null;
@@ -133,7 +152,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     {
         $user = Filament::auth()->user();
 
-        return $user instanceof User && $user->isAdmin();
+        return $user instanceof User;
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -162,7 +181,11 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     public function getPendingCountForPlatform(string $platform): int
     {
-        $stats = $platform === 'facebook' ? $this->facebookQueueStats : $this->instagramQueueStats;
+        $stats = match ($platform) {
+            'facebook' => $this->facebookQueueStats,
+            'pinterest' => $this->pinterestQueueStats,
+            default => $this->instagramQueueStats,
+        };
 
         return ($stats['pending'] ?? 0) + ($stats['processing'] ?? 0);
     }
@@ -174,6 +197,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
         $this->instagramData = $this->defaultComposeFormState();
         $this->facebookData = $this->defaultComposeFormState();
+        $this->pinterestData = $this->defaultComposeFormState();
 
         $this->loadAllQueueStats();
         $this->applyActivePlatformQueueStats();
@@ -182,11 +206,13 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         $this->ensureMediaUploadDirectories();
         $this->instagramForm->fill($this->instagramData);
         $this->facebookForm->fill($this->facebookData);
+        $this->pinterestForm->fill($this->pinterestData);
 
         $this->restoreFormDraft();
 
         $this->refreshInstagramAccountLabel();
         $this->refreshFacebookAccountLabel();
+        $this->refreshPinterestAccountLabel();
 
         if ($this->activeTab === 'queue') {
             $this->refreshQueue();
@@ -236,11 +262,17 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return;
         }
 
-        $key = $platform === 'facebook'
-            ? $this->facebookFormDraftKey()
-            : FormDraftService::key('instagram_publish');
+        $key = match ($platform) {
+            'facebook' => $this->facebookFormDraftKey(),
+            'pinterest' => $this->pinterestFormDraftKey(),
+            default => FormDraftService::key('instagram_publish'),
+        };
 
-        $data = $platform === 'facebook' ? $this->facebookData : $this->instagramData;
+        $data = match ($platform) {
+            'facebook' => $this->facebookData,
+            'pinterest' => $this->pinterestData,
+            default => $this->instagramData,
+        };
 
         if (! $this->formDraftHasContent($data)) {
             FormDraftService::delete($userId, $key);
@@ -279,12 +311,13 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
         $isInstagram = $property === 'instagramData' || str_starts_with($property, 'instagramData.');
         $isFacebook = $property === 'facebookData' || str_starts_with($property, 'facebookData.');
+        $isPinterest = $property === 'pinterestData' || str_starts_with($property, 'pinterestData.');
 
-        if (! $isInstagram && ! $isFacebook) {
+        if (! $isInstagram && ! $isFacebook && ! $isPinterest) {
             return;
         }
 
-        $editedPlatform = $isFacebook ? 'facebook' : 'instagram';
+        $editedPlatform = $isPinterest ? 'pinterest' : ($isFacebook ? 'facebook' : 'instagram');
 
         if ($editedPlatform !== $this->activePlatform) {
             return;
@@ -304,11 +337,13 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             'instagram-temp-videos',
             'facebook-uploads',
             'facebook-temp-videos',
+            'pinterest-uploads',
+            'pinterest-temp-videos',
         ] as $directory) {
             PublicStorage::ensureDirectory($directory);
         }
 
-        foreach (['instagram-imports', 'facebook-imports'] as $directory) {
+        foreach (['instagram-imports', 'facebook-imports', 'pinterest-imports'] as $directory) {
             if (! Storage::disk('local')->exists($directory)) {
                 Storage::disk('local')->makeDirectory($directory);
             }
@@ -323,6 +358,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         return [
             'instagramForm',
             'facebookForm',
+            'pinterestForm',
         ];
     }
 
@@ -340,12 +376,23 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             ->statePath('facebookData');
     }
 
+    public function pinterestForm(Form $form): Form
+    {
+        return $form
+            ->schema($this->getPinterestFormSchema())
+            ->statePath('pinterestData');
+    }
+
     /**
      * @return array<string, mixed>
      */
     protected function activeFormData(): array
     {
-        return $this->activePlatform === 'facebook' ? $this->facebookData : $this->instagramData;
+        return match ($this->activePlatform) {
+            'facebook' => $this->facebookData,
+            'pinterest' => $this->pinterestData,
+            default => $this->instagramData,
+        };
     }
 
     /**
@@ -354,14 +401,18 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     protected function fillActivePlatformForm(array $state): void
     {
         if ($this->activePlatform === 'facebook') {
-            $this->facebookData = $state;
-            $this->facebookForm->fill($state);
+            $this->fillFacebookForm($state);
 
             return;
         }
 
-        $this->instagramData = $state;
-        $this->instagramForm->fill($state);
+        if ($this->activePlatform === 'pinterest') {
+            $this->fillPinterestForm($state);
+
+            return;
+        }
+
+        $this->fillInstagramForm($state);
     }
 
     /**
@@ -382,9 +433,18 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         $this->facebookForm->fill($state);
     }
 
+    /**
+     * @param  array<string, mixed>  $state
+     */
+    protected function fillPinterestForm(array $state): void
+    {
+        $this->pinterestData = $state;
+        $this->pinterestForm->fill($state);
+    }
+
     protected function sanitizePlatform(string $platform): string
     {
-        return in_array($platform, ['instagram', 'facebook'], true) ? $platform : 'instagram';
+        return in_array($platform, ['instagram', 'facebook', 'pinterest'], true) ? $platform : 'instagram';
     }
 
     protected function sanitizeTab(string $tab): string
@@ -397,7 +457,11 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
      */
     protected function platformFormData(string $platform): array
     {
-        $stored = $platform === 'facebook' ? $this->facebookData : $this->instagramData;
+        $stored = match ($platform) {
+            'facebook' => $this->facebookData,
+            'pinterest' => $this->pinterestData,
+            default => $this->instagramData,
+        };
 
         return $stored !== [] ? $stored : $this->defaultComposeFormState();
     }
@@ -407,6 +471,13 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         if ($this->activePlatform === 'facebook') {
             $this->loadedSavedListId = $this->facebookLoadedSavedListId;
             $this->loadedSavedListName = $this->facebookLoadedSavedListName;
+
+            return;
+        }
+
+        if ($this->activePlatform === 'pinterest') {
+            $this->loadedSavedListId = $this->pinterestLoadedSavedListId;
+            $this->loadedSavedListName = $this->pinterestLoadedSavedListName;
 
             return;
         }
@@ -424,6 +495,10 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         $facebookService = app(FacebookQueueService::class);
         $this->facebookQueueStats = $facebookService->queueStats();
         $this->facebookQueueIntervalMinutes = $facebookService->intervalMinutes();
+
+        $pinterestService = app(PinterestQueueService::class);
+        $this->pinterestQueueStats = $pinterestService->queueStats();
+        $this->pinterestQueueIntervalMinutes = $pinterestService->intervalMinutes();
     }
 
     protected function applyActivePlatformQueueStats(): void
@@ -431,6 +506,13 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         if ($this->activePlatform === 'facebook') {
             $this->queueStats = $this->facebookQueueStats;
             $this->queueIntervalMinutes = $this->facebookQueueIntervalMinutes;
+
+            return;
+        }
+
+        if ($this->activePlatform === 'pinterest') {
+            $this->queueStats = $this->pinterestQueueStats;
+            $this->queueIntervalMinutes = $this->pinterestQueueIntervalMinutes;
 
             return;
         }
@@ -495,7 +577,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                 Section::make('Chi tiết bài đăng Instagram')
                     ->description(fn (): string => InstagramSettings::isConfigured()
                         ? ''
-                        : 'Chưa cấu hình Instagram — vào Cài đặt hệ thống để thêm tài khoản.')
+                        : 'Chưa cấu hình Instagram — vào Cài đặt tùy chỉnh để thêm tài khoản.')
                     ->schema([
                         Placeholder::make('instagram_status')
                             ->label('Tài khoản Instagram')
@@ -503,12 +585,13 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                                 ?? (InstagramSettings::isConfigured() ? 'Đã cấu hình' : 'Chưa cấu hình'))
                             ->helperText(fn (): ?string => InstagramSettings::isConfigured()
                                 ? null
-                                : 'Mở Cài đặt hệ thống → Instagram để thêm một hoặc nhiều tài khoản.'),
+                                : 'Mở Cài đặt tùy chỉnh → Instagram để thêm một hoặc nhiều tài khoản.'),
                         Repeater::make('records')
                             ->label('')
                             ->columns(6)
                             ->defaultItems(1)
                             ->collapsible()
+                            ->collapsed()
                             ->cloneable()
                             ->addActionLabel('Thêm dòng')
                             ->itemLabel(fn (array $state): ?string => filled($state['brand_domain'] ?? null)
@@ -548,6 +631,10 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     {
         if ($this->activePlatform === 'facebook') {
             return $this->facebookTable($table);
+        }
+
+        if ($this->activePlatform === 'pinterest') {
+            return $this->pinterestTable($table);
         }
 
         return $table
@@ -610,6 +697,13 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             ], $this->getFacebookHeaderActions());
         }
 
+        if ($this->activePlatform === 'pinterest') {
+            return array_merge([
+                $this->getFormDraftDiscardAction()
+                    ->visible(fn (): bool => $this->activeTab === 'compose' && $this->formDraftExists()),
+            ], $this->getPinterestHeaderActions());
+        }
+
         return [
             $this->getFormDraftDiscardAction()
                 ->visible(fn (): bool => $this->activeTab === 'compose' && $this->formDraftExists()),
@@ -622,7 +716,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                 ->label('Cài đặt Instagram')
                 ->icon('heroicon-o-cog-6-tooth')
                 ->color('gray')
-                ->url(SystemSettings::getUrl()),
+                ->url(UserIntegrationSettings::getUrl()),
             Action::make('publish')
                 ->label('Đăng bài')
                 ->icon('heroicon-o-sparkles')
@@ -642,7 +736,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     }
 
                     if (! InstagramSettings::isConfigured()) {
-                        $base .= ' Instagram chưa được cấu hình — thêm tài khoản trong Cài đặt hệ thống.';
+                        $base .= ' Instagram chưa được cấu hình — thêm tài khoản trong Cài đặt tùy chỉnh.';
                     }
 
                     return $base;
@@ -659,7 +753,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                         ->helperText('Mặc định chọn tất cả. Bỏ chọn tài khoản không muốn đăng.'),
                     Placeholder::make('no_instagram_accounts')
                         ->label('Tài khoản Instagram')
-                        ->content('Chưa có tài khoản — vào Cài đặt hệ thống → Instagram để thêm.')
+                        ->content('Chưa có tài khoản — vào Cài đặt tùy chỉnh → Instagram để thêm.')
                         ->visible(fn (): bool => InstagramAccount::optionsForSelect() === []),
                     Placeholder::make('active_queue_warning')
                         ->label('Cảnh báo')
@@ -691,11 +785,12 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                         ->minDate(now()->startOfDay())
                         ->visible(fn (Get $get): bool => $get('publish_mode') === 'scheduled')
                         ->required(fn (Get $get): bool => $get('publish_mode') === 'scheduled'),
+                    ...$this->crossPlatformPublishFormSchema('instagram'),
                 ])
                 ->action(fn (array $data) => $this->publishRecords($data)),
             ActionGroup::make([
                 Action::make('importFromFile')
-                    ->label('Import file vào danh sách')
+                    ->label('Import file')
                     ->icon('heroicon-o-arrow-up-tray')
                     ->action(fn () => $this->importFromFile()),
                 Action::make('saveList')
@@ -892,7 +987,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         if ($accounts->isEmpty()) {
             Notification::make()
                 ->title('Chưa có tài khoản Instagram')
-                ->body('Thêm tài khoản trong Cài đặt hệ thống → Instagram.')
+                ->body('Thêm tài khoản trong Cài đặt tùy chỉnh → Instagram.')
                 ->warning()
                 ->send();
 
@@ -1025,13 +1120,21 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             ? $startAt->format('d/m/Y H:i')
             : 'ngay bây giờ';
 
-        Notification::make()
-            ->title('Đã xếp hàng '.$queueCount.' lượt đăng')
-            ->body($minutes > 0
-                ? "({$postCount} bài × ".count($accountIds)." TK) Bắt đầu {$startLabel} · cách {$this->queueIntervalMinutes} phút/lượt."
-                : "({$postCount} bài × ".count($accountIds)." TK) Bắt đầu từ {$startLabel}.")
-            ->success()
-            ->send();
+        $primaryMessage = $minutes > 0
+            ? "({$postCount} bài × ".count($accountIds)." TK) Bắt đầu {$startLabel} · cách {$this->queueIntervalMinutes} phút/lượt."
+            : "({$postCount} bài × ".count($accountIds)." TK) Bắt đầu từ {$startLabel}.";
+
+        $crossResults = $this->publishRecordsToCrossPlatforms('instagram', $records, $startAt, $data);
+
+        if ($crossResults !== []) {
+            $this->notifyCrossPlatformPublishResults('Instagram', $queueCount.' lượt · '.$primaryMessage, $crossResults);
+        } else {
+            Notification::make()
+                ->title('Đã xếp hàng '.$queueCount.' lượt đăng')
+                ->body($primaryMessage)
+                ->success()
+                ->send();
+        }
 
         $this->resetFormAfterPublish();
         $this->clearFormDraft();
@@ -1051,6 +1154,11 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         $this->facebookQueueStats = $facebookService->queueStats();
         $this->facebookQueueIntervalMinutes = $facebookService->intervalMinutes();
 
+        $pinterestService = app(PinterestQueueService::class);
+        $pinterestService->recoverStaleProcessingItems();
+        $this->pinterestQueueStats = $pinterestService->queueStats();
+        $this->pinterestQueueIntervalMinutes = $pinterestService->intervalMinutes();
+
         $this->applyActivePlatformQueueStats();
         $this->dispatchQueueStatsToBrowser();
 
@@ -1065,8 +1173,10 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             'queue-stats-synced',
             instagram: $this->instagramQueueStats,
             facebook: $this->facebookQueueStats,
+            pinterest: $this->pinterestQueueStats,
             instagramInterval: $this->instagramQueueIntervalMinutes,
             facebookInterval: $this->facebookQueueIntervalMinutes,
+            pinterestInterval: $this->pinterestQueueIntervalMinutes,
         );
     }
 
@@ -1074,6 +1184,12 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     {
         if ($this->activePlatform === 'facebook') {
             $this->releaseFacebookStuckProcessing();
+
+            return;
+        }
+
+        if ($this->activePlatform === 'pinterest') {
+            $this->releasePinterestStuckProcessing();
 
             return;
         }
@@ -1107,6 +1223,10 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return $this->canReleaseFacebookStuckProcessing();
         }
 
+        if ($this->activePlatform === 'pinterest') {
+            return $this->canReleasePinterestStuckProcessing();
+        }
+
         return app(InstagramQueueService::class)->hasStuckProcessing();
     }
 
@@ -1114,6 +1234,12 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     {
         if ($this->activePlatform === 'facebook') {
             $this->cancelFacebookPendingQueue();
+
+            return;
+        }
+
+        if ($this->activePlatform === 'pinterest') {
+            $this->cancelPinterestPendingQueue();
 
             return;
         }
@@ -1146,6 +1272,10 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return $this->canCancelFacebookPendingQueue();
         }
 
+        if ($this->activePlatform === 'pinterest') {
+            return $this->canCancelPinterestPendingQueue();
+        }
+
         return app(InstagramQueueService::class)->hasPendingQueue();
     }
 
@@ -1157,6 +1287,11 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     protected function prepareFacebookRecordsFromForm(): bool
     {
         return $this->preparePlatformRecordsFromForm('facebook');
+    }
+
+    protected function preparePinterestRecordsFromForm(): bool
+    {
+        return $this->preparePlatformRecordsFromForm('pinterest');
     }
 
     protected function preparePlatformRecordsFromForm(string $platform): bool
@@ -1182,13 +1317,22 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return;
         }
 
+        if ($platform === 'pinterest') {
+            $this->pinterestData = $this->pinterestForm->getState($shouldValidate);
+
+            return;
+        }
+
         $this->instagramData = $this->instagramForm->getState($shouldValidate);
     }
 
     protected function syncImportFileState(string $platform): void
     {
-        $property = $platform === 'facebook' ? 'facebookData' : 'instagramData';
-        $form = $platform === 'facebook' ? $this->facebookForm : $this->instagramForm;
+        [$property, $form] = match ($platform) {
+            'facebook' => ['facebookData', $this->facebookForm],
+            'pinterest' => ['pinterestData', $this->pinterestForm],
+            default => ['instagramData', $this->instagramForm],
+        };
         $data = is_array($this->{$property}) ? $this->{$property} : [];
 
         if (is_array($data['import_file'] ?? null)) {
@@ -1212,7 +1356,11 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     protected function normalizeComposeFormFileState(string $platform): void
     {
-        $property = $platform === 'facebook' ? 'facebookData' : 'instagramData';
+        $property = match ($platform) {
+            'facebook' => 'facebookData',
+            'pinterest' => 'pinterestData',
+            default => 'instagramData',
+        };
         $data = $this->{$property};
 
         if (! is_array($data)) {
@@ -1241,16 +1389,21 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
         $this->{$property} = $data;
 
-        if ($platform === 'facebook') {
-            $this->facebookForm->fill($data);
-        } else {
-            $this->instagramForm->fill($data);
-        }
+        match ($platform) {
+            'facebook' => $this->facebookForm->fill($data),
+            'pinterest' => $this->pinterestForm->fill($data),
+            default => $this->instagramForm->fill($data),
+        };
     }
 
     protected function validFacebookRecordsFromForm(): array
     {
         return $this->validRecordsFromPlatform('facebook');
+    }
+
+    protected function validPinterestRecordsFromForm(): array
+    {
+        return $this->validRecordsFromPlatform('pinterest');
     }
 
     protected function validRecordsFromPlatform(string $platform): array
@@ -1288,6 +1441,16 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return;
         }
 
+        if ($this->activePlatform === 'pinterest') {
+            $this->pinterestLoadedSavedListId = null;
+            $this->pinterestLoadedSavedListName = null;
+            $this->loadedSavedListId = null;
+            $this->loadedSavedListName = null;
+            $this->fillPinterestForm($state);
+
+            return;
+        }
+
         $this->instagramLoadedSavedListId = null;
         $this->instagramLoadedSavedListName = null;
         $this->loadedSavedListId = null;
@@ -1297,9 +1460,11 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     protected function formDraftKey(): string
     {
-        return $this->activePlatform === 'facebook'
-            ? $this->facebookFormDraftKey()
-            : FormDraftService::key('instagram_publish');
+        return match ($this->activePlatform) {
+            'facebook' => $this->facebookFormDraftKey(),
+            'pinterest' => $this->pinterestFormDraftKey(),
+            default => FormDraftService::key('instagram_publish'),
+        };
     }
 
     protected function formDraftIgnoredFields(): array
@@ -1341,13 +1506,18 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
         $savedListId = (int) ($data['saved_list_id'] ?? 0);
         if ($savedListId > 0) {
-            $list = $this->activePlatform === 'facebook'
-                ? \App\Models\FacebookSavedList::query()->find($savedListId)
-                : InstagramSavedList::query()->find($savedListId);
+            $list = match ($this->activePlatform) {
+                'facebook' => \App\Models\FacebookSavedList::query()->find($savedListId),
+                'pinterest' => \App\Models\PinterestSavedList::query()->find($savedListId),
+                default => InstagramSavedList::query()->find($savedListId),
+            };
             if ($list) {
                 if ($this->activePlatform === 'facebook') {
                     $this->facebookLoadedSavedListId = $list->id;
                     $this->facebookLoadedSavedListName = $list->name;
+                } elseif ($this->activePlatform === 'pinterest') {
+                    $this->pinterestLoadedSavedListId = $list->id;
+                    $this->pinterestLoadedSavedListName = $list->name;
                 } else {
                     $this->instagramLoadedSavedListId = $list->id;
                     $this->instagramLoadedSavedListName = $list->name;
@@ -1373,6 +1543,12 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             $this->loadedSavedListId = null;
             $this->loadedSavedListName = null;
             $this->fillFacebookForm($state);
+        } elseif ($this->activePlatform === 'pinterest') {
+            $this->pinterestLoadedSavedListId = null;
+            $this->pinterestLoadedSavedListName = null;
+            $this->loadedSavedListId = null;
+            $this->loadedSavedListName = null;
+            $this->fillPinterestForm($state);
         } else {
             $this->instagramLoadedSavedListId = null;
             $this->instagramLoadedSavedListName = null;
@@ -1464,9 +1640,11 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return null;
         }
 
-        $import = $platform === 'facebook'
-            ? app(FacebookImportService::class)
-            : app(InstagramImportService::class);
+        $import = match ($platform) {
+            'facebook' => app(FacebookImportService::class),
+            'pinterest' => app(PinterestImportService::class),
+            default => app(InstagramImportService::class),
+        };
         $items = $import->parseFile($path);
 
         if ($items === []) {
@@ -1494,6 +1672,10 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             $this->facebookLoadedSavedListId = null;
             $this->facebookLoadedSavedListName = null;
             $this->fillFacebookForm($imported);
+        } elseif ($platform === 'pinterest') {
+            $this->pinterestLoadedSavedListId = null;
+            $this->pinterestLoadedSavedListName = null;
+            $this->fillPinterestForm($imported);
         } else {
             $this->instagramLoadedSavedListId = null;
             $this->instagramLoadedSavedListName = null;
@@ -1527,7 +1709,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             return $disk->path($file);
         }
 
-        foreach (['instagram-imports', 'facebook-imports'] as $directory) {
+        foreach (['instagram-imports', 'facebook-imports', 'pinterest-imports'] as $directory) {
             $candidate = $directory.'/'.$file;
             if ($disk->exists($candidate)) {
                 return $disk->path($candidate);

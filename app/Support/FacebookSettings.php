@@ -6,31 +6,41 @@ use App\Models\FacebookAccount;
 
 class FacebookSettings
 {
-    public static function isEnabled(): bool
+    protected static function store(?int $userId = null): IntegrationSettingsStore
     {
-        return (bool) AdminSettings::get('facebook_enabled', false);
+        return IntegrationSettingsStore::for($userId);
     }
 
-    public static function graphVersion(): string
+    protected static function ownerUserId(?int $userId = null): int
     {
-        $version = trim((string) AdminSettings::get('facebook_graph_version', 'v21.0'));
+        return static::store($userId)->userId();
+    }
+
+    public static function isEnabled(?int $userId = null): bool
+    {
+        return (bool) static::store($userId)->get('facebook_enabled', false);
+    }
+
+    public static function graphVersion(?int $userId = null): string
+    {
+        $version = trim((string) static::store($userId)->get('facebook_graph_version', 'v21.0'));
 
         return $version !== '' ? $version : 'v21.0';
     }
 
-    public static function queueIntervalMinutes(): int
+    public static function queueIntervalMinutes(?int $userId = null): int
     {
-        return max(1, min(1440, (int) AdminSettings::get('facebook_queue_interval_minutes', 30)));
+        return max(1, min(1440, (int) static::store($userId)->get('facebook_queue_interval_minutes', 30)));
     }
 
-    public static function publicBaseUrl(): ?string
+    public static function publicBaseUrl(?int $userId = null): ?string
     {
-        $override = trim((string) AdminSettings::get('facebook_public_base_url', ''));
+        $override = trim((string) static::store($userId)->get('facebook_public_base_url', ''));
         if ($override !== '') {
             return rtrim($override, '/');
         }
 
-        $instagramOverride = trim((string) AdminSettings::get('instagram_public_base_url', ''));
+        $instagramOverride = trim((string) static::store($userId)->get('instagram_public_base_url', ''));
         if ($instagramOverride !== '') {
             return rtrim($instagramOverride, '/');
         }
@@ -49,21 +59,23 @@ class FacebookSettings
         return $appUrl;
     }
 
-    public static function isConfigured(): bool
+    public static function isConfigured(?int $userId = null): bool
     {
-        if (! static::isEnabled()) {
+        if (! static::isEnabled($userId)) {
             return false;
         }
 
         return FacebookAccount::query()
+            ->where('owner_user_id', static::ownerUserId($userId))
             ->where('enabled', true)
             ->get()
             ->contains(fn (FacebookAccount $account): bool => $account->isConfigured());
     }
 
-    public static function primaryAccount(): ?FacebookAccount
+    public static function primaryAccount(?int $userId = null): ?FacebookAccount
     {
         return FacebookAccount::query()
+            ->where('owner_user_id', static::ownerUserId($userId))
             ->where('enabled', true)
             ->orderBy('sort_order')
             ->orderBy('id')

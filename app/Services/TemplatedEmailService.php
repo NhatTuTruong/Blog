@@ -6,6 +6,7 @@ use App\Mail\TemplateMail;
 use App\Models\EmailSendLog;
 use App\Models\EmailTemplate;
 use App\Models\User;
+use App\Support\MailSettings;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -17,7 +18,7 @@ class TemplatedEmailService
     /**
      * @param  array<string, string>  $variableValues
      * @param  array<int, string>|null  $attachmentStoragePaths  Paths relative to storage disk (Filament FileUpload)
-     * @return array{sent: int, failed: int, errors: array<int, string>, log: EmailSendLog}
+     * @return array{sent: int, failed: int, errors: array<int, string>, log: EmailSendLog, subject: string, body: string, recipients: array<int, string>}
      */
     public function send(
         ?EmailTemplate $template,
@@ -28,6 +29,7 @@ class TemplatedEmailService
         ?string $customBody = null,
         ?array $attachmentStoragePaths = null,
         string $attachmentDisk = 'local',
+        ?int $recurringScheduleId = null,
     ): array {
         $recipients = $this->parseRecipients($recipientsInput);
 
@@ -39,6 +41,9 @@ class TemplatedEmailService
                 'failed' => 0,
                 'errors' => [$this->lastError],
                 'log' => new EmailSendLog(),
+                'subject' => '',
+                'body' => '',
+                'recipients' => [],
             ];
         }
 
@@ -59,8 +64,45 @@ class TemplatedEmailService
             $template?->attachmentStoragePaths() ?? [],
             $attachmentStoragePaths ?? [],
         );
-        $attachmentPaths = $this->resolveAttachmentPaths($mergedStoragePaths, $attachmentDisk);
-        $attachmentNames = $this->attachmentNamesForLog($mergedStoragePaths);
+
+        return $this->sendRendered(
+            recipients: $recipients,
+            subject: $subject,
+            body: $body,
+            templateName: $templateName,
+            templateId: $templateId,
+            variableValues: $variableValues,
+            sender: $sender,
+            attachmentStoragePaths: $mergedStoragePaths,
+            attachmentDisk: $attachmentDisk,
+            recurringScheduleId: $recurringScheduleId,
+        );
+    }
+
+    /**
+     * @param  array<int, string>  $recipients
+     * @param  array<string, string>  $variableValues
+     * @param  array<int, string>  $attachmentStoragePaths
+     * @return array{sent: int, failed: int, errors: array<int, string>, log: EmailSendLog, subject: string, body: string, recipients: array<int, string>}
+     */
+    public function sendRendered(
+        array $recipients,
+        string $subject,
+        string $body,
+        string $templateName,
+        ?int $templateId,
+        array $variableValues = [],
+        ?User $sender = null,
+        array $attachmentStoragePaths = [],
+        string $attachmentDisk = 'local',
+        ?int $recurringScheduleId = null,
+    ): array {
+        $attachmentPaths = $this->resolveAttachmentPaths($attachmentStoragePaths, $attachmentDisk);
+        $attachmentNames = $this->attachmentNamesForLog($attachmentStoragePaths);
+
+        if ($sender?->id) {
+            MailSettings::applyForUser($sender->id);
+        }
 
         $sent = 0;
         $failed = 0;
@@ -86,7 +128,7 @@ class TemplatedEmailService
             'email_template_id' => $templateId,
             'template_name' => $templateName,
             'recipients' => $recipients,
-            'variable_values' => $variableValues,
+            'variable_values' => $variableValues !== [] ? $variableValues : null,
             'subject' => $subject,
             'body' => $body,
             'attachments' => $attachmentNames !== [] ? $attachmentNames : null,
@@ -94,13 +136,22 @@ class TemplatedEmailService
             'failed_count' => $failed,
             'errors' => $errors !== [] ? $errors : null,
             'user_id' => $sender?->id,
+            'email_recurring_schedule_id' => $recurringScheduleId,
         ]);
 
         if ($sent === 0 && $failed > 0) {
             $this->lastError = 'Không gửi được email nào. '.implode(' | ', array_slice($errors, 0, 3));
         }
 
-        return compact('sent', 'failed', 'errors', 'log');
+        return [
+            'sent' => $sent,
+            'failed' => $failed,
+            'errors' => $errors,
+            'log' => $log,
+            'subject' => $subject,
+            'body' => $body,
+            'recipients' => $recipients,
+        ];
     }
 
     /**

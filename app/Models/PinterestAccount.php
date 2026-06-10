@@ -1,0 +1,123 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class PinterestAccount extends Model
+{
+    protected $fillable = [
+        'owner_user_id',
+        'name',
+        'access_token',
+        'board_id',
+        'board_name',
+        'username',
+        'enabled',
+        'sort_order',
+    ];
+
+    protected $casts = [
+        'access_token' => 'encrypted',
+        'enabled' => 'boolean',
+        'sort_order' => 'integer',
+    ];
+
+    public function queueItems(): HasMany
+    {
+        return $this->hasMany(PinterestQueueItem::class);
+    }
+
+    public function normalizedAccessToken(): ?string
+    {
+        $token = $this->access_token;
+        if (! is_string($token)) {
+            return null;
+        }
+
+        $token = trim($token);
+        if ($token === '') {
+            return null;
+        }
+
+        if (str_starts_with(strtolower($token), 'bearer ')) {
+            $token = trim(substr($token, 7));
+        }
+
+        $token = preg_replace('/[\x00-\x1F\x7F\x{200B}-\x{200D}\x{FEFF}]/u', '', $token) ?? $token;
+
+        return $token !== '' ? $token : null;
+    }
+
+    public function isConfigured(): bool
+    {
+        return $this->normalizedAccessToken() !== null;
+    }
+
+    public function displayLabel(): string
+    {
+        if (filled($this->name)) {
+            $label = (string) $this->name;
+
+            if (filled($this->username)) {
+                $label .= ' (@'.$this->username.')';
+            }
+
+            return $label;
+        }
+
+        if (filled($this->username)) {
+            return '@'.$this->username;
+        }
+
+        return 'Pinterest #'.$this->id;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function optionsForSelect(?int $ownerUserId = null): array
+    {
+        $ownerUserId = static::resolveOwnerUserId($ownerUserId);
+
+        return static::query()
+            ->where('owner_user_id', $ownerUserId)
+            ->where('enabled', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (self $account): bool => $account->isConfigured())
+            ->mapWithKeys(fn (self $account): array => [$account->id => $account->displayLabel()])
+            ->all();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public static function enabledConfiguredIds(?int $ownerUserId = null): array
+    {
+        $ownerUserId = static::resolveOwnerUserId($ownerUserId);
+
+        return static::query()
+            ->where('owner_user_id', $ownerUserId)
+            ->where('enabled', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (self $account): bool => $account->isConfigured())
+            ->pluck('id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    protected static function resolveOwnerUserId(?int $ownerUserId): int
+    {
+        if ($ownerUserId !== null) {
+            return $ownerUserId;
+        }
+
+        return \App\Support\IntegrationSettingsStore::for()->userId();
+    }
+}

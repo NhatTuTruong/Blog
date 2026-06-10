@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class FacebookAccount extends Model
 {
     protected $fillable = [
+        'owner_user_id',
         'name',
         'access_token',
         'page_id',
@@ -75,9 +76,12 @@ class FacebookAccount extends Model
     /**
      * @return array<int, string>
      */
-    public static function optionsForSelect(): array
+    public static function optionsForSelect(?int $ownerUserId = null): array
     {
+        $ownerUserId = static::resolveOwnerUserId($ownerUserId);
+
         return static::query()
+            ->where('owner_user_id', $ownerUserId)
             ->where('enabled', true)
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -90,9 +94,12 @@ class FacebookAccount extends Model
     /**
      * @return array<int, int>
      */
-    public static function enabledConfiguredIds(): array
+    public static function enabledConfiguredIds(?int $ownerUserId = null): array
     {
+        $ownerUserId = static::resolveOwnerUserId($ownerUserId);
+
         return static::query()
+            ->where('owner_user_id', $ownerUserId)
             ->where('enabled', true)
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -102,5 +109,14 @@ class FacebookAccount extends Model
             ->map(fn (mixed $id): int => (int) $id)
             ->values()
             ->all();
+    }
+
+    protected static function resolveOwnerUserId(?int $ownerUserId): int
+    {
+        if ($ownerUserId !== null) {
+            return $ownerUserId;
+        }
+
+        return \App\Support\IntegrationSettingsStore::for()->userId();
     }
 }

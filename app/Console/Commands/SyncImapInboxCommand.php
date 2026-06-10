@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Models\UserSetting;
 use App\Services\IncomingMailService;
+use App\Support\MailSettings;
 use Illuminate\Console\Command;
 
 class SyncImapInboxCommand extends Command
@@ -33,21 +35,42 @@ class SyncImapInboxCommand extends Command
             return self::FAILURE;
         }
 
-        if (! $service->isConfigured()) {
-            $this->warn('Chưa cấu hình IMAP trong .env.');
+        $userIds = UserSetting::query()
+            ->where('key', 'mail_username')
+            ->whereNotNull('value')
+            ->where('value', '!=', '')
+            ->pluck('user_id')
+            ->unique()
+            ->values();
 
-            return self::FAILURE;
+        $synced = 0;
+
+        foreach ($userIds as $userId) {
+            if (! MailSettings::isConfigured((int) $userId)) {
+                continue;
+            }
+
+            $result = $service->sync(userId: (int) $userId);
+
+            if ($result['new'] > 0 || $result['updated'] > 0) {
+                $synced++;
+                $this->info("User #{$userId}: {$result['new']} mới, {$result['updated']} cập nhật ({$result['mode']}).");
+            }
         }
 
-        $result = $service->sync();
+        if ($userIds->isEmpty() && $service->isConfigured()) {
+            $result = $service->sync();
+            $synced = 1;
+            $this->info("Đồng bộ xong: {$result['new']} email mới".($result['updated'] > 0 ? ", {$result['updated']} cập nhật" : '')." ({$result['mode']}).");
+        }
+
+        if ($synced === 0 && ! $service->isConfigured()) {
+            $this->warn('Chưa có tài khoản email được cấu hình.');
+
+            return self::SUCCESS;
+        }
 
         cache()->put($cacheKey, true, $interval);
-
-        $this->info("Đồng bộ xong: {$result['new']} email mới".($result['updated'] > 0 ? ", {$result['updated']} cập nhật" : '')." ({$result['mode']}).");
-
-        if ($result['errors'] !== []) {
-            $this->warn(implode("\n", array_slice($result['errors'], 0, 3)));
-        }
 
         return self::SUCCESS;
     }

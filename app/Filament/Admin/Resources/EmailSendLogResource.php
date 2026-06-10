@@ -5,9 +5,11 @@ namespace App\Filament\Admin\Resources;
 use App\Filament\Admin\Resources\EmailSendLogResource\Pages;
 use App\Models\EmailSendLog;
 use App\Models\User;
+use App\Services\EmailRecurringService;
 use Filament\Forms\Form;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -32,7 +34,7 @@ class EmailSendLogResource extends Resource
     {
         $user = auth()->user();
 
-        return $user instanceof User && $user->isAdmin();
+        return $user instanceof User;
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -76,6 +78,17 @@ class EmailSendLogResource extends Resource
                         Infolists\Components\TextEntry::make('created_at')
                             ->label('Thời gian gửi')
                             ->dateTime('d/m/Y H:i')
+                            ->columnSpan(1),
+                        Infolists\Components\TextEntry::make('recurring_status')
+                            ->label('Gửi lại')
+                            ->getStateUsing(fn (EmailSendLog $record): string => $record->recurringSchedule?->statusLabel() ?? 'Gửi 1 lần')
+                            ->visible(fn (EmailSendLog $record): bool => $record->hasRecurringSchedule())
+                            ->columnSpan(1),
+                        Infolists\Components\TextEntry::make('recurringSchedule.next_send_at')
+                            ->label('Lần gửi lại tiếp theo')
+                            ->dateTime('d/m/Y H:i')
+                            ->placeholder('—')
+                            ->visible(fn (EmailSendLog $record): bool => $record->recurringSchedule?->isActive() ?? false)
                             ->columnSpan(1),
                         Infolists\Components\TextEntry::make('recipients')
                             ->label('Người nhận')
@@ -125,6 +138,14 @@ class EmailSendLogResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function ($query): void {
+                $query->with('recurringSchedule');
+
+                $user = auth()->user();
+                if ($user instanceof User && ! $user->isAdmin()) {
+                    $query->where('user_id', $user->id);
+                }
+            })
             ->defaultSort('created_at', 'desc')
             ->emptyStateHeading('Chưa có lịch sử gửi mail')
             ->emptyStateDescription('Lịch sử sẽ hiển thị sau khi bạn gửi email từ mẫu.')
@@ -154,9 +175,96 @@ class EmailSendLogResource extends Resource
                     ->label('Thời gian')
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('recurring_status')
+                    ->label('Gửi lại')
+                    ->badge()
+                    ->getStateUsing(function (EmailSendLog $record): ?string {
+                        $schedule = $record->recurringSchedule;
+
+                        if ($schedule === null) {
+                            return null;
+                        }
+
+                        return $schedule->isActive()
+                            ? 'Mỗi '.$schedule->intervalLabel()
+                            : 'Đã dừng';
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        null => 'gray',
+                        'Đã dừng' => 'gray',
+                        default => 'info',
+                    })
+                    ->placeholder('—'),
             ])
             ->actions([
+                Tables\Actions\Action::make('stopRecurring')
+                    ->label('Dừng gửi lại')
+                    ->icon('heroicon-o-stop-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Dừng gửi lại email')
+                    ->modalDescription('Email sẽ không được gửi lại theo lịch nữa. Các lần đã gửi vẫn giữ trong lịch sử.')
+                    ->visible(fn (EmailSendLog $record): bool => $record->recurringSchedule?->isActive() ?? false)
+                    ->action(function (EmailSendLog $record): void {
+                        $schedule = $record->recurringSchedule;
+
+                        if ($schedule === null || ! $schedule->isActive()) {
+                            Notification::make()
+                                ->title('Lịch gửi lại đã dừng trước đó')
+                                ->warning()
+                                ->send();
+
+                            return;
+                        }
+
+                        app(EmailRecurringService::class)->stopSchedule($schedule);
+
+                        Notification::make()
+                            ->title('Đã dừng gửi lại')
+                            ->body('Email «'.$record->subject.'» sẽ không gửi lại theo lịch.')
+                            ->success()
+                            ->send();
+                    }),
                 Tables\Actions\ViewAction::make(),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkAction::make('stopRecurringBulk')
+                    ->label('Dừng gửi lại')
+                    ->icon('heroicon-o-stop-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Dừng gửi lại các email đã chọn')
+                    ->modalDescription('Các lịch gửi lại đang chạy sẽ bị dừng.')
+                    ->deselectRecordsAfterCompletion()
+                    ->action(function (\Illuminate\Support\Collection $records): void {
+                        $service = app(EmailRecurringService::class);
+                        $stopped = 0;
+                        $scheduleIds = [];
+
+                        foreach ($records as $record) {
+                            if (! $record instanceof EmailSendLog) {
+                                continue;
+                            }
+
+                            $record->loadMissing('recurringSchedule');
+                            $schedule = $record->recurringSchedule;
+
+                            if ($schedule !== null && isset($scheduleIds[$schedule->id])) {
+                                continue;
+                            }
+
+                            if ($schedule !== null && $schedule->isActive()) {
+                                $service->stopSchedule($schedule);
+                                $scheduleIds[$schedule->id] = true;
+                                $stopped++;
+                            }
+                        }
+
+                        Notification::make()
+                            ->title($stopped > 0 ? 'Đã dừng '.$stopped.' lịch gửi lại' : 'Không có lịch đang chạy')
+                            ->success()
+                            ->send();
+                    }),
             ]);
     }
 
@@ -168,4 +276,4 @@ class EmailSendLogResource extends Resource
         ];
     }
 }
-
+

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 class ReceivedEmail extends Model
 {
     protected $fillable = [
+        'user_id',
         'imap_uid',
         'folder',
         'message_id',

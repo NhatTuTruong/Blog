@@ -22,9 +22,11 @@ class IncomingMailService
 {
     public ?string $lastError = null;
 
-    public function isConfigured(): bool
+    protected ?int $syncUserId = null;
+
+    public function isConfigured(?int $userId = null): bool
     {
-        return MailSettings::isConfigured();
+        return MailSettings::isConfigured($userId);
     }
 
     public function imapExtensionAvailable(): bool
@@ -35,9 +37,14 @@ class IncomingMailService
     /**
      * @return array{new: int, updated: int, errors: array<int, string>, mode: string}
      */
-    public function sync(?int $limit = null): array
+    public function sync(?int $limit = null, ?int $userId = null): array
     {
         $this->lastError = null;
+        $this->syncUserId = $userId ?? \App\Support\IntegrationSettingsStore::fallbackAdminUserId();
+
+        if ($this->syncUserId) {
+            MailSettings::applyForUser($this->syncUserId);
+        }
 
         if (! $this->imapExtensionAvailable()) {
             $this->lastError = 'PHP chưa bật extension imap. Bật extension=imap trong php.ini rồi khởi động lại server.';
@@ -45,8 +52,8 @@ class IncomingMailService
             return $this->emptyResult($this->lastError);
         }
 
-        if (! $this->isConfigured()) {
-            $this->lastError = 'Chưa cấu hình IMAP (IMAP_USERNAME / IMAP_PASSWORD hoặc MAIL_USERNAME / MAIL_PASSWORD trong .env).';
+        if (! $this->isConfigured($this->syncUserId)) {
+            $this->lastError = 'Chưa cấu hình IMAP — thêm email trong Cài đặt tích hợp.';
 
             return $this->emptyResult($this->lastError);
         }
@@ -58,7 +65,10 @@ class IncomingMailService
         $folderName = (string) config('imap.folder', 'INBOX');
         $incremental = (bool) config('imap.incremental_sync', true);
         $lastUid = $incremental
-            ? (int) ReceivedEmail::query()->where('folder', $folderName)->max('imap_uid')
+            ? (int) ReceivedEmail::query()
+                ->where('user_id', $this->syncUserId)
+                ->where('folder', $folderName)
+                ->max('imap_uid')
             : 0;
 
         $new = 0;
@@ -254,6 +264,7 @@ class IncomingMailService
 
         $record = ReceivedEmail::query()->updateOrCreate(
             [
+                'user_id' => $this->syncUserId,
                 'folder' => $folderName,
                 'imap_uid' => (int) $message->getUid(),
             ],

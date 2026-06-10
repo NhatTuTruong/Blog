@@ -4,12 +4,19 @@
     use App\Filament\Admin\Support\SocialMediaQueueTable;
     use App\Support\PublicStorage;
 
-    $isInstagram = $platform === 'instagram';
-    $accountLabel = $isInstagram
-        ? ($record->instagramAccount?->displayLabel() ?? '—')
-        : ($record->facebookAccount?->displayLabel() ?? '—');
-    $externalId = $isInstagram ? $record->instagram_media_id : $record->facebook_post_id;
-    $externalIdLabel = $isInstagram ? 'Instagram Media ID' : 'Facebook Post ID';
+    $accountLabel = match ($platform) {
+        'instagram' => $record->instagramAccount?->displayLabel() ?? '—',
+        'pinterest' => $record->pinterestAccount?->displayLabel() ?? '—',
+        default => $record->facebookAccount?->displayLabel() ?? '—',
+    };
+    $pinterestBoardLabel = $platform === 'pinterest'
+        ? (filled($record->board_name) ? $record->board_name : (filled($record->board_id) ? 'Board '.$record->board_id : '—'))
+        : null;
+    [$externalId, $externalIdLabel] = match ($platform) {
+        'instagram' => [$record->instagram_media_id, 'Instagram Media ID'],
+        'pinterest' => [$record->pinterest_pin_id, 'Pinterest Pin ID'],
+        default => [$record->facebook_post_id, 'Facebook Post ID'],
+    };
     $mediaPath = filled($record->video_path) ? $record->video_path : $record->image_path;
     $mediaType = filled($record->video_path) ? 'Video' : (filled($record->image_path) ? 'Ảnh' : 'Ảnh mặc định (AI)');
     $coupons = is_array($record->coupon_codes ?? null)
@@ -28,6 +35,12 @@
             <dt class="font-medium text-gray-500 dark:text-gray-400">Tài khoản</dt>
             <dd class="mt-0.5">{{ $accountLabel }}</dd>
         </div>
+        @if ($pinterestBoardLabel !== null)
+            <div>
+                <dt class="font-medium text-gray-500 dark:text-gray-400">Board</dt>
+                <dd class="mt-0.5">{{ $pinterestBoardLabel }}</dd>
+            </div>
+        @endif
         <div>
             <dt class="font-medium text-gray-500 dark:text-gray-400">Brand</dt>
             <dd class="mt-0.5">{{ filled($record->brand_domain) ? $record->brand_domain : '—' }}</dd>

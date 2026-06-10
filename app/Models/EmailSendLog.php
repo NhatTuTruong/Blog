@@ -19,6 +19,7 @@ class EmailSendLog extends Model
         'failed_count',
         'errors',
         'user_id',
+        'email_recurring_schedule_id',
     ];
 
     protected $casts = [
@@ -38,6 +39,16 @@ class EmailSendLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function recurringSchedule(): BelongsTo
+    {
+        return $this->belongsTo(EmailRecurringSchedule::class, 'email_recurring_schedule_id');
+    }
+
+    public function hasRecurringSchedule(): bool
+    {
+        return $this->email_recurring_schedule_id !== null;
     }
 
     public static function normalizeArray(mixed $value): array

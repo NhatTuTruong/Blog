@@ -74,6 +74,9 @@ Route::get('/instagram/media/{item}', [App\Http\Controllers\InstagramMediaContro
 Route::get('/facebook/media/{item}', [App\Http\Controllers\FacebookMediaController::class, 'show'])
     ->name('facebook.media');
 
+Route::get('/pinterest/media/{item}', [App\Http\Controllers\PinterestMediaController::class, 'show'])
+    ->name('pinterest.media');
+
 Route::get('/terms', function () {
     return view('legal.terms');
 })->name('legal.terms');

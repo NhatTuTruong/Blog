@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Pages;
 
+use App\Models\User;
 use App\Filament\Admin\Widgets\BlogCategoryChartWidget;
 use App\Filament\Admin\Widgets\BlogPostsChartWidget;
 use App\Filament\Admin\Widgets\BlogStatsOverviewWidget;
@@ -19,12 +20,32 @@ class Dashboard extends BaseDashboard
 {
     use HasFiltersForm;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user() instanceof User;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User && $user->isAdmin();
+    }
+
     protected static ?string $navigationLabel = 'Bảng điều khiển';
 
     protected static ?string $title = 'Bảng điều khiển';
 
     public function mount(): void
     {
+        $user = auth()->user();
+
+        if ($user instanceof User && ! $user->isAdmin()) {
+            $this->redirect(SocialMediaPublish::getUrl(), navigate: true);
+
+            return;
+        }
+
         $this->mountHasFilters();
 
         if (blank($this->filters['period'] ?? null)) {
