@@ -2,11 +2,12 @@
 
 namespace App\Services;
 
+use App\Support\AffiliateContentGuidelines;
 use App\Support\IntegrationSettingsStore;
 
 class GeminiInstagramService
 {
-    public const DEFAULT_CONTENT_IDEA = 'Viết một đoạn ins ngắn giới thiệu về cửa hàng';
+    public const DEFAULT_CONTENT_IDEA = 'Viết caption ngắn giới thiệu thương hiệu theo góc affiliate — gợi ý lợi ích cho người mua, không dùng Chúng tôi hay giọng chủ cửa hàng';
 
     public ?string $lastError = null;
 
@@ -48,14 +49,16 @@ class GeminiInstagramService
     public function buildDefaultInstagramCaption(?string $affLink = null, array $couponCodes = []): string
     {
         $lines = [
-            'Discover premium products designed to make your everyday life better. From quality craftsmanship to exceptional customer service, we\'re committed to bringing you the best shopping experience possible.',
+            '✨ Discover what this brand has to offer! ✨',
+            '',
+            '🔥 A solid pick for shoppers who want quality without the hassle.',
             '',
             '💎 High-quality products',
-            '🚚 Fast shipping',
-            '🎁 Exclusive deals & special offers',
+            '🚚 Fast shipping options',
+            '🎁 Deals & special offers worth a look',
             '⭐ Trusted by customers worldwide',
             '',
-            'Whether you\'re looking for the latest trends, must-have essentials, or unique finds, we\'ve got something for everyone.',
+            'Whether you\'re after trends, essentials, or unique finds — this store is worth checking out.',
         ];
 
         $affUrl = $this->resolveAffLinkForDefault($affLink);
@@ -164,6 +167,7 @@ class GeminiInstagramService
             : "\n7) Skip the coupon line — no coupon codes.";
 
         $ideaBlock = mb_substr($contentIdea, 0, 1500);
+        $affiliateRules = AffiliateContentGuidelines::promptRules();
 
         return <<<PROMPT
 Write ONE complete Instagram promotional caption in English — a single post ready to publish.
@@ -189,6 +193,8 @@ Rules:
 - Use the EXACT affiliate URL and coupon text provided above — do not change them.
 - Plain text with line breaks only — no markdown, no labels like "TITLE:" or "BODY:".
 - Return ONLY the final caption.
+
+{$affiliateRules}
 PROMPT;
     }
 

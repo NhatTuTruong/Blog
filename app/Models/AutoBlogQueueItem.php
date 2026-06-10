@@ -25,6 +25,7 @@ class AutoBlogQueueItem extends Model
         'content_idea',
         'aff_link',
         'coupon_codes',
+        'image_path',
         'status',
         'scheduled_at',
         'processed_at',

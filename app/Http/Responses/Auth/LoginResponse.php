@@ -26,6 +26,6 @@ class LoginResponse implements Responsable
 
         $request->session()->save();
 
-        return redirect($url);
+        return new RedirectResponse($url);
     }
 }

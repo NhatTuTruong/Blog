@@ -81,7 +81,7 @@ trait ManagesPinterestPublish
                 ]),
             Section::make('Chi tiết Pin Pinterest')
                 ->description(fn (): string => PinterestSettings::isConfigured()
-                    ? 'AI viết title/description khi tới lượt đăng. Mỗi Pin 1 ảnh hoặc 1 video. Không media = random ảnh mặc định.'
+                    ? 'AI viết title/description khi tới lượt đăng. Ưu tiên ảnh/video upload; không có thì Apify Google Images (domain brand); lỗi Apify → random ảnh default1–3.'
                     : 'Chưa cấu hình Pinterest — vào Cài đặt tùy chỉnh để thêm token.')
                 ->schema([
                     Placeholder::make('pinterest_status')

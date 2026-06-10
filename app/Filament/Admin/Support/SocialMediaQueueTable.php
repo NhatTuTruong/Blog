@@ -110,7 +110,7 @@ class SocialMediaQueueTable
         if ($record->used_default_caption && $record->status === InstagramQueueItem::STATUS_COMPLETED) {
             return filled($record->error_message)
                 ? trim((string) $record->error_message)
-                : 'Đã đăng với nội dung mặc định (AI lỗi)';
+                : 'Đã đăng với nội dung mặc định.';
         }
 
         return null;

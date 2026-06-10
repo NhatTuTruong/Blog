@@ -18,7 +18,6 @@ class IntegrationSettingsForm
     {
         return [
             Section::make('AI Content (Gemini)')
-                ->description('Cấu hình riêng của tài khoản đang đăng nhập. Dùng cho caption AI khi đăng MXH và tạo blog (admin). Tối đa 3 API key — key lỗi sẽ tự chuyển sang key tiếp theo.')
                 ->schema([
                     TextInput::make('gemini_api_key')
                         ->label('Gemini API key (chính)')
@@ -53,6 +52,15 @@ class IntegrationSettingsForm
                         ->required(),
                 ])
                 ->columns(3),
+            Section::make('Apify — Google Images')
+                ->schema([
+                    TextInput::make('apify_api_token')
+                        ->label('Apify API token')
+                        ->password()
+                        ->revealable()
+                        ->maxLength(255)
+                        ->columnSpanFull(),
+                ]),
             Section::make('Instagram (Meta Graph API)')
                 ->schema([
                     Toggle::make('instagram_enabled')
@@ -118,7 +126,6 @@ class IntegrationSettingsForm
                 ])
                 ->columns(3),
             Section::make('Facebook Page (Meta Graph API)')
-                ->description('Cần Page Access Token (EAA…) với quyền pages_manage_posts và Page ID. Ảnh/video phải truy cập công khai qua HTTPS.')
                 ->schema([
                     Toggle::make('facebook_enabled')
                         ->label('Bật đăng Facebook')
@@ -172,13 +179,11 @@ class IntegrationSettingsForm
                         ->label('URL công khai (HTTPS)')
                         ->url()
                         ->placeholder('https://your-domain.com')
-                        ->helperText('Để trống = dùng URL Instagram hoặc APP_URL.')
                         ->maxLength(500)
                         ->columnSpanFull(),
                 ])
                 ->columns(3),
             Section::make('Pinterest (API v5)')
-                ->description('Cần Access Token với scope boards:read, boards:write, pins:read, pins:write. Board chọn khi đăng bài. Ảnh Pin dùng URL công khai HTTPS.')
                 ->schema([
                     Toggle::make('pinterest_enabled')
                         ->label('Bật đăng Pinterest')
@@ -231,13 +236,11 @@ class IntegrationSettingsForm
                     TextInput::make('pinterest_api_base_url')
                         ->label('Pinterest API base URL (tùy chọn)')
                         ->placeholder('https://api.pinterest.com/v5')
-                        ->helperText('Để trống = production API v5.')
                         ->maxLength(500)
                         ->columnSpanFull(),
                 ])
                 ->columns(3),
             Section::make('Email (Gửi & Nhận mail)')
-                ->description('Cấu hình SMTP Gmail và IMAP. Ưu tiên giá trị lưu tại đây; nếu chưa lưu sẽ dùng file .env. Địa chỉ gửi (From) luôn trùng email đăng nhập.')
                 ->schema([
                     TextInput::make('mail_host')
                         ->label('SMTP Host')
@@ -274,7 +277,6 @@ class IntegrationSettingsForm
                         ->label('Mật khẩu ứng dụng (App Password)')
                         ->password()
                         ->revealable()
-                        ->helperText('Gmail: tạo App Password. Nhập mới để đổi; "********" giữ mật khẩu hiện tại; trống để xóa.')
                         ->maxLength(255),
                     TextInput::make('mail_from_name')
                         ->label('Tên hiển thị khi gửi (From name)')

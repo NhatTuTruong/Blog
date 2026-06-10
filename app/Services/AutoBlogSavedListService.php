@@ -102,7 +102,13 @@ class AutoBlogSavedListService
                     ->values()
                     ->all();
 
+                $featuredImage = $record['featured_image'] ?? null;
+                if (is_array($featuredImage)) {
+                    $featuredImage = $featuredImage[array_key_first($featuredImage)] ?? null;
+                }
+
                 return [
+                    'featured_image' => filled($featuredImage) ? trim((string) $featuredImage) : null,
                     'brand_domain' => trim((string) $record['brand_domain']),
                     'blog_category_id' => filled($record['blog_category_id'] ?? null)
                         ? (int) $record['blog_category_id']

@@ -27,6 +27,7 @@ class IntegrationSettingsPersistence
             'gemini_api_key_3' => $store->getEncrypted('gemini_api_key_3') ? '********' : '',
             'gemini_model' => (string) $store->get('gemini_model', config('gemini.model', 'gemini-2.5-flash-lite')),
             'gemini_timeout' => max(60, (int) $store->get('gemini_timeout', config('gemini.timeout', 120))),
+            'apify_api_token' => $store->getEncrypted('apify_api_token') ? '********' : '',
             'mail_host' => (string) $store->get('mail_host', env('MAIL_HOST', 'smtp.gmail.com')),
             'mail_port' => (int) $store->get('mail_port', env('MAIL_PORT', 587)),
             'mail_encryption' => (string) $store->get('mail_encryption', env('MAIL_ENCRYPTION', 'tls')),
@@ -107,6 +108,7 @@ class IntegrationSettingsPersistence
 
         $store->set('gemini_model', trim((string) ($data['gemini_model'] ?? config('gemini.model', 'gemini-2.5-flash-lite'))));
         $store->set('gemini_timeout', max(60, min(600, (int) ($data['gemini_timeout'] ?? config('gemini.timeout', 120)))));
+        $this->saveApifyApiToken($data);
 
         $store->set('mail_host', trim((string) ($data['mail_host'] ?? 'smtp.gmail.com')));
         $store->set('mail_port', max(1, min(65535, (int) ($data['mail_port'] ?? 587))));
@@ -153,6 +155,17 @@ class IntegrationSettingsPersistence
         }
 
         $this->store->setEncrypted($field, $value !== '' ? $value : null);
+    }
+
+    protected function saveApifyApiToken(array $data): void
+    {
+        $value = trim((string) ($data['apify_api_token'] ?? ''));
+
+        if ($value === '********') {
+            return;
+        }
+
+        $this->store->setEncrypted('apify_api_token', $value !== '' ? $value : null);
     }
 
     protected function saveMailPassword(array $data): void

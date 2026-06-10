@@ -165,6 +165,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                             ]),
                     ]),
                 Section::make('Chi tiết bài viết')
+                    ->description('Ưu tiên ảnh upload; không có thì Apify Google Images (domain brand); lỗi Apify → random ảnh default1–3.')
                     ->schema([
                         Repeater::make('records')
                             ->label('')
@@ -176,8 +177,17 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                             ->addActionLabel('Thêm dòng')
                             ->itemLabel(fn (array $state): ?string => filled($state['brand_domain'] ?? null)
                                 ? (string) $state['brand_domain']
-                                : 'Dòng mới')
+                                : (filled($state['featured_image'] ?? null) ? 'Có ảnh' : 'Dòng mới'))
                             ->schema([
+                                FileUpload::make('featured_image')
+                                    ->label('Ảnh đại diện (tùy chọn)')
+                                    ->image()
+                                    ->disk('public')
+                                    ->directory('auto-blog-uploads')
+                                    ->visibility('public')
+                                    ->maxSize(5120)
+                                    ->fetchFileInformation(false)
+                                    ->columnSpan(['default' => 6, 'md' => 2]),
                                 TextInput::make('brand_domain')
                                     ->label('Domain')
                                     ->placeholder('nike.com')
@@ -616,6 +626,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
     protected function emptyRecordRow(): array
     {
         return [
+            'featured_image' => null,
             'brand_domain' => '',
             'blog_category_id' => null,
             'content_idea' => null,

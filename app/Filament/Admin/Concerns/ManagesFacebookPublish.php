@@ -84,7 +84,7 @@ trait ManagesFacebookPublish
                 ]),
             Section::make('Chi tiết bài đăng Facebook')
                 ->description(fn (): string => FacebookSettings::isConfigured()
-                    ? 'AI viết nội dung khi tới lượt đăng. Mỗi bài 1 ảnh hoặc 1 video. Không media = random ảnh mặc định.'
+                    ? ''
                     : 'Chưa cấu hình Facebook — vào Cài đặt tùy chỉnh để thêm Page và token.')
                 ->schema([
                     Placeholder::make('facebook_status')

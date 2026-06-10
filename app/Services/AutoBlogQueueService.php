@@ -149,6 +149,7 @@ class AutoBlogQueueService
                 'content_idea' => filled($record['content_idea'] ?? null) ? trim((string) $record['content_idea']) : null,
                 'aff_link' => filled($record['aff_link'] ?? null) ? trim((string) $record['aff_link']) : null,
                 'coupon_codes' => $couponCodes !== [] ? $couponCodes : null,
+                'image_path' => $this->normalizeRecordImagePath($record['featured_image'] ?? $record['image_path'] ?? null),
                 'status' => AutoBlogQueueItem::STATUS_PENDING,
                 'scheduled_at' => $baseTime->copy()->addMinutes($index * $interval),
             ]);
@@ -239,6 +240,7 @@ class AutoBlogQueueService
         }
 
         $author = User::where('is_admin', true)->first() ?? User::first();
+        $featuredImage = app(AutoBlogFeaturedImageService::class)->resolveForQueueItem($item);
 
         return Blog::create([
             'user_id' => $item->user_id ?? $author?->id,
@@ -246,10 +248,24 @@ class AutoBlogQueueService
             'title' => $result['title'],
             'category' => $categoryLabel,
             'content' => $result['content'],
-            'featured_image' => $result['featured_image'] ?? null,
+            'featured_image' => $featuredImage,
             'is_published' => true,
             'views_count' => 0,
         ]);
+    }
+
+    /**
+     * @param  mixed  $path
+     */
+    protected function normalizeRecordImagePath(mixed $path): ?string
+    {
+        if (is_array($path)) {
+            $path = $path[array_key_first($path)] ?? null;
+        }
+
+        $path = trim((string) $path);
+
+        return $path !== '' ? $path : null;
     }
 
     /**

@@ -218,71 +218,11 @@ class FacebookPostMediaService
 
     protected function generatePlaceholderJpeg(FacebookQueueItem $item): string
     {
-        PublicStorage::ensureDirectory('facebook-generated');
-        $dest = "facebook-generated/item-{$item->id}.jpg";
-        $destAbsolute = $this->absolutePath($dest);
-
-        $defaultSource = $this->pickRandomDefaultImage();
-        if ($defaultSource !== null && $this->copyImageAsJpeg($defaultSource, $destAbsolute)) {
-            return $dest;
-        }
-
-        return $this->copyDefaultJpeg($dest);
-    }
-
-    protected function pickRandomDefaultImage(): ?string
-    {
-        $candidates = $this->defaultImagePaths();
-        if ($candidates === []) {
-            return null;
-        }
-
-        return $candidates[array_rand($candidates)];
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    protected function defaultImagePaths(): array
-    {
-        $paths = [];
-        $directory = public_path('images/instagram');
-
-        if (! is_dir($directory)) {
-            return [];
-        }
-
-        foreach (['default1', 'default2', 'default3'] as $name) {
-            foreach (['webp', 'jpg', 'jpeg', 'png'] as $extension) {
-                $absolute = $directory.DIRECTORY_SEPARATOR.$name.'.'.$extension;
-                if (is_file($absolute)) {
-                    $paths[] = $absolute;
-                    break;
-                }
-            }
-        }
-
-        return $paths;
-    }
-
-    protected function copyImageAsJpeg(string $sourceAbsolute, string $destAbsolute): bool
-    {
-        if (extension_loaded('gd')) {
-            $image = $this->loadImage($sourceAbsolute);
-            if ($image !== null) {
-                $saved = imagejpeg($image, $destAbsolute, 90);
-                imagedestroy($image);
-
-                return $saved && is_file($destAbsolute);
-            }
-        }
-
-        $mime = mime_content_type($sourceAbsolute) ?: '';
-        if (str_contains($mime, 'jpeg') || str_contains($mime, 'jpg')) {
-            return copy($sourceAbsolute, $destAbsolute);
-        }
-
-        return false;
+        return app(SocialMediaImageSourceService::class)->generatePlaceholderJpeg(
+            $item->brand_domain,
+            $item->user_id,
+            "facebook-generated/item-{$item->id}.jpg",
+        );
     }
 
     protected function loadImage(string $absolutePath): ?\GdImage

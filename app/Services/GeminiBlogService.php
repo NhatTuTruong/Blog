@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\AdminSettings;
+use App\Support\AffiliateContentGuidelines;
 use App\Support\IntegrationSettingsStore;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -116,16 +117,20 @@ COUPONS;
             $couponSection = "\nDo not invent specific coupon codes or % discounts. You may say readers can check {$siteUrl} for current offers.\n";
         }
 
-        $prompt = <<<PROMPT
-You are an expert English SEO copywriter for brand review and promotional blogs.
+        $affiliateRules = AffiliateContentGuidelines::promptRules();
 
-## Brand to promote
+        $prompt = <<<PROMPT
+You are an expert English SEO copywriter for **independent affiliate review** blogs (tiếp thị liên kết).
+
+## Brand to cover (third person — you do NOT represent this brand)
 - Domain: {$host}
 - Official website: {$siteUrl}
 - Brand name to use (adjust if you know the real name): {$brandLabel}
 {$contentIdeaSection}{$affSection}{$couponSection}
+{$affiliateRules}
+
 ## Task
-Write ONE long-form **promotional brand introduction** blog post. Language: **English**. Target length **1,200–1,800 words**. Tone: helpful, trustworthy, conversion-oriented but honest.
+Write ONE long-form **affiliate review / buyer's guide** about this brand. Language: **English**. Target length **1,200–1,800 words**. Tone: helpful, trustworthy, conversion-oriented but honest — as an outside recommender, not the store itself.
 
 ## HTML output rules
 - Return a complete HTML **fragment** only: one `<h1>`, then `<h2>`, `<h3>`, `<p>`, `<ul>`, `<ol>` as needed. Do NOT wrap in `<html>` or `<body>`.
@@ -134,14 +139,14 @@ Write ONE long-form **promotional brand introduction** blog post. Language: **En
 
 ## Required structure (use English `<h2>` titles)
 1. `<h1>`: Include brand name + clear value proposition (Review, Guide, or {$year} only if natural) — brand name as plain text, no links.
-2. Opening: problem readers face + why this brand matters.
-3. What is {$brandLabel}: what they sell, positioning, USP.
+2. Opening: problem readers face + why this brand is worth considering (third person).
+3. What is {$brandLabel}: what they sell, positioning, USP — describe the brand; never say "we" or speak as the store.
 4. Products / services / highlights (optional `<h3>` subsections).
 5. **Pros and cons** — both lists, balanced.
-6. Who should shop here.
-7. Closing summary paragraph (plain text, no links or CTAs).
+6. Who should consider shopping at {$brandLabel}.
+7. Closing summary paragraph (plain text, no links or CTAs) — recommendation tone, not store ownership.
 
-Do not claim you partnered with the brand unless factual.
+Do not claim you partnered with the brand unless factual. Do not use "we/us/our" or Vietnamese "Chúng tôi" / store-owner voice anywhere.
 PROMPT;
 
         $result = $this->callGeminiWithFallback($model, $prompt, $timeout, [

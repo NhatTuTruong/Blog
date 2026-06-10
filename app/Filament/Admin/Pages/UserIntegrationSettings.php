@@ -31,11 +31,6 @@ class UserIntegrationSettings extends Page implements HasForms
 
     protected static ?int $navigationSort = 1;
 
-    public function getSubheading(): ?string
-    {
-        return 'Mỗi tài khoản có cấu hình riêng: Gemini, Instagram, Facebook, Pinterest và Email. Admin và user đều chỉnh sửa tại đây.';
-    }
-
     public ?array $data = [];
 
     public static function canAccess(): bool
