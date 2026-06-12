@@ -20,6 +20,15 @@ class SocialMediaQueueTable
 {
     public const STATUS_NOTE_LIMIT = 30;
 
+    public static function queueSourceColumn(): TextColumn
+    {
+        return TextColumn::make('queue_source')
+            ->label('Nguồn')
+            ->badge()
+            ->formatStateUsing(fn (?string $state, InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $record): string => $record->queueSourceLabel())
+            ->color(fn (?string $state, InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $record): string => $record->isAutoQueue() ? 'primary' : 'gray');
+    }
+
     public static function statusColumn(): TextColumn
     {
         return TextColumn::make('status')

@@ -6,7 +6,9 @@ use App\Models\PinterestAccount;
 use App\Models\PinterestQueueItem;
 use App\Models\User;
 use App\Support\AdminSettings;
+use App\Support\GeminiKeyScope;
 use App\Support\PinterestSettings;
+use App\Support\SocialMediaQueueSource;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -121,6 +123,7 @@ class PinterestQueueService
         ?User $user = null,
         ?Carbon $startAt = null,
         array $targets = [],
+        string $queueSource = SocialMediaQueueSource::MANUAL,
     ): ?string {
         $this->lastError = null;
 
@@ -213,6 +216,7 @@ class PinterestQueueService
 
                 PinterestQueueItem::query()->create([
                     'batch_id' => $batchId,
+                    'queue_source' => $queueSource,
                     'user_id' => $user?->id,
                     'pinterest_account_id' => $account->id,
                     'board_id' => $target['board_id'],
@@ -250,10 +254,30 @@ class PinterestQueueService
             return ['processed' => false, 'item' => null, 'media_id' => null];
         }
 
-        /** @var PinterestQueueItem|null $item */
-        $item = PinterestQueueItem::query()
+        $hasManualActive = PinterestQueueItem::query()
+            ->where(function ($query): void {
+                $query->where('queue_source', SocialMediaQueueSource::MANUAL)
+                    ->orWhereNull('queue_source');
+            })
+            ->whereIn('status', [
+                PinterestQueueItem::STATUS_PENDING,
+                PinterestQueueItem::STATUS_PROCESSING,
+            ])
+            ->exists();
+
+        $pendingQuery = PinterestQueueItem::query()
             ->where('status', PinterestQueueItem::STATUS_PENDING)
-            ->where('scheduled_at', '<=', now())
+            ->where('scheduled_at', '<=', now());
+
+        if ($hasManualActive) {
+            $pendingQuery->where(function ($query): void {
+                $query->where('queue_source', SocialMediaQueueSource::MANUAL)
+                    ->orWhereNull('queue_source');
+            });
+        }
+
+        /** @var PinterestQueueItem|null $item */
+        $item = $pendingQuery
             ->orderBy('scheduled_at')
             ->orderBy('sort_order')
             ->first();
@@ -292,12 +316,9 @@ class PinterestQueueService
                 'error_message' => $message,
             ]);
 
-            $cancelled = $this->abortQueueOnError($message);
-
-            Log::warning('PinterestQueueService process failed — queue aborted', [
+            Log::warning('PinterestQueueService item failed — queue continues', [
                 'queue_item_id' => $item->id,
                 'error' => $message,
-                'cancelled_pending' => $cancelled,
             ]);
 
             return ['processed' => true, 'item' => $item->fresh(), 'media_id' => null];
@@ -317,6 +338,7 @@ class PinterestQueueService
                 $item->aff_link,
                 is_array($item->coupon_codes) ? $item->coupon_codes : [],
                 $item->user_id,
+                GeminiKeyScope::PINTEREST,
             );
             $usedDefaultCaption = $gemini->usedDefaultCaption;
 
@@ -425,6 +447,28 @@ class PinterestQueueService
             'processing' => PinterestQueueItem::query()->where('status', PinterestQueueItem::STATUS_PROCESSING)->count(),
             'completed' => PinterestQueueItem::query()->where('status', PinterestQueueItem::STATUS_COMPLETED)->count(),
             'failed' => PinterestQueueItem::query()->where('status', PinterestQueueItem::STATUS_FAILED)->count(),
+            'auto_pending' => PinterestQueueItem::query()
+                ->where('queue_source', SocialMediaQueueSource::AUTO)
+                ->where('status', PinterestQueueItem::STATUS_PENDING)
+                ->count(),
+            'manual_pending' => PinterestQueueItem::query()
+                ->where(function ($query): void {
+                    $query->where('queue_source', SocialMediaQueueSource::MANUAL)
+                        ->orWhereNull('queue_source');
+                })
+                ->where('status', PinterestQueueItem::STATUS_PENDING)
+                ->count(),
+            'auto_processing' => PinterestQueueItem::query()
+                ->where('queue_source', SocialMediaQueueSource::AUTO)
+                ->where('status', PinterestQueueItem::STATUS_PROCESSING)
+                ->count(),
+            'manual_processing' => PinterestQueueItem::query()
+                ->where(function ($query): void {
+                    $query->where('queue_source', SocialMediaQueueSource::MANUAL)
+                        ->orWhereNull('queue_source');
+                })
+                ->where('status', PinterestQueueItem::STATUS_PROCESSING)
+                ->count(),
         ];
     }
 

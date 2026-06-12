@@ -18,6 +18,15 @@
             igInterval: @js($instagramQueueIntervalMinutes),
             fbInterval: @js($facebookQueueIntervalMinutes),
             pinInterval: @js($pinterestQueueIntervalMinutes),
+            igAutoEnabled: @js($instagramAutoQueueEnabled),
+            fbAutoEnabled: @js($facebookAutoQueueEnabled),
+            pinAutoEnabled: @js($pinterestAutoQueueEnabled),
+            igAutoPaused: @js($instagramAutoQueuePaused),
+            fbAutoPaused: @js($facebookAutoQueuePaused),
+            pinAutoPaused: @js($pinterestAutoQueuePaused),
+            igAutoInterval: @js($instagramAutoQueueIntervalMinutes),
+            fbAutoInterval: @js($facebookAutoQueueIntervalMinutes),
+            pinAutoInterval: @js($pinterestAutoQueueIntervalMinutes),
             setPlatform(next) {
                 if (this.platform === next) return;
                 this.platform = next;
@@ -46,6 +55,21 @@
                 if (this.platform === 'pinterest') return this.pinInterval;
                 return this.igInterval;
             },
+            activeAutoEnabled() {
+                if (this.platform === 'facebook') return this.fbAutoEnabled;
+                if (this.platform === 'pinterest') return this.pinAutoEnabled;
+                return this.igAutoEnabled;
+            },
+            activeAutoPaused() {
+                if (this.platform === 'facebook') return this.fbAutoPaused;
+                if (this.platform === 'pinterest') return this.pinAutoPaused;
+                return this.igAutoPaused;
+            },
+            activeAutoInterval() {
+                if (this.platform === 'facebook') return this.fbAutoInterval;
+                if (this.platform === 'pinterest') return this.pinAutoInterval;
+                return this.igAutoInterval;
+            },
             pendingFor(stats) {
                 return (stats.pending ?? 0) + (stats.processing ?? 0);
             },
@@ -67,6 +91,15 @@
             igInterval = $event.detail.instagramInterval;
             fbInterval = $event.detail.facebookInterval;
             pinInterval = $event.detail.pinterestInterval;
+            igAutoEnabled = $event.detail.instagramAutoEnabled;
+            fbAutoEnabled = $event.detail.facebookAutoEnabled;
+            pinAutoEnabled = $event.detail.pinterestAutoEnabled;
+            igAutoPaused = $event.detail.instagramAutoPaused;
+            fbAutoPaused = $event.detail.facebookAutoPaused;
+            pinAutoPaused = $event.detail.pinterestAutoPaused;
+            igAutoInterval = $event.detail.instagramAutoInterval;
+            fbAutoInterval = $event.detail.facebookAutoInterval;
+            pinAutoInterval = $event.detail.pinterestAutoInterval;
         "
     >
         <div class="smp-tag-nav mb-3 space-y-2">
@@ -292,8 +325,18 @@
                             Hàng đợi <span x-text="platform === 'facebook' ? 'Facebook' : (platform === 'pinterest' ? 'Pinterest' : 'Instagram')"></span>
                         </span>
                         <x-filament::badge color="gray" size="sm">
-                            <span x-text="activeInterval()"></span> phút/bài
+                            Thủ công: <span x-text="activeInterval()"></span> phút/bài
                         </x-filament::badge>
+                        <template x-if="activeAutoEnabled()">
+                            <x-filament::badge color="primary" size="sm">
+                                Auto: <span x-text="activeAutoInterval()"></span> phút/bài
+                            </x-filament::badge>
+                        </template>
+                        <template x-if="activeAutoEnabled() && activeAutoPaused()">
+                            <x-filament::badge color="warning" size="sm">
+                                Auto tạm dừng (hàng đợi thủ công đang chạy)
+                            </x-filament::badge>
+                        </template>
                         <x-filament::badge color="warning" size="sm">
                             Chờ <span x-text="activeStats().pending ?? 0"></span>
                         </x-filament::badge>

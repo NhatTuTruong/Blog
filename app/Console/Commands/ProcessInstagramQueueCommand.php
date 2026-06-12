@@ -27,7 +27,7 @@ class ProcessInstagramQueueCommand extends Command
             $this->info("Đã đăng Instagram media #{$result['media_id']} (queue #{$item?->id})");
         } else {
             $this->error("Thất bại queue #{$item?->id}: ".($service->lastError ?? $item?->error_message ?? 'unknown'));
-            $this->warn('Hàng đợi đã dừng — các bài đang chờ đã bị hủy để tránh kẹt.');
+            $this->warn('Bài này thất bại — hàng đợi vẫn tiếp tục với các bài còn lại.');
         }
 
         return self::SUCCESS;

@@ -69,10 +69,10 @@ class ListBlogs extends ListRecords
 
                     $gemini = app(GeminiBlogService::class);
 
-                    if (! AdminSettings::hasGeminiApiKey()) {
+                    if (! \App\Support\GeminiSettings::hasApiKey(\App\Support\GeminiKeyScope::AUTO_BLOG, \App\Support\IntegrationSettingsStore::resolveUserId())) {
                         Notification::make()
                             ->title('Lỗi cấu hình')
-                            ->body('Gemini API key chưa được cấu hình trong Cài đặt hệ thống.')
+                            ->body('Gemini API key cho Đăng bài viết tự động chưa được cấu hình trong Cài đặt tích hợp.')
                             ->danger()
                             ->send();
 
@@ -103,6 +103,7 @@ class ListBlogs extends ListRecords
                         $contentIdea,
                         $affLink,
                         $couponCodes,
+                        \App\Support\IntegrationSettingsStore::resolveUserId(),
                     );
 
                     if (! $result) {

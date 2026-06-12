@@ -3,7 +3,8 @@
 namespace App\Services;
 
 use App\Support\AffiliateContentGuidelines;
-use App\Support\IntegrationSettingsStore;
+use App\Support\GeminiKeyScope;
+use App\Support\GeminiSettings;
 
 class GeminiInstagramService
 {
@@ -22,17 +23,18 @@ class GeminiInstagramService
         ?string $affLink = null,
         array $couponCodes = [],
         ?int $ownerUserId = null,
+        string $scope = GeminiKeyScope::INSTAGRAM,
     ): string {
         $this->usedDefaultCaption = false;
         $this->lastError = null;
         $couponCodes = array_values(array_filter(array_map('trim', $couponCodes)));
 
-        if (! IntegrationSettingsStore::for($ownerUserId)->hasGeminiApiKey()) {
+        if (! GeminiSettings::hasApiKey($scope, $ownerUserId)) {
             return $this->useDefaultCaption($affLink, $couponCodes);
         }
 
         try {
-            $caption = $this->attemptSingleAiCaption($brandDomain, $contentIdea, $affLink, $couponCodes, $ownerUserId);
+            $caption = $this->attemptSingleAiCaption($brandDomain, $contentIdea, $affLink, $couponCodes, $ownerUserId, $scope);
             if ($caption !== null) {
                 return $caption;
             }
@@ -99,6 +101,7 @@ class GeminiInstagramService
         ?string $affLink,
         array $couponCodes,
         ?int $ownerUserId = null,
+        string $scope = GeminiKeyScope::INSTAGRAM,
     ): ?string {
         $contentIdea = filled($contentIdea) ? trim((string) $contentIdea) : '';
         if ($contentIdea === '') {
@@ -121,7 +124,7 @@ class GeminiInstagramService
         $text = $gemini->generatePlainText($prompt, [
             'maxOutputTokens' => 2048,
             'temperature' => 0.55,
-        ], $ownerUserId);
+        ], $ownerUserId, $scope);
 
         if ($text === null) {
             $this->lastError = $gemini->lastError ?? 'AI không trả về caption.';

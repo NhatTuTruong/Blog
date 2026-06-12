@@ -17,12 +17,12 @@ class InstagramPostImageService
     public function ensureStoredJpegForItem(InstagramQueueItem $item): string
     {
         $existing = $this->normalizeStoragePath($item->image_path);
-        if ($existing !== null && $this->isJpegAtPath($existing)) {
+        if ($existing !== null && $this->isInstagramFeedReady($existing)) {
             return $existing;
         }
 
         if ($existing !== null) {
-            $converted = $this->convertUploadToJpeg($existing, $item->id);
+            $converted = $this->convertUploadToInstagramFeed($existing, $item->id);
             if ($converted !== null) {
                 $item->update(['image_path' => $converted]);
 
@@ -31,9 +31,10 @@ class InstagramPostImageService
         }
 
         $generated = $this->generatePlaceholderJpeg($item);
-        $item->update(['image_path' => $generated]);
+        $ready = $this->convertUploadToInstagramFeed($generated, $item->id) ?? $generated;
+        $item->update(['image_path' => $ready]);
 
-        return $generated;
+        return $ready;
     }
 
     public function signedPublicUrl(InstagramQueueItem $item): ?string
@@ -183,37 +184,31 @@ class InstagramPostImageService
         return PublicStorage::exists($path) ? $path : null;
     }
 
-    protected function isJpegAtPath(string $path): bool
+    protected function isInstagramFeedReady(string $path): bool
     {
         if (! PublicStorage::exists($path)) {
             return false;
         }
 
-        $mime = mime_content_type($this->absolutePath($path));
-
-        return in_array($mime, ['image/jpeg', 'image/jpg'], true);
+        return app(InstagramFeedImageNormalizer::class)->isNormalized($this->absolutePath($path));
     }
 
-    protected function convertUploadToJpeg(string $sourcePath, int $itemId): ?string
+    protected function convertUploadToInstagramFeed(string $sourcePath, int $itemId): ?string
     {
-        if (! extension_loaded('gd')) {
-            return $this->copyDefaultJpeg("instagram-generated/item-{$itemId}.jpg");
-        }
-
-        $absolute = $this->absolutePath($sourcePath);
-        $image = $this->loadImage($absolute);
-        if ($image === null) {
-            return null;
-        }
-
         $dest = "instagram-generated/item-{$itemId}.jpg";
         PublicStorage::ensureDirectory('instagram-generated');
         $destAbsolute = $this->absolutePath($dest);
 
-        imagejpeg($image, $destAbsolute, 90);
-        imagedestroy($image);
+        $normalizer = app(InstagramFeedImageNormalizer::class);
+        if ($normalizer->normalizeFile($this->absolutePath($sourcePath), $destAbsolute)) {
+            return $dest;
+        }
 
-        return $dest;
+        if (! extension_loaded('gd')) {
+            return $this->copyDefaultJpeg($dest);
+        }
+
+        return null;
     }
 
     protected function generatePlaceholderJpeg(InstagramQueueItem $item): string
@@ -223,19 +218,6 @@ class InstagramPostImageService
             $item->user_id,
             "instagram-generated/item-{$item->id}.jpg",
         );
-    }
-
-    protected function loadImage(string $absolutePath): ?\GdImage
-    {
-        $mime = mime_content_type($absolutePath) ?: '';
-
-        return match (true) {
-            str_contains($mime, 'jpeg'), str_contains($mime, 'jpg') => @imagecreatefromjpeg($absolutePath) ?: null,
-            str_contains($mime, 'png') => @imagecreatefrompng($absolutePath) ?: null,
-            str_contains($mime, 'webp') && function_exists('imagecreatefromwebp') => @imagecreatefromwebp($absolutePath) ?: null,
-            str_contains($mime, 'gif') => @imagecreatefromgif($absolutePath) ?: null,
-            default => null,
-        };
     }
 
     protected function copyDefaultJpeg(string $dest): string

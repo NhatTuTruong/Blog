@@ -18,24 +18,27 @@ class IntegrationSettingsForm
     {
         return [
             Section::make('AI Content (Gemini)')
+                ->description('Mỗi phần dùng một API key riêng. Nhập key mới để lưu; "********" giữ key hiện tại; để trống xóa key.')
                 ->schema([
-                    TextInput::make('gemini_api_key')
-                        ->label('Gemini API key (chính)')
+                    TextInput::make('gemini_api_key_auto_blog')
+                        ->label('Gemini API key — Đăng bài viết tự động')
                         ->password()
                         ->revealable()
-                        ->helperText('Key ưu tiên 1. Nhập key mới để lưu; để "********" giữ key hiện tại; để trống xóa key.')
                         ->maxLength(255),
-                    TextInput::make('gemini_api_key_2')
-                        ->label('Gemini API key dự phòng #2')
+                    TextInput::make('gemini_api_key_instagram')
+                        ->label('Gemini API key — Instagram')
                         ->password()
                         ->revealable()
-                        ->helperText('Key ưu tiên 2. Không bắt buộc.')
                         ->maxLength(255),
-                    TextInput::make('gemini_api_key_3')
-                        ->label('Gemini API key dự phòng #3')
+                    TextInput::make('gemini_api_key_facebook')
+                        ->label('Gemini API key — Facebook')
                         ->password()
                         ->revealable()
-                        ->helperText('Key ưu tiên 3. Không bắt buộc.')
+                        ->maxLength(255),
+                    TextInput::make('gemini_api_key_pinterest')
+                        ->label('Gemini API key — Pinterest')
+                        ->password()
+                        ->revealable()
                         ->maxLength(255),
                     TextInput::make('gemini_model')
                         ->label('Gemini model')
@@ -105,12 +108,24 @@ class IntegrationSettingsForm
                         ->default('v21.0')
                         ->maxLength(20),
                     TextInput::make('instagram_queue_interval_minutes')
-                        ->label('Khoảng cách đăng hàng đợi (phút)')
+                        ->label('Khoảng cách đăng hàng đợi thủ công (phút)')
                         ->numeric()
                         ->minValue(1)
                         ->maxValue(1440)
                         ->default(30)
                         ->required(),
+                    Toggle::make('instagram_auto_queue_enabled')
+                        ->label('Bật hàng đợi auto Instagram')
+                        ->helperText('Tự đăng lại từ bài «Hoàn thành» trong bảng Hàng đợi (cũ nhất trước, xoay vòng khác brand). Tạm dừng khi hàng đợi thủ công đang chạy.')
+                        ->inline(false),
+                    TextInput::make('instagram_auto_queue_interval_minutes')
+                        ->label('Khoảng cách đăng hàng đợi auto (phút)')
+                        ->numeric()
+                        ->minValue(1)
+                        ->maxValue(1440)
+                        ->default(60)
+                        ->required()
+                        ->visible(fn (callable $get): bool => (bool) $get('instagram_auto_queue_enabled')),
                     TextInput::make('instagram_public_base_url')
                         ->label('URL công khai (HTTPS)')
                         ->url()
@@ -169,12 +184,24 @@ class IntegrationSettingsForm
                         ->default('v21.0')
                         ->maxLength(20),
                     TextInput::make('facebook_queue_interval_minutes')
-                        ->label('Khoảng cách đăng hàng đợi (phút)')
+                        ->label('Khoảng cách đăng hàng đợi thủ công (phút)')
                         ->numeric()
                         ->minValue(1)
                         ->maxValue(1440)
                         ->default(30)
                         ->required(),
+                    Toggle::make('facebook_auto_queue_enabled')
+                        ->label('Bật hàng đợi auto Facebook')
+                        ->helperText('Tự đăng lại từ bài «Hoàn thành» trong bảng Hàng đợi (cũ nhất trước, xoay vòng khác brand). Tạm dừng khi hàng đợi thủ công đang chạy.')
+                        ->inline(false),
+                    TextInput::make('facebook_auto_queue_interval_minutes')
+                        ->label('Khoảng cách đăng hàng đợi auto (phút)')
+                        ->numeric()
+                        ->minValue(1)
+                        ->maxValue(1440)
+                        ->default(60)
+                        ->required()
+                        ->visible(fn (callable $get): bool => (bool) $get('facebook_auto_queue_enabled')),
                     TextInput::make('facebook_public_base_url')
                         ->label('URL công khai (HTTPS)')
                         ->url()
@@ -220,12 +247,31 @@ class IntegrationSettingsForm
                             : 'Tài khoản mới')
                         ->columnSpanFull(),
                     TextInput::make('pinterest_queue_interval_minutes')
-                        ->label('Khoảng cách đăng hàng đợi (phút)')
+                        ->label('Khoảng cách đăng hàng đợi thủ công (phút)')
                         ->numeric()
                         ->minValue(1)
                         ->maxValue(1440)
                         ->default(30)
                         ->required(),
+                    Toggle::make('pinterest_auto_queue_enabled')
+                        ->label('Bật hàng đợi auto Pinterest')
+                        ->helperText('Tự đăng lại từ bài «Hoàn thành» trong bảng Hàng đợi (cũ nhất trước, xoay vòng khác brand). Tạm dừng khi hàng đợi thủ công đang chạy.')
+                        ->inline(false),
+                    TextInput::make('pinterest_auto_queue_interval_minutes')
+                        ->label('Khoảng cách đăng hàng đợi auto (phút)')
+                        ->numeric()
+                        ->minValue(1)
+                        ->maxValue(1440)
+                        ->default(60)
+                        ->required()
+                        ->visible(fn (callable $get): bool => (bool) $get('pinterest_auto_queue_enabled')),
+                    TextInput::make('pinterest_auto_queue_board_ids')
+                        ->label('Board ID cho hàng đợi auto')
+                        ->helperText('Cách nhau bởi dấu phẩy. Để trống = dùng Board lần đăng thủ công gần nhất hoặc Board đầu tiên.')
+                        ->placeholder('123456789,987654321')
+                        ->maxLength(500)
+                        ->visible(fn (callable $get): bool => (bool) $get('pinterest_auto_queue_enabled'))
+                        ->columnSpanFull(),
                     TextInput::make('pinterest_public_base_url')
                         ->label('URL công khai (HTTPS)')
                         ->url()

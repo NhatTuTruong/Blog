@@ -68,7 +68,7 @@ class SystemSettings extends Page implements HasForms
         return $form
             ->schema([
                 Section::make('Auto Blog')
-                    ->description('Thiết lập site-wide cho cron tạo blog. Gemini API key cấu hình tại «Gemini & MXH & Email» (mỗi admin có key riêng).')
+                    ->description('Thiết lập site-wide cho cron tạo blog. Gemini API key (Đăng bài viết tự động) cấu hình tại «Cài đặt tích hợp» → AI Content (Gemini).')
                     ->schema([
                         Toggle::make('auto_blog_enabled')
                             ->label('Bật Auto Blog')

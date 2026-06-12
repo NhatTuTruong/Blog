@@ -33,6 +33,34 @@ class FacebookSettings
         return max(1, min(1440, (int) static::store($userId)->get('facebook_queue_interval_minutes', 30)));
     }
 
+    public static function isAutoQueueEnabled(?int $userId = null): bool
+    {
+        return (bool) static::store($userId)->get('facebook_auto_queue_enabled', false);
+    }
+
+    public static function autoQueueIntervalMinutes(?int $userId = null): int
+    {
+        return max(1, min(1440, (int) static::store($userId)->get('facebook_auto_queue_interval_minutes', 60)));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function autoQueueState(?int $userId = null): array
+    {
+        $state = static::store($userId)->get('facebook_auto_queue_state', []);
+
+        return is_array($state) ? $state : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $state
+     */
+    public static function setAutoQueueState(?int $userId, array $state): void
+    {
+        static::store($userId)->set('facebook_auto_queue_state', $state);
+    }
+
     public static function publicBaseUrl(?int $userId = null): ?string
     {
         $override = trim((string) static::store($userId)->get('facebook_public_base_url', ''));

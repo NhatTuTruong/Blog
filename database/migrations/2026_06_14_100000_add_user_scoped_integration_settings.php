@@ -46,6 +46,10 @@ return new class extends Migration
         'gemini_api_key',
         'gemini_api_key_2',
         'gemini_api_key_3',
+        'gemini_api_key_auto_blog',
+        'gemini_api_key_instagram',
+        'gemini_api_key_facebook',
+        'gemini_api_key_pinterest',
         'mail_password',
     ];
 

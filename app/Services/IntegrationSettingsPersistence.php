@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\FacebookAccount;
 use App\Models\InstagramAccount;
 use App\Models\PinterestAccount;
+use App\Support\GeminiKeyScope;
 use App\Support\IntegrationSettingsStore;
 use App\Support\MailSettings;
 
@@ -22,9 +23,10 @@ class IntegrationSettingsPersistence
         $store = $this->store;
 
         return [
-            'gemini_api_key' => $store->getEncrypted('gemini_api_key') ? '********' : '',
-            'gemini_api_key_2' => $store->getEncrypted('gemini_api_key_2') ? '********' : '',
-            'gemini_api_key_3' => $store->getEncrypted('gemini_api_key_3') ? '********' : '',
+            'gemini_api_key_auto_blog' => $this->maskedGeminiKey($store, GeminiKeyScope::AUTO_BLOG),
+            'gemini_api_key_instagram' => $this->maskedGeminiKey($store, GeminiKeyScope::INSTAGRAM),
+            'gemini_api_key_facebook' => $this->maskedGeminiKey($store, GeminiKeyScope::FACEBOOK),
+            'gemini_api_key_pinterest' => $this->maskedGeminiKey($store, GeminiKeyScope::PINTEREST),
             'gemini_model' => (string) $store->get('gemini_model', config('gemini.model', 'gemini-2.5-flash-lite')),
             'gemini_timeout' => max(60, (int) $store->get('gemini_timeout', config('gemini.timeout', 120))),
             'apify_api_token' => $store->getEncrypted('apify_api_token') ? '********' : '',
@@ -58,6 +60,8 @@ class IntegrationSettingsPersistence
                 ->all(),
             'instagram_graph_version' => (string) $store->get('instagram_graph_version', 'v21.0'),
             'instagram_queue_interval_minutes' => (int) $store->get('instagram_queue_interval_minutes', 30),
+            'instagram_auto_queue_enabled' => (bool) $store->get('instagram_auto_queue_enabled', false),
+            'instagram_auto_queue_interval_minutes' => (int) $store->get('instagram_auto_queue_interval_minutes', 60),
             'instagram_public_base_url' => (string) $store->get('instagram_public_base_url', ''),
             'instagram_default_image_url' => (string) $store->get('instagram_default_image_url', ''),
             'facebook_enabled' => (bool) $store->get('facebook_enabled', false),
@@ -77,6 +81,8 @@ class IntegrationSettingsPersistence
                 ->all(),
             'facebook_graph_version' => (string) $store->get('facebook_graph_version', 'v21.0'),
             'facebook_queue_interval_minutes' => (int) $store->get('facebook_queue_interval_minutes', 30),
+            'facebook_auto_queue_enabled' => (bool) $store->get('facebook_auto_queue_enabled', false),
+            'facebook_auto_queue_interval_minutes' => (int) $store->get('facebook_auto_queue_interval_minutes', 60),
             'facebook_public_base_url' => (string) $store->get('facebook_public_base_url', ''),
             'pinterest_enabled' => (bool) $store->get('pinterest_enabled', false),
             'pinterest_accounts' => PinterestAccount::query()
@@ -93,6 +99,9 @@ class IntegrationSettingsPersistence
                 ->values()
                 ->all(),
             'pinterest_queue_interval_minutes' => (int) $store->get('pinterest_queue_interval_minutes', 30),
+            'pinterest_auto_queue_enabled' => (bool) $store->get('pinterest_auto_queue_enabled', false),
+            'pinterest_auto_queue_interval_minutes' => (int) $store->get('pinterest_auto_queue_interval_minutes', 60),
+            'pinterest_auto_queue_board_ids' => implode(', ', \App\Support\PinterestSettings::autoQueueBoardIds($this->userId)),
             'pinterest_public_base_url' => (string) $store->get('pinterest_public_base_url', ''),
             'pinterest_api_base_url' => (string) $store->get('pinterest_api_base_url', ''),
         ];
@@ -102,9 +111,10 @@ class IntegrationSettingsPersistence
     {
         $store = $this->store;
 
-        $this->saveGeminiApiKey('gemini_api_key', $data);
-        $this->saveGeminiApiKey('gemini_api_key_2', $data);
-        $this->saveGeminiApiKey('gemini_api_key_3', $data);
+        $this->saveGeminiApiKey(GeminiKeyScope::settingKey(GeminiKeyScope::AUTO_BLOG), $data);
+        $this->saveGeminiApiKey(GeminiKeyScope::settingKey(GeminiKeyScope::INSTAGRAM), $data);
+        $this->saveGeminiApiKey(GeminiKeyScope::settingKey(GeminiKeyScope::FACEBOOK), $data);
+        $this->saveGeminiApiKey(GeminiKeyScope::settingKey(GeminiKeyScope::PINTEREST), $data);
 
         $store->set('gemini_model', trim((string) ($data['gemini_model'] ?? config('gemini.model', 'gemini-2.5-flash-lite'))));
         $store->set('gemini_timeout', max(60, min(600, (int) ($data['gemini_timeout'] ?? config('gemini.timeout', 120)))));
@@ -130,6 +140,8 @@ class IntegrationSettingsPersistence
         $this->saveInstagramAccounts($data);
         $store->set('instagram_graph_version', trim((string) ($data['instagram_graph_version'] ?? 'v21.0')));
         $store->set('instagram_queue_interval_minutes', max(1, min(1440, (int) ($data['instagram_queue_interval_minutes'] ?? 30))));
+        $store->set('instagram_auto_queue_enabled', (bool) ($data['instagram_auto_queue_enabled'] ?? false));
+        $store->set('instagram_auto_queue_interval_minutes', max(1, min(1440, (int) ($data['instagram_auto_queue_interval_minutes'] ?? 60))));
         $store->set('instagram_public_base_url', trim((string) ($data['instagram_public_base_url'] ?? '')));
         $store->set('instagram_default_image_url', trim((string) ($data['instagram_default_image_url'] ?? '')));
 
@@ -137,13 +149,38 @@ class IntegrationSettingsPersistence
         $this->saveFacebookAccounts($data);
         $store->set('facebook_graph_version', trim((string) ($data['facebook_graph_version'] ?? 'v21.0')));
         $store->set('facebook_queue_interval_minutes', max(1, min(1440, (int) ($data['facebook_queue_interval_minutes'] ?? 30))));
+        $store->set('facebook_auto_queue_enabled', (bool) ($data['facebook_auto_queue_enabled'] ?? false));
+        $store->set('facebook_auto_queue_interval_minutes', max(1, min(1440, (int) ($data['facebook_auto_queue_interval_minutes'] ?? 60))));
         $store->set('facebook_public_base_url', trim((string) ($data['facebook_public_base_url'] ?? '')));
 
         $store->set('pinterest_enabled', (bool) ($data['pinterest_enabled'] ?? false));
         $this->savePinterestAccounts($data);
         $store->set('pinterest_queue_interval_minutes', max(1, min(1440, (int) ($data['pinterest_queue_interval_minutes'] ?? 30))));
+        $store->set('pinterest_auto_queue_enabled', (bool) ($data['pinterest_auto_queue_enabled'] ?? false));
+        $store->set('pinterest_auto_queue_interval_minutes', max(1, min(1440, (int) ($data['pinterest_auto_queue_interval_minutes'] ?? 60))));
+        $boardIds = collect(preg_split('/\s*,\s*/', trim((string) ($data['pinterest_auto_queue_board_ids'] ?? ''))) ?: [])
+            ->map(fn (mixed $id): string => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $store->set('pinterest_auto_queue_board_ids', $boardIds);
         $store->set('pinterest_public_base_url', trim((string) ($data['pinterest_public_base_url'] ?? '')));
         $store->set('pinterest_api_base_url', trim((string) ($data['pinterest_api_base_url'] ?? '')));
+    }
+
+    protected function maskedGeminiKey(IntegrationSettingsStore $store, string $scope): string
+    {
+        $field = GeminiKeyScope::settingKey($scope);
+        if ($store->getEncrypted($field)) {
+            return '********';
+        }
+
+        if ($scope === GeminiKeyScope::AUTO_BLOG && $store->getEncrypted('gemini_api_key')) {
+            return '********';
+        }
+
+        return '';
     }
 
     protected function saveGeminiApiKey(string $field, array $data): void

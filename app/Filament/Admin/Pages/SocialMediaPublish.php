@@ -138,6 +138,24 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     public int $pinterestQueueIntervalMinutes = 30;
 
+    public bool $instagramAutoQueueEnabled = false;
+
+    public int $instagramAutoQueueIntervalMinutes = 60;
+
+    public bool $instagramAutoQueuePaused = false;
+
+    public bool $facebookAutoQueueEnabled = false;
+
+    public int $facebookAutoQueueIntervalMinutes = 60;
+
+    public bool $facebookAutoQueuePaused = false;
+
+    public bool $pinterestAutoQueueEnabled = false;
+
+    public int $pinterestAutoQueueIntervalMinutes = 60;
+
+    public bool $pinterestAutoQueuePaused = false;
+
     public ?string $instagramAccountLabel = null;
 
     protected ?int $instagramLoadedSavedListId = null;
@@ -499,6 +517,26 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         $pinterestService = app(PinterestQueueService::class);
         $this->pinterestQueueStats = $pinterestService->queueStats();
         $this->pinterestQueueIntervalMinutes = $pinterestService->intervalMinutes();
+
+        $this->loadAutoQueueMeta();
+    }
+
+    protected function loadAutoQueueMeta(): void
+    {
+        $userId = \App\Support\IntegrationSettingsStore::for()->userId();
+        $autoService = app(\App\Services\SocialMediaAutoQueueService::class);
+
+        $this->instagramAutoQueueEnabled = \App\Support\InstagramSettings::isAutoQueueEnabled($userId);
+        $this->instagramAutoQueueIntervalMinutes = \App\Support\InstagramSettings::autoQueueIntervalMinutes($userId);
+        $this->instagramAutoQueuePaused = $autoService->isAutoPaused(\App\Services\SocialMediaAutoQueueService::PLATFORM_INSTAGRAM, $userId);
+
+        $this->facebookAutoQueueEnabled = \App\Support\FacebookSettings::isAutoQueueEnabled($userId);
+        $this->facebookAutoQueueIntervalMinutes = \App\Support\FacebookSettings::autoQueueIntervalMinutes($userId);
+        $this->facebookAutoQueuePaused = $autoService->isAutoPaused(\App\Services\SocialMediaAutoQueueService::PLATFORM_FACEBOOK, $userId);
+
+        $this->pinterestAutoQueueEnabled = \App\Support\PinterestSettings::isAutoQueueEnabled($userId);
+        $this->pinterestAutoQueueIntervalMinutes = \App\Support\PinterestSettings::autoQueueIntervalMinutes($userId);
+        $this->pinterestAutoQueuePaused = $autoService->isAutoPaused(\App\Services\SocialMediaAutoQueueService::PLATFORM_PINTEREST, $userId);
     }
 
     protected function applyActivePlatformQueueStats(): void
@@ -662,6 +700,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     ->label('Brand')
                     ->placeholder('—')
                     ->searchable(),
+                SocialMediaQueueTable::queueSourceColumn(),
                 SocialMediaQueueTable::statusColumn(),
                 Tables\Columns\TextColumn::make('caption')
                     ->label('Caption')
@@ -1159,6 +1198,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         $this->pinterestQueueStats = $pinterestService->queueStats();
         $this->pinterestQueueIntervalMinutes = $pinterestService->intervalMinutes();
 
+        $this->loadAutoQueueMeta();
         $this->applyActivePlatformQueueStats();
         $this->dispatchQueueStatsToBrowser();
 
@@ -1177,6 +1217,15 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             instagramInterval: $this->instagramQueueIntervalMinutes,
             facebookInterval: $this->facebookQueueIntervalMinutes,
             pinterestInterval: $this->pinterestQueueIntervalMinutes,
+            instagramAutoEnabled: $this->instagramAutoQueueEnabled,
+            facebookAutoEnabled: $this->facebookAutoQueueEnabled,
+            pinterestAutoEnabled: $this->pinterestAutoQueueEnabled,
+            instagramAutoPaused: $this->instagramAutoQueuePaused,
+            facebookAutoPaused: $this->facebookAutoQueuePaused,
+            pinterestAutoPaused: $this->pinterestAutoQueuePaused,
+            instagramAutoInterval: $this->instagramAutoQueueIntervalMinutes,
+            facebookAutoInterval: $this->facebookAutoQueueIntervalMinutes,
+            pinterestAutoInterval: $this->pinterestAutoQueueIntervalMinutes,
         );
     }
 

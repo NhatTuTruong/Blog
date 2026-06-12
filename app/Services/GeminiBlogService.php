@@ -2,8 +2,9 @@
 
 namespace App\Services;
 
-use App\Support\AdminSettings;
 use App\Support\AffiliateContentGuidelines;
+use App\Support\GeminiKeyScope;
+use App\Support\GeminiSettings;
 use App\Support\IntegrationSettingsStore;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -46,7 +47,7 @@ PROMPT;
 
         return $this->callGeminiWithFallback($model, $prompt, $timeout, [
             'maxOutputTokens' => 8192,
-        ], $ownerUserId);
+        ], $ownerUserId, GeminiKeyScope::AUTO_BLOG);
     }
 
     /**
@@ -60,6 +61,7 @@ PROMPT;
         ?string $contentIdea = null,
         ?string $affLink = null,
         array $couponCodes = [],
+        ?int $ownerUserId = null,
     ): ?array {
         $host = self::normalizeDomain($domainInput);
         if ($host === null) {
@@ -79,7 +81,7 @@ PROMPT;
             $ctaUrl = $normalizedAffLink;
         }
 
-        $ownerUserId = IntegrationSettingsStore::fallbackAdminUserId();
+        $ownerUserId ??= IntegrationSettingsStore::fallbackAdminUserId();
         $store = IntegrationSettingsStore::for($ownerUserId);
         $model = (string) $store->get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest'));
         $timeout = max(90, $this->resolveTimeoutSeconds($ownerUserId));
@@ -152,7 +154,7 @@ PROMPT;
         $result = $this->callGeminiWithFallback($model, $prompt, $timeout, [
             'maxOutputTokens' => 8192,
             'temperature' => 0.85,
-        ], $ownerUserId);
+        ], $ownerUserId, GeminiKeyScope::AUTO_BLOG);
 
         if ($result === null) {
             return null;
@@ -288,13 +290,17 @@ PROMPT;
     /**
      * @param  array<string, mixed>  $generationConfigOverrides
      */
-    public function generatePlainText(string $prompt, array $generationConfigOverrides = [], ?int $ownerUserId = null): ?string
-    {
+    public function generatePlainText(
+        string $prompt,
+        array $generationConfigOverrides = [],
+        ?int $ownerUserId = null,
+        string $scope = GeminiKeyScope::INSTAGRAM,
+    ): ?string {
         $store = IntegrationSettingsStore::for($ownerUserId);
         $model = (string) $store->get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest'));
         $timeout = max(60, $this->resolveTimeoutSeconds($ownerUserId));
 
-        $result = $this->callGeminiWithFallback($model, $prompt, $timeout, $generationConfigOverrides, $ownerUserId);
+        $result = $this->callGeminiWithFallback($model, $prompt, $timeout, $generationConfigOverrides, $ownerUserId, $scope);
 
         if (! $result) {
             return null;
@@ -308,12 +314,18 @@ PROMPT;
     /**
      * @param  array<string, mixed>  $generationConfigOverrides
      */
-    protected function callGeminiWithFallback(string $model, string $prompt, int $timeout, array $generationConfigOverrides = [], ?int $ownerUserId = null): ?array
-    {
-        $apiKeys = IntegrationSettingsStore::for($ownerUserId)->getGeminiApiKeys();
+    protected function callGeminiWithFallback(
+        string $model,
+        string $prompt,
+        int $timeout,
+        array $generationConfigOverrides = [],
+        ?int $ownerUserId = null,
+        string $scope = GeminiKeyScope::AUTO_BLOG,
+    ): ?array {
+        $apiKeys = GeminiSettings::getApiKeys($scope, $ownerUserId);
 
         if ($apiKeys === []) {
-            $this->lastError = 'GEMINI_API_KEY chưa được cấu hình.';
+            $this->lastError = 'Gemini API key cho '.GeminiKeyScope::label($scope).' chưa được cấu hình.';
 
             return null;
         }
@@ -321,7 +333,7 @@ PROMPT;
         $errors = [];
 
         foreach ($this->modelsToTry($model) as $currentModel) {
-            foreach ($apiKeys as $index => $apiKey) {
+            foreach ($apiKeys as $apiKey) {
                 $attempt = $this->attemptGeminiCallWithRetries(
                     $apiKey,
                     $currentModel,
@@ -337,32 +349,19 @@ PROMPT;
                         Log::info('GeminiBlogService: đã chuyển sang model dự phòng', [
                             'from' => $model,
                             'to' => $currentModel,
-                        ]);
-                    }
-
-                    if ($index > 0) {
-                        Log::info('GeminiBlogService: đã chuyển sang API key dự phòng', [
-                            'key_number' => $index + 1,
+                            'scope' => $scope,
                         ]);
                     }
 
                     return $attempt['result'];
                 }
 
-                $errors[] = "{$currentModel} / Key ".($index + 1).': '.$attempt['error'];
+                $errors[] = "{$currentModel} / ".GeminiKeyScope::label($scope).': '.$attempt['error'];
                 $this->lastError = $attempt['error'];
-
-                if ($index < count($apiKeys) - 1 && $attempt['retryable']) {
-                    Log::warning('GeminiBlogService: key lỗi, thử key tiếp theo', [
-                        'model' => $currentModel,
-                        'key_number' => $index + 1,
-                        'error' => $attempt['error'],
-                    ]);
-                }
             }
         }
 
-        $this->lastError = 'Tất cả Gemini API key đều lỗi. '.implode(' | ', $errors);
+        $this->lastError = 'Gemini API ('.GeminiKeyScope::label($scope).') lỗi. '.implode(' | ', $errors);
 
         return null;
     }

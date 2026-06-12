@@ -78,15 +78,13 @@ class IntegrationSettingsStore
     }
 
     /** @return array<int, string> */
-    public function getGeminiApiKeys(): array
+    public function getGeminiApiKeys(string $scope = GeminiKeyScope::AUTO_BLOG): array
     {
-        $keys = UserSettings::getGeminiApiKeys($this->userId);
-
-        return $keys !== [] ? $keys : AdminSettings::getGeminiApiKeys();
+        return GeminiSettings::getApiKeys($scope, $this->userId);
     }
 
-    public function hasGeminiApiKey(): bool
+    public function hasGeminiApiKey(string $scope = GeminiKeyScope::AUTO_BLOG): bool
     {
-        return $this->getGeminiApiKeys() !== [];
+        return GeminiSettings::hasApiKey($scope, $this->userId);
     }
 }

@@ -32,26 +32,13 @@ class UserSettings
     }
 
     /** @return array<int, string> */
-    public static function getGeminiApiKeys(int $userId): array
+    public static function getGeminiApiKeys(int $userId, string $scope = GeminiKeyScope::AUTO_BLOG): array
     {
-        $keys = [];
-        $settingKeys = ['gemini_api_key', 'gemini_api_key_2', 'gemini_api_key_3'];
-        $configKey = (string) config('gemini.api_key');
-
-        foreach ($settingKeys as $index => $settingKey) {
-            $default = ($index === 0 && $configKey !== '') ? $configKey : null;
-            $value = static::getEncrypted($userId, $settingKey, $default);
-
-            if (is_string($value) && trim($value) !== '') {
-                $keys[] = trim($value);
-            }
-        }
-
-        return array_values(array_unique($keys));
+        return GeminiSettings::getApiKeys($scope, $userId);
     }
 
-    public static function hasGeminiApiKey(int $userId): bool
+    public static function hasGeminiApiKey(int $userId, string $scope = GeminiKeyScope::AUTO_BLOG): bool
     {
-        return static::getGeminiApiKeys($userId) !== [];
+        return GeminiSettings::hasApiKey($scope, $userId);
     }
 }

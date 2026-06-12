@@ -7,6 +7,9 @@ use App\Models\Blog;
 use App\Models\BlogCategory;
 use App\Models\User;
 use App\Support\AdminSettings;
+use App\Support\GeminiKeyScope;
+use App\Support\GeminiSettings;
+use App\Support\IntegrationSettingsStore;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -69,11 +72,9 @@ class AutoBlogQueueService
             $item->update([
                 'status' => AutoBlogQueueItem::STATUS_FAILED,
                 'processed_at' => now(),
-                'error_message' => 'Quá thời gian xử lý — hàng đợi đã dừng để tránh kẹt.',
+                'error_message' => 'Quá thời gian xử lý — bài này đánh dấu lỗi, các bài chờ vẫn tiếp tục.',
             ]);
         }
-
-        $this->cancelPendingQueue();
 
         Log::warning('AutoBlogQueueService recovered stale processing items', [
             'count' => $staleItems->count(),
@@ -114,8 +115,10 @@ class AutoBlogQueueService
             return null;
         }
 
-        if (! AdminSettings::hasGeminiApiKey()) {
-            $this->lastError = 'Gemini API key chưa được cấu hình trong Cài đặt hệ thống.';
+        $ownerUserId = $user?->id ?? IntegrationSettingsStore::fallbackAdminUserId();
+
+        if (! GeminiSettings::hasApiKey(GeminiKeyScope::AUTO_BLOG, $ownerUserId)) {
+            $this->lastError = 'Gemini API key cho Đăng bài viết tự động chưa được cấu hình trong Cài đặt tích hợp.';
 
             return null;
         }
@@ -208,12 +211,9 @@ class AutoBlogQueueService
                 'error_message' => $message,
             ]);
 
-            $cancelled = $this->abortQueueOnError($message);
-
-            Log::warning('AutoBlogQueueService process failed — queue aborted', [
+            Log::warning('AutoBlogQueueService item failed — queue continues', [
                 'queue_item_id' => $item->id,
                 'error' => $message,
-                'cancelled_pending' => $cancelled,
             ]);
 
             return ['processed' => true, 'item' => $item->fresh(), 'blog' => null];
@@ -233,6 +233,7 @@ class AutoBlogQueueService
             $item->content_idea,
             $item->aff_link,
             is_array($item->coupon_codes) ? $item->coupon_codes : [],
+            $item->user_id ?? IntegrationSettingsStore::fallbackAdminUserId(),
         );
 
         if (! $result) {

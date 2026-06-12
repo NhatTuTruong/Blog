@@ -126,6 +126,7 @@ trait ManagesPinterestPublish
                         ? (string) $record->board_name
                         : (filled($record->board_id) ? 'Board '.$record->board_id : ($record->pinterestAccount?->displayLabel() ?? '—'))),
                 Tables\Columns\TextColumn::make('brand_domain')->label('Brand')->searchable(),
+                SocialMediaQueueTable::queueSourceColumn(),
                 SocialMediaQueueTable::statusColumn(),
                 Tables\Columns\TextColumn::make('caption')->label('Nội dung')->limit(50)->placeholder('Tạo khi tới lượt')->toggleable(),
                 Tables\Columns\TextColumn::make('scheduled_at')->label('Lên lịch')->dateTime('d/m/Y H:i')->sortable(),

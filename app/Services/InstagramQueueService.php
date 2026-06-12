@@ -6,7 +6,9 @@ use App\Models\InstagramAccount;
 use App\Models\InstagramQueueItem;
 use App\Models\User;
 use App\Support\AdminSettings;
+use App\Support\GeminiKeyScope;
 use App\Support\InstagramSettings;
+use App\Support\SocialMediaQueueSource;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -121,6 +123,7 @@ class InstagramQueueService
         ?User $user = null,
         ?Carbon $startAt = null,
         array $accountIds = [],
+        string $queueSource = SocialMediaQueueSource::MANUAL,
     ): ?string {
         $this->lastError = null;
 
@@ -183,6 +186,7 @@ class InstagramQueueService
             foreach ($accounts as $account) {
                 InstagramQueueItem::query()->create([
                     'batch_id' => $batchId,
+                    'queue_source' => $queueSource,
                     'user_id' => $user?->id,
                     'instagram_account_id' => $account->id,
                     'sort_order' => $queueIndex,
@@ -218,10 +222,30 @@ class InstagramQueueService
             return ['processed' => false, 'item' => null, 'media_id' => null];
         }
 
-        /** @var InstagramQueueItem|null $item */
-        $item = InstagramQueueItem::query()
+        $hasManualActive = InstagramQueueItem::query()
+            ->where(function ($query): void {
+                $query->where('queue_source', SocialMediaQueueSource::MANUAL)
+                    ->orWhereNull('queue_source');
+            })
+            ->whereIn('status', [
+                InstagramQueueItem::STATUS_PENDING,
+                InstagramQueueItem::STATUS_PROCESSING,
+            ])
+            ->exists();
+
+        $pendingQuery = InstagramQueueItem::query()
             ->where('status', InstagramQueueItem::STATUS_PENDING)
-            ->where('scheduled_at', '<=', now())
+            ->where('scheduled_at', '<=', now());
+
+        if ($hasManualActive) {
+            $pendingQuery->where(function ($query): void {
+                $query->where('queue_source', SocialMediaQueueSource::MANUAL)
+                    ->orWhereNull('queue_source');
+            });
+        }
+
+        /** @var InstagramQueueItem|null $item */
+        $item = $pendingQuery
             ->orderBy('scheduled_at')
             ->orderBy('sort_order')
             ->first();
@@ -260,12 +284,9 @@ class InstagramQueueService
                 'error_message' => $message,
             ]);
 
-            $cancelled = $this->abortQueueOnError($message);
-
-            Log::warning('InstagramQueueService process failed — queue aborted', [
+            Log::warning('InstagramQueueService item failed — queue continues', [
                 'queue_item_id' => $item->id,
                 'error' => $message,
-                'cancelled_pending' => $cancelled,
             ]);
 
             return ['processed' => true, 'item' => $item->fresh(), 'media_id' => null];
@@ -285,6 +306,7 @@ class InstagramQueueService
                 $item->aff_link,
                 is_array($item->coupon_codes) ? $item->coupon_codes : [],
                 $item->user_id,
+                GeminiKeyScope::INSTAGRAM,
             );
             $usedDefaultCaption = $gemini->usedDefaultCaption;
 
@@ -387,6 +409,28 @@ class InstagramQueueService
             'processing' => InstagramQueueItem::query()->where('status', InstagramQueueItem::STATUS_PROCESSING)->count(),
             'completed' => InstagramQueueItem::query()->where('status', InstagramQueueItem::STATUS_COMPLETED)->count(),
             'failed' => InstagramQueueItem::query()->where('status', InstagramQueueItem::STATUS_FAILED)->count(),
+            'auto_pending' => InstagramQueueItem::query()
+                ->where('queue_source', SocialMediaQueueSource::AUTO)
+                ->where('status', InstagramQueueItem::STATUS_PENDING)
+                ->count(),
+            'manual_pending' => InstagramQueueItem::query()
+                ->where(function ($query): void {
+                    $query->where('queue_source', SocialMediaQueueSource::MANUAL)
+                        ->orWhereNull('queue_source');
+                })
+                ->where('status', InstagramQueueItem::STATUS_PENDING)
+                ->count(),
+            'auto_processing' => InstagramQueueItem::query()
+                ->where('queue_source', SocialMediaQueueSource::AUTO)
+                ->where('status', InstagramQueueItem::STATUS_PROCESSING)
+                ->count(),
+            'manual_processing' => InstagramQueueItem::query()
+                ->where(function ($query): void {
+                    $query->where('queue_source', SocialMediaQueueSource::MANUAL)
+                        ->orWhereNull('queue_source');
+                })
+                ->where('status', InstagramQueueItem::STATUS_PROCESSING)
+                ->count(),
         ];
     }
 

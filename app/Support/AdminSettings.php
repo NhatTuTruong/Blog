@@ -44,26 +44,13 @@ class AdminSettings
     }
 
     /** @return array<int, string> */
-    public static function getGeminiApiKeys(): array
+    public static function getGeminiApiKeys(string $scope = GeminiKeyScope::AUTO_BLOG): array
     {
-        $keys = [];
-        $settingKeys = ['gemini_api_key', 'gemini_api_key_2', 'gemini_api_key_3'];
-        $configKey = (string) config('gemini.api_key');
-
-        foreach ($settingKeys as $index => $settingKey) {
-            $default = ($index === 0 && $configKey !== '') ? $configKey : null;
-            $value = static::getEncrypted($settingKey, $default);
-
-            if (is_string($value) && trim($value) !== '') {
-                $keys[] = trim($value);
-            }
-        }
-
-        return array_values(array_unique($keys));
+        return GeminiSettings::getApiKeys($scope, IntegrationSettingsStore::fallbackAdminUserId());
     }
 
-    public static function hasGeminiApiKey(): bool
+    public static function hasGeminiApiKey(string $scope = GeminiKeyScope::AUTO_BLOG): bool
     {
-        return static::getGeminiApiKeys() !== [];
+        return GeminiSettings::hasApiKey($scope, IntegrationSettingsStore::fallbackAdminUserId());
     }
 }

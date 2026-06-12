@@ -19,7 +19,7 @@ class GenerateDailyBlogs extends Command
     public function handle(GeminiBlogService $gemini): int
     {
         if (! AdminSettings::hasGeminiApiKey()) {
-            $this->warn('Gemini API key chưa được cấu hình (Cài đặt hệ thống), bỏ qua.');
+            $this->warn('Gemini API key cho Đăng bài viết tự động chưa được cấu hình (Cài đặt tích hợp), bỏ qua.');
 
             return self::SUCCESS;
         }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\SocialMediaQueueSource;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -17,6 +18,7 @@ class PinterestQueueItem extends Model
 
     protected $fillable = [
         'batch_id',
+        'queue_source',
         'user_id',
         'pinterest_account_id',
         'board_id',
@@ -59,6 +61,16 @@ class PinterestQueueItem extends Model
     {
         return (bool) $this->used_default_caption
             && in_array($this->status, [self::STATUS_PENDING, self::STATUS_PROCESSING], true);
+    }
+
+    public function queueSourceLabel(): string
+    {
+        return SocialMediaQueueSource::label($this->queue_source);
+    }
+
+    public function isAutoQueue(): bool
+    {
+        return $this->queue_source === SocialMediaQueueSource::AUTO;
     }
 
     public function statusLabel(): string
