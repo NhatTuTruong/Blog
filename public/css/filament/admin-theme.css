@@ -1,0 +1,384 @@
+/**
+ * Dark admin theme — GitHub / dashboard reference palette.
+ * Background #0e1116, sidebar #161b22, cards #1c2128, primary #1d9bf0, muted text #8b949e.
+ */
+
+:root {
+    --admin-bg: 14 17 22;
+    --admin-sidebar: 22 27 34;
+    --admin-surface: 28 33 40;
+    --admin-border: 48 54 61;
+    --admin-muted: 139 148 158;
+    --admin-primary: 29 155 240;
+    --admin-success: 63 185 80;
+    --admin-warning: 210 153 34;
+    --admin-danger: 248 81 73;
+    --admin-radius: 0.625rem;
+}
+
+/* ── Typography ─────────────────────────────────────────────── */
+.fi-body {
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.dark .fi-body,
+[data-fi-theme='dark'] .fi-body {
+    background-color: rgb(var(--admin-bg)) !important;
+    color: #fff;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────── */
+.dark .fi-sidebar,
+[data-fi-theme='dark'] .fi-sidebar {
+    background-color: rgb(var(--admin-sidebar)) !important;
+    border-inline-end: 1px solid rgb(var(--admin-border) / 0.55);
+    box-shadow: none !important;
+}
+
+.dark .fi-sidebar-header,
+[data-fi-theme='dark'] .fi-sidebar-header {
+    background-color: rgb(var(--admin-sidebar)) !important;
+    border-bottom: 1px solid rgb(var(--admin-border) / 0.45);
+    box-shadow: none !important;
+}
+
+.dark .fi-sidebar-group-label,
+[data-fi-theme='dark'] .fi-sidebar-group-label {
+    color: rgb(var(--admin-muted)) !important;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.dark .fi-sidebar-item:not(.fi-active) .fi-sidebar-item-label,
+[data-fi-theme='dark'] .fi-sidebar-item:not(.fi-active) .fi-sidebar-item-label {
+    color: rgb(var(--admin-muted)) !important;
+}
+
+.dark .fi-sidebar-item:not(.fi-active) .fi-sidebar-item-icon,
+[data-fi-theme='dark'] .fi-sidebar-item:not(.fi-active) .fi-sidebar-item-icon {
+    color: rgb(var(--admin-muted)) !important;
+}
+
+.dark .fi-sidebar-item:not(.fi-active) .fi-sidebar-item-button:hover,
+[data-fi-theme='dark'] .fi-sidebar-item:not(.fi-active) .fi-sidebar-item-button:hover {
+    background-color: rgb(var(--admin-surface)) !important;
+}
+
+.dark .fi-sidebar-item.fi-active > .fi-sidebar-item-button,
+[data-fi-theme='dark'] .fi-sidebar-item.fi-active > .fi-sidebar-item-button {
+    background-color: rgb(var(--admin-primary)) !important;
+    border-radius: var(--admin-radius) !important;
+}
+
+.dark .fi-sidebar-item.fi-active .fi-sidebar-item-label,
+.dark .fi-sidebar-item.fi-active .fi-sidebar-item-icon,
+[data-fi-theme='dark'] .fi-sidebar-item.fi-active .fi-sidebar-item-label,
+[data-fi-theme='dark'] .fi-sidebar-item.fi-active .fi-sidebar-item-icon {
+    color: #fff !important;
+}
+
+/* ── Topbar ─────────────────────────────────────────────────── */
+.dark .fi-topbar,
+[data-fi-theme='dark'] .fi-topbar {
+    background-color: rgb(var(--admin-bg)) !important;
+    border-bottom: 1px solid rgb(var(--admin-border) / 0.45);
+    box-shadow: none !important;
+}
+
+.dark .fi-topbar nav,
+[data-fi-theme='dark'] .fi-topbar nav {
+    background-color: transparent !important;
+}
+
+/* ── Page header ────────────────────────────────────────────── */
+.dark .fi-header-heading,
+[data-fi-theme='dark'] .fi-header-heading {
+    color: #fff !important;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.dark .fi-header-subheading,
+[data-fi-theme='dark'] .fi-header-subheading {
+    color: rgb(var(--admin-muted)) !important;
+}
+
+/* ── Sections & cards ───────────────────────────────────────── */
+.dark .fi-section,
+.dark .fi-section-content-ctn,
+[data-fi-theme='dark'] .fi-section,
+[data-fi-theme='dark'] .fi-section-content-ctn {
+    background-color: rgb(var(--admin-surface)) !important;
+    border-color: rgb(var(--admin-border) / 0.55) !important;
+    border-radius: var(--admin-radius) !important;
+    box-shadow: none !important;
+}
+
+.dark .fi-section-header,
+[data-fi-theme='dark'] .fi-section-header {
+    border-color: rgb(var(--admin-border) / 0.45) !important;
+}
+
+/* Stats overview widgets */
+.dark .fi-wi-stats-overview-stat,
+[data-fi-theme='dark'] .fi-wi-stats-overview-stat {
+    background-color: rgb(var(--admin-surface)) !important;
+    border: 1px solid rgb(var(--admin-border) / 0.55) !important;
+    border-radius: var(--admin-radius) !important;
+    border-top-width: 3px !important;
+    box-shadow: none !important;
+}
+
+.dark .fi-wi-stats-overview-stat-value,
+[data-fi-theme='dark'] .fi-wi-stats-overview-stat-value {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.dark .fi-wi-stats-overview-stat-label,
+[data-fi-theme='dark'] .fi-wi-stats-overview-stat-label {
+    color: rgb(var(--admin-muted)) !important;
+}
+
+/* Chart / table widget containers */
+.dark .fi-wi-chart,
+.dark .fi-wi-table,
+[data-fi-theme='dark'] .fi-wi-chart,
+[data-fi-theme='dark'] .fi-wi-table {
+    background-color: rgb(var(--admin-surface)) !important;
+    border-color: rgb(var(--admin-border) / 0.55) !important;
+    border-radius: var(--admin-radius) !important;
+}
+
+/* ── Tables ─────────────────────────────────────────────────── */
+.dark .fi-ta-ctn,
+[data-fi-theme='dark'] .fi-ta-ctn {
+    background-color: rgb(var(--admin-surface)) !important;
+    border: 1px solid rgb(var(--admin-border) / 0.55) !important;
+    border-radius: var(--admin-radius) !important;
+    box-shadow: none !important;
+    overflow: hidden;
+}
+
+.dark .fi-ta-header-cell,
+[data-fi-theme='dark'] .fi-ta-header-cell {
+    background-color: rgb(var(--admin-sidebar)) !important;
+    color: #fff !important;
+    font-weight: 600;
+    border-color: rgb(var(--admin-border) / 0.55) !important;
+}
+
+.dark .fi-ta-row,
+[data-fi-theme='dark'] .fi-ta-row {
+    border-color: rgb(var(--admin-border) / 0.4) !important;
+}
+
+.dark .fi-ta-row:hover,
+[data-fi-theme='dark'] .fi-ta-row:hover {
+    background-color: rgb(var(--admin-sidebar) / 0.45) !important;
+}
+
+.dark .fi-ta-cell,
+[data-fi-theme='dark'] .fi-ta-cell {
+    color: rgb(230 237 243);
+}
+
+.dark .fi-ta-text-item,
+[data-fi-theme='dark'] .fi-ta-text-item {
+    color: inherit;
+}
+
+.dark .fi-ta-text-item a,
+[data-fi-theme='dark'] .fi-ta-text-item a {
+    color: rgb(var(--admin-primary)) !important;
+    font-weight: 600;
+}
+
+/* ── Forms & inputs ─────────────────────────────────────────── */
+.dark .fi-input-wrp,
+.dark .fi-fo-field-wrp .choices__inner,
+[data-fi-theme='dark'] .fi-input-wrp,
+[data-fi-theme='dark'] .fi-fo-field-wrp .choices__inner {
+    background-color: rgb(var(--admin-bg)) !important;
+    border-color: rgb(var(--admin-border)) !important;
+    border-radius: 0.5rem !important;
+}
+
+.dark .fi-input-wrp:focus-within,
+[data-fi-theme='dark'] .fi-input-wrp:focus-within {
+    border-color: rgb(var(--admin-primary)) !important;
+    box-shadow: 0 0 0 1px rgb(var(--admin-primary) / 0.35) !important;
+}
+
+.dark .fi-fo-field-wrp-label,
+[data-fi-theme='dark'] .fi-fo-field-wrp-label {
+    color: rgb(230 237 243) !important;
+}
+
+.dark .fi-fo-field-wrp-helper-text,
+[data-fi-theme='dark'] .fi-fo-field-wrp-helper-text {
+    color: rgb(var(--admin-muted)) !important;
+}
+
+[data-fi-theme] input,
+[data-fi-theme] textarea,
+[data-fi-theme] select,
+[data-fi-theme] .fi-input,
+[data-fi-theme] .fi-select,
+[data-fi-theme] .fi-textarea,
+.dark input,
+.dark textarea,
+.dark select,
+.dark .fi-input,
+.dark .fi-select,
+.dark .fi-textarea {
+    border-width: 1.5px !important;
+    border-color: rgb(var(--admin-border)) !important;
+}
+
+[data-fi-theme] .fi-input:focus-within,
+[data-fi-theme] input:focus,
+[data-fi-theme] textarea:focus,
+[data-fi-theme] select:focus,
+.dark .fi-input:focus-within,
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+    border-color: rgb(var(--admin-primary)) !important;
+}
+
+[data-fi-theme] .fi-ta-table table,
+[data-fi-theme] .fi-ta-table th,
+[data-fi-theme] .fi-ta-table td,
+.dark .fi-ta-table table,
+.dark .fi-ta-table th,
+.dark .fi-ta-table td {
+    border-color: rgb(var(--admin-border) / 0.55) !important;
+    border-width: 1px;
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+.dark .fi-btn,
+[data-fi-theme='dark'] .fi-btn {
+    border-radius: 0.5rem !important;
+    font-weight: 600;
+}
+
+.dark .fi-btn.fi-btn-color-gray,
+[data-fi-theme='dark'] .fi-btn.fi-btn-color-gray {
+    background-color: rgb(var(--admin-surface)) !important;
+    border-color: rgb(var(--admin-border)) !important;
+    color: rgb(230 237 243) !important;
+}
+
+.dark .fi-btn.fi-btn-color-gray:hover,
+[data-fi-theme='dark'] .fi-btn.fi-btn-color-gray:hover {
+    background-color: rgb(var(--admin-sidebar)) !important;
+}
+
+/* ── Badges (status pills) ──────────────────────────────────── */
+.dark .fi-badge,
+[data-fi-theme='dark'] .fi-badge {
+    border-radius: 9999px !important;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.dark .fi-badge.fi-color-success,
+[data-fi-theme='dark'] .fi-badge.fi-color-success {
+    background-color: rgb(35 134 54 / 0.25) !important;
+    color: rgb(var(--admin-success)) !important;
+}
+
+.dark .fi-badge.fi-color-warning,
+[data-fi-theme='dark'] .fi-badge.fi-color-warning {
+    background-color: rgb(154 103 0 / 0.28) !important;
+    color: rgb(var(--admin-warning)) !important;
+}
+
+.dark .fi-badge.fi-color-danger,
+[data-fi-theme='dark'] .fi-badge.fi-color-danger {
+    background-color: rgb(218 54 51 / 0.22) !important;
+    color: rgb(var(--admin-danger)) !important;
+}
+
+.dark .fi-badge.fi-color-gray,
+[data-fi-theme='dark'] .fi-badge.fi-color-gray {
+    background-color: rgb(var(--admin-border) / 0.45) !important;
+    color: rgb(var(--admin-muted)) !important;
+}
+
+.dark .fi-badge.fi-color-info,
+.dark .fi-badge.fi-color-primary,
+[data-fi-theme='dark'] .fi-badge.fi-color-info,
+[data-fi-theme='dark'] .fi-badge.fi-color-primary {
+    background-color: rgb(var(--admin-primary) / 0.18) !important;
+    color: rgb(var(--admin-primary)) !important;
+}
+
+/* ── Tabs, modals, dropdowns ────────────────────────────────── */
+.dark .fi-tabs-item-active,
+[data-fi-theme='dark'] .fi-tabs-item-active {
+    color: rgb(var(--admin-primary)) !important;
+}
+
+.dark .fi-modal-window,
+.dark .fi-dropdown-panel,
+[data-fi-theme='dark'] .fi-modal-window,
+[data-fi-theme='dark'] .fi-dropdown-panel {
+    background-color: rgb(var(--admin-surface)) !important;
+    border: 1px solid rgb(var(--admin-border) / 0.55) !important;
+    border-radius: var(--admin-radius) !important;
+}
+
+/* ── Login page ─────────────────────────────────────────────── */
+.dark .fi-simple-layout,
+[data-fi-theme='dark'] .fi-simple-layout {
+    background-color: rgb(var(--admin-bg)) !important;
+}
+
+.dark .fi-simple-main,
+[data-fi-theme='dark'] .fi-simple-main {
+    background-color: rgb(var(--admin-surface)) !important;
+    border: 1px solid rgb(var(--admin-border) / 0.55) !important;
+    border-radius: var(--admin-radius) !important;
+}
+
+/* ── Fixed save button (custom pages) ───────────────────────── */
+.fi-fixed-save-button {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 50;
+}
+
+/* ── Table text selection (from legacy theme) ─────────────────── */
+[data-fi-theme] table,
+[data-fi-theme] th,
+[data-fi-theme] td,
+[data-fi-theme] .fi-ta-record,
+.dark table,
+.dark th,
+.dark td,
+.dark .fi-ta-record {
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    user-select: text !important;
+}
+
+[data-fi-theme] .fi-ta-table tbody tr td:not(.fi-ta-column-actions),
+[data-fi-theme] .fi-ta-table tbody tr th:not(.fi-ta-column-actions),
+.dark .fi-ta-table tbody tr td:not(.fi-ta-column-actions),
+.dark .fi-ta-table tbody tr th:not(.fi-ta-column-actions) {
+    cursor: text !important;
+}
+
+/* ── Hide theme switcher when dark is forced ────────────────── */
+.fi-theme-switcher {
+    display: none !important;
+}

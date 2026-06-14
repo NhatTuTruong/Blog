@@ -22,6 +22,7 @@ use App\Services\InstagramQueueService;
 use App\Services\InstagramSavedListService;
 use App\Support\InstagramSettings;
 use App\Support\FormDraftService;
+use App\Support\PinterestUi;
 use App\Support\PublicStorage;
 use App\Support\UploadLimits;
 use App\Filament\Admin\Support\SocialMediaQueueTable;
@@ -462,7 +463,11 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
     protected function sanitizePlatform(string $platform): string
     {
-        return in_array($platform, ['instagram', 'facebook', 'pinterest'], true) ? $platform : 'instagram';
+        $allowed = PinterestUi::enabled()
+            ? ['instagram', 'facebook', 'pinterest']
+            : ['instagram', 'facebook'];
+
+        return in_array($platform, $allowed, true) ? $platform : 'instagram';
     }
 
     protected function sanitizeTab(string $tab): string
@@ -698,6 +703,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     ->placeholder('—'),
                 Tables\Columns\TextColumn::make('brand_domain')
                     ->label('Brand')
+                    ->limit(30)
                     ->placeholder('—')
                     ->searchable(),
                 SocialMediaQueueTable::queueSourceColumn(),

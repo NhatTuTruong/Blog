@@ -1,9 +1,10 @@
 <x-filament-panels::page class="[&>section]:!gap-y-3 [&>section]:!pt-4 [&_.fi-page-header]:!mb-0">
 
     @php
+        $pinterestUiEnabled = \App\Support\PinterestUi::enabled();
         $instagramRecordCount = $this->getRecordCountForPlatform('instagram');
         $facebookRecordCount = $this->getRecordCountForPlatform('facebook');
-        $pinterestRecordCount = $this->getRecordCountForPlatform('pinterest');
+        $pinterestRecordCount = $pinterestUiEnabled ? $this->getRecordCountForPlatform('pinterest') : 0;
         $recordCount = $this->getRecordCount();
         $pendingCount = $queueStats['pending'] + $queueStats['processing'];
     @endphp
@@ -131,6 +132,7 @@
                     @endif
                 </button>
 
+                @if ($pinterestUiEnabled)
                 <button
                     type="button"
                     class="smp-tag smp-tag-parent smp-tag-pin"
@@ -143,6 +145,7 @@
                         <span class="smp-tag-count">{{ $pinterestRecordCount }}</span>
                     @endif
                 </button>
+                @endif
             </div>
 
             {{-- Tag con: thuộc nền tảng đang chọn --}}
@@ -164,7 +167,7 @@
                     @if ($facebookRecordCount > 0)
                         <span x-show="platform === 'facebook'" class="smp-tag-count smp-tag-count-sm">{{ $facebookRecordCount }}</span>
                     @endif
-                    @if ($pinterestRecordCount > 0)
+                    @if ($pinterestUiEnabled && $pinterestRecordCount > 0)
                         <span x-show="platform === 'pinterest'" class="smp-tag-count smp-tag-count-sm">{{ $pinterestRecordCount }}</span>
                     @endif
                 </button>
@@ -202,14 +205,14 @@
             .smp-tag-nav .smp-tag-parent {
                 padding: 0.45rem 0.95rem;
                 font-size: 0.875rem;
-                color: #fff;
-                background: rgb(31 41 55 / 0.55);
-                border-color: rgb(75 85 99 / 0.45);
+                color: rgb(139 148 158);
+                background: rgb(28 33 40 / 0.85);
+                border-color: rgb(48 54 61 / 0.65);
             }
 
             .smp-tag-nav .smp-tag-parent:hover {
-                color: rgb(229 231 235);
-                background: rgb(55 65 81 / 0.65);
+                color: rgb(230 237 243);
+                background: rgb(48 54 61 / 0.55);
             }
 
             .smp-tag-nav .smp-tag-ig.is-active {
@@ -236,20 +239,21 @@
             .smp-tag-nav .smp-tag-children {
                 min-height: 2rem;
                 margin-bottom: 10px !important;
+                border-color: rgb(48 54 61 / 0.65) !important;
             }
 
             .smp-tag-nav .smp-tag-child {
                 padding: 0.3rem 0.75rem;
                 font-size: 0.8125rem;
                 font-weight: 500;
-                color: #fff;
-                background: rgb(17 24 39 / 0.45);
-                border-color: rgb(55 65 81 / 0.6);
+                color: rgb(139 148 158);
+                background: rgb(22 27 34 / 0.75);
+                border-color: rgb(48 54 61 / 0.65);
             }
 
             .smp-tag-nav .smp-tag-child:hover {
-                color: rgb(229 231 235);
-                background: rgb(31 41 55 / 0.75);
+                color: rgb(230 237 243);
+                background: rgb(28 33 40 / 0.9);
             }
 
             .smp-tag-nav .smp-child-active-ig {
@@ -303,7 +307,7 @@
                 <div wire:key="compose-instagram-form">
                     {{ $this->instagramForm }}
                 </div>
-            @elseif ($activePlatform === 'pinterest')
+            @elseif ($activePlatform === 'pinterest' && $pinterestUiEnabled)
                 <div wire:key="compose-pinterest-form">
                     {{ $this->pinterestForm }}
                 </div>

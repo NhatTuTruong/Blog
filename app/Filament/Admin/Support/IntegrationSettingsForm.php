@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Support;
 
+use App\Support\PinterestUi;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
@@ -16,44 +17,50 @@ class IntegrationSettingsForm
     /** @return array<int, Section> */
     public static function sections(): array
     {
-        return [
+        $geminiKeyFields = [
+            TextInput::make('gemini_api_key_auto_blog')
+                ->label('Gemini API key — Đăng bài viết tự động')
+                ->password()
+                ->revealable()
+                ->maxLength(255),
+            TextInput::make('gemini_api_key_instagram')
+                ->label('Gemini API key — Instagram')
+                ->password()
+                ->revealable()
+                ->maxLength(255),
+            TextInput::make('gemini_api_key_facebook')
+                ->label('Gemini API key — Facebook')
+                ->password()
+                ->revealable()
+                ->maxLength(255),
+        ];
+
+        if (PinterestUi::enabled()) {
+            $geminiKeyFields[] = TextInput::make('gemini_api_key_pinterest')
+                ->label('Gemini API key — Pinterest')
+                ->password()
+                ->revealable()
+                ->maxLength(255);
+        }
+
+        $geminiKeyFields[] = TextInput::make('gemini_model')
+            ->label('Gemini model')
+            ->required()
+            ->helperText('Khuyến nghị: gemini-2.5-flash-lite. Tránh gemini-flash-latest khi bị 503.')
+            ->maxLength(120);
+        $geminiKeyFields[] = TextInput::make('gemini_timeout')
+            ->label('Timeout (giây)')
+            ->numeric()
+            ->minValue(60)
+            ->maxValue(600)
+            ->default(120)
+            ->helperText('Tạo bài dài cần 90–180 giây. Tối thiểu 60.')
+            ->required();
+
+        $sections = [
             Section::make('AI Content (Gemini)')
                 ->description('Mỗi phần dùng một API key riêng. Nhập key mới để lưu; "********" giữ key hiện tại; để trống xóa key.')
-                ->schema([
-                    TextInput::make('gemini_api_key_auto_blog')
-                        ->label('Gemini API key — Đăng bài viết tự động')
-                        ->password()
-                        ->revealable()
-                        ->maxLength(255),
-                    TextInput::make('gemini_api_key_instagram')
-                        ->label('Gemini API key — Instagram')
-                        ->password()
-                        ->revealable()
-                        ->maxLength(255),
-                    TextInput::make('gemini_api_key_facebook')
-                        ->label('Gemini API key — Facebook')
-                        ->password()
-                        ->revealable()
-                        ->maxLength(255),
-                    TextInput::make('gemini_api_key_pinterest')
-                        ->label('Gemini API key — Pinterest')
-                        ->password()
-                        ->revealable()
-                        ->maxLength(255),
-                    TextInput::make('gemini_model')
-                        ->label('Gemini model')
-                        ->required()
-                        ->helperText('Khuyến nghị: gemini-2.5-flash-lite. Tránh gemini-flash-latest khi bị 503.')
-                        ->maxLength(120),
-                    TextInput::make('gemini_timeout')
-                        ->label('Timeout (giây)')
-                        ->numeric()
-                        ->minValue(60)
-                        ->maxValue(600)
-                        ->default(120)
-                        ->helperText('Tạo bài dài cần 90–180 giây. Tối thiểu 60.')
-                        ->required(),
-                ])
+                ->schema($geminiKeyFields)
                 ->columns(3),
             Section::make('Apify — Google Images')
                 ->schema([
@@ -210,7 +217,10 @@ class IntegrationSettingsForm
                         ->columnSpanFull(),
                 ])
                 ->columns(3),
-            Section::make('Pinterest (API v5)')
+        ];
+
+        if (PinterestUi::enabled()) {
+            $sections[] = Section::make('Pinterest (API v5)')
                 ->schema([
                     Toggle::make('pinterest_enabled')
                         ->label('Bật đăng Pinterest')
@@ -285,8 +295,10 @@ class IntegrationSettingsForm
                         ->maxLength(500)
                         ->columnSpanFull(),
                 ])
-                ->columns(3),
-            Section::make('Email (Gửi & Nhận mail)')
+                ->columns(3);
+        }
+
+        $sections[] = Section::make('Email (Gửi & Nhận mail)')
                 ->schema([
                     TextInput::make('mail_host')
                         ->label('SMTP Host')
@@ -370,7 +382,8 @@ class IntegrationSettingsForm
                         ->maxValue(300)
                         ->required(),
                 ])
-                ->columns(3),
-        ];
+                ->columns(3);
+
+        return $sections;
     }
 }

@@ -23,7 +23,7 @@ class UserIntegrationSettings extends Page implements HasForms
 
     protected static string $view = 'filament.admin.pages.user-integration-settings';
 
-    protected static ?string $navigationLabel = 'Gemini & MXH & Email';
+    protected static ?string $navigationLabel = 'Cấu hình hệ thống';
 
     protected static ?string $title = 'Cài đặt tùy chỉnh';
 

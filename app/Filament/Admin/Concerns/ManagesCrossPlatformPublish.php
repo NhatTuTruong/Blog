@@ -11,6 +11,7 @@ use App\Services\PinterestQueueService;
 use App\Support\FacebookSettings;
 use App\Support\InstagramSettings;
 use App\Support\PinterestSettings;
+use App\Support\PinterestUi;
 use Carbon\Carbon;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Checkbox;
@@ -28,11 +29,16 @@ trait ManagesCrossPlatformPublish
      */
     protected function crossPlatformLabels(): array
     {
-        return [
+        $labels = [
             'instagram' => 'Instagram',
             'facebook' => 'Facebook',
-            'pinterest' => 'Pinterest',
         ];
+
+        if (PinterestUi::enabled()) {
+            $labels['pinterest'] = 'Pinterest';
+        }
+
+        return $labels;
     }
 
     /**
@@ -202,7 +208,7 @@ trait ManagesCrossPlatformPublish
             $results['facebook'] = $this->enqueueCrossPlatformFacebook($records, $startAt, $data, $user);
         }
 
-        if (in_array('pinterest', $selected, true)) {
+        if (PinterestUi::enabled() && in_array('pinterest', $selected, true)) {
             $results['pinterest'] = $this->enqueueCrossPlatformPinterest($records, $startAt, $data, $user);
         }
 

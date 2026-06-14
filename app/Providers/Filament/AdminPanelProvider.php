@@ -50,10 +50,25 @@ class AdminPanelProvider extends PanelProvider
             ->databaseNotificationsPolling(
                 ((int) config('imap.notifications_poll_seconds', 10)).'s'
             )
+            ->font('Inter')
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::hex('#1d9bf0'),
+                'gray' => [
+                    50 => '240, 244, 248',
+                    100 => '200, 205, 212',
+                    200 => '72, 79, 88',
+                    300 => '72, 79, 88',
+                    400 => '139, 148, 158',
+                    500 => '139, 148, 158',
+                    600 => '110, 118, 129',
+                    700 => '72, 79, 88',
+                    800 => '28, 33, 40',
+                    900 => '22, 27, 34',
+                    950 => '14, 17, 22',
+                ],
             ])
             ->defaultThemeMode(ThemeMode::Dark)
+            ->darkMode(isForced: true)
             ->maxContentWidth(\Filament\Support\Enums\MaxWidth::Full)
             ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\\Filament\\Admin\\Resources')
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\\Filament\\Admin\\Pages')
@@ -82,6 +97,10 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
                 RememberAdminIpMiddleware::class,
             ])
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn () => view('components.filament-admin-theme')
+            )
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
                 fn () => view('components.filament-file-upload-fouc-fix')
