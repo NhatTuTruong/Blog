@@ -135,7 +135,6 @@ trait ManagesFacebookPublish
             ])
             ->defaultSort('id', 'desc')
             ->paginated([10, 25, 50])
-            ->poll('30s')
             ->actions([
                 SocialMediaQueueTable::detailAction('facebook'),
             ])
@@ -301,7 +300,7 @@ trait ManagesFacebookPublish
 
         $this->resetFormAfterPublish();
         $this->clearFormDraft();
-        $this->refreshQueue();
+        $this->refreshQueue(resetTable: true);
         $this->activeTab = 'queue';
     }
 
@@ -315,7 +314,7 @@ trait ManagesFacebookPublish
         }
         $released = $service->releaseStuckProcessingItems(force: true);
         Notification::make()->title('Đã mở kẹt')->body("{$released} bài về Chờ đăng.")->success()->send();
-        $this->refreshQueue();
+        $this->refreshQueue(resetTable: true);
     }
 
     public function canReleaseFacebookStuckProcessing(): bool
@@ -333,7 +332,7 @@ trait ManagesFacebookPublish
         }
         $cancelled = $service->cancelPendingQueue();
         Notification::make()->title('Đã hủy hàng đợi')->body("Đã xóa {$cancelled} bài.")->success()->send();
-        $this->refreshQueue();
+        $this->refreshQueue(resetTable: true);
     }
 
     public function canCancelFacebookPendingQueue(): bool

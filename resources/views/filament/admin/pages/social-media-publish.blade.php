@@ -314,9 +314,16 @@
             @endif
         </div>
 
-        {{-- Hàng đợi: stats đổi ngay qua Alpine; bảng sync nền qua Livewire --}}
-        <div x-show="tab === 'queue'" x-cloak class="space-y-4">
-            <div wire:poll.30s="refreshQueue" class="hidden" aria-hidden="true"></div>
+        {{-- Hàng đợi: poll Livewire mỗi 10s (badge Alpine + bảng), không reset phân trang --}}
+        <div
+            x-show="tab === 'queue'"
+            x-cloak
+            class="space-y-4"
+            data-smp-queue-panel
+        >
+            @if ($activeTab === 'queue')
+                <div wire:poll.10s="pollQueueDisplay" class="hidden" aria-hidden="true"></div>
+            @endif
 
             <section class="fi-section rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
                 <div class="flex flex-wrap items-center justify-between gap-3 p-4">

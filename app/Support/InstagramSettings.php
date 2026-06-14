@@ -75,6 +75,13 @@ class InstagramSettings
         static::store($userId)->set('instagram_auto_queue_state', $state);
     }
 
+    public static function defaultImageUrl(?int $userId = null): ?string
+    {
+        $url = trim((string) static::store($userId)->get('instagram_default_image_url', ''));
+
+        return $url !== '' ? $url : null;
+    }
+
     public static function publicBaseUrl(?int $userId = null): ?string
     {
         $override = trim((string) static::store($userId)->get('instagram_public_base_url', ''));

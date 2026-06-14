@@ -58,6 +58,28 @@ class InstagramPostImageService
         return rtrim($base, '/').'/instagram/media/'.$item->id.'?t='.$token;
     }
 
+    /**
+     * Thay ảnh queue item bằng ảnh mặc định (URL cài đặt / default1–3) và chuẩn hóa feed.
+     */
+    public function applyDefaultImageForItem(InstagramQueueItem $item): bool
+    {
+        $this->lastError = null;
+
+        try {
+            $dest = "instagram-generated/item-{$item->id}-fallback.jpg";
+            $path = app(SocialMediaImageSourceService::class)->applyDefaultJpeg($item->user_id, $dest);
+            $ready = $this->convertUploadToInstagramFeed($path, $item->id) ?? $path;
+
+            $item->update(['image_path' => $ready]);
+
+            return PublicStorage::exists($ready);
+        } catch (\Throwable $e) {
+            $this->lastError = $e->getMessage();
+
+            return false;
+        }
+    }
+
     public function mediaAccessToken(InstagramQueueItem $item): string
     {
         return hash_hmac('sha256', 'instagram-media:'.$item->id, (string) config('app.key'));

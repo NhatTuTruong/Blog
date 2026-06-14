@@ -34,6 +34,27 @@ class SocialMediaImageSourceService
         return $this->copyDefaultJpeg($destStoragePath);
     }
 
+    /**
+     * Ảnh mặc định khi đăng lỗi: URL cài đặt → default1–3 → JPEG 1×1.
+     */
+    public function applyDefaultJpeg(?int $userId, string $destStoragePath): string
+    {
+        PublicStorage::ensureDirectory(dirname(str_replace('\\', '/', $destStoragePath)));
+        $destAbsolute = PublicStorage::absolutePath($destStoragePath);
+
+        $settingsUrl = \App\Support\InstagramSettings::defaultImageUrl($userId);
+        if (filled($settingsUrl) && $this->downloadRemoteImageAsJpeg($settingsUrl, $destAbsolute)) {
+            return $destStoragePath;
+        }
+
+        $defaultSource = $this->pickRandomDefaultImage();
+        if ($defaultSource !== null && $this->copyImageAsJpeg($defaultSource, $destAbsolute)) {
+            return $destStoragePath;
+        }
+
+        return $this->copyDefaultJpeg($destStoragePath);
+    }
+
     public function buildSearchQuery(?string $brandDomain): ?string
     {
         $domain = trim((string) $brandDomain);

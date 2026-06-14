@@ -718,7 +718,6 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             ])
             ->defaultSort('id', 'desc')
             ->paginated([10, 25, 50])
-            ->poll('30s')
             ->actions([
                 SocialMediaQueueTable::detailAction('instagram'),
             ])
@@ -1177,11 +1176,42 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
         $this->resetFormAfterPublish();
         $this->clearFormDraft();
-        $this->refreshQueue();
+        $this->refreshQueue(resetTable: true);
         $this->activeTab = 'queue';
     }
 
-    public function refreshQueue(): void
+    public function pollQueueDisplay(): void
+    {
+        if ($this->activeTab !== 'queue') {
+            $this->skipRender();
+
+            return;
+        }
+
+        $this->syncQueueStatsFromDatabase();
+        $this->applyActivePlatformQueueStats();
+        $this->dispatchQueueStatsToBrowser();
+    }
+
+    /** @deprecated Use pollQueueDisplay() — kept for cached Livewire payloads. */
+    public function pollQueueStats(): void
+    {
+        $this->pollQueueDisplay();
+    }
+
+    public function refreshQueue(bool $resetTable = false): void
+    {
+        $this->syncQueueStatsFromDatabase();
+
+        if ($resetTable && $this->activeTab === 'queue') {
+            $this->resetTable();
+        }
+
+        $this->applyActivePlatformQueueStats();
+        $this->dispatchQueueStatsToBrowser();
+    }
+
+    protected function syncQueueStatsFromDatabase(): void
     {
         $instagramService = app(InstagramQueueService::class);
         $instagramService->recoverStaleProcessingItems();
@@ -1199,12 +1229,6 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         $this->pinterestQueueIntervalMinutes = $pinterestService->intervalMinutes();
 
         $this->loadAutoQueueMeta();
-        $this->applyActivePlatformQueueStats();
-        $this->dispatchQueueStatsToBrowser();
-
-        if ($this->activeTab === 'queue') {
-            $this->resetTable();
-        }
     }
 
     protected function dispatchQueueStatsToBrowser(): void
@@ -1263,7 +1287,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             ->success()
             ->send();
 
-        $this->refreshQueue();
+        $this->refreshQueue(resetTable: true);
     }
 
     public function canReleaseStuckProcessing(): bool
@@ -1312,7 +1336,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             ->success()
             ->send();
 
-        $this->refreshQueue();
+        $this->refreshQueue(resetTable: true);
     }
 
     public function canCancelPendingQueue(): bool

@@ -17,6 +17,8 @@ class InstagramQueueService
 {
     public ?string $lastError = null;
 
+    public ?string $lastPublishNote = null;
+
     public function intervalMinutes(?int $userId = null): int
     {
         return InstagramSettings::queueIntervalMinutes($userId);
@@ -265,8 +267,10 @@ class InstagramQueueService
                 'status' => InstagramQueueItem::STATUS_COMPLETED,
                 'instagram_media_id' => $mediaId,
                 'processed_at' => now(),
-                'error_message' => null,
+                'error_message' => $this->lastPublishNote,
             ]);
+
+            $this->lastPublishNote = null;
 
             $item = $item->fresh();
             if ($item instanceof InstagramQueueItem && filled($item->video_path)) {
@@ -331,15 +335,14 @@ class InstagramQueueService
         }
 
         $media = app(InstagramPostImageService::class);
-        $mediaUrl = $media->signedPublicUrl($item);
-
-        if ($mediaUrl === null) {
-            throw new \RuntimeException($media->lastError ?? 'Không tạo được URL media công khai.');
-        }
-
         $graph = app(InstagramGraphService::class)->forAccount($account);
 
         if (filled($item->video_path)) {
+            $mediaUrl = $media->signedPublicUrl($item);
+            if ($mediaUrl === null) {
+                throw new \RuntimeException($media->lastError ?? 'Không tạo được URL media công khai.');
+            }
+
             $urlError = $media->validatePublicVideoUrl($mediaUrl);
             if ($urlError !== null) {
                 throw new \RuntimeException($urlError);
@@ -347,12 +350,7 @@ class InstagramQueueService
 
             $mediaId = $graph->publishVideo($mediaUrl, (string) $caption);
         } else {
-            $urlError = $media->validatePublicImageUrl($mediaUrl);
-            if ($urlError !== null) {
-                throw new \RuntimeException($urlError);
-            }
-
-            $mediaId = $graph->publishImage($mediaUrl, (string) $caption);
+            $mediaId = $this->publishImageWithDefaultFallback($item, $media, $graph, (string) $caption);
         }
 
         if ($mediaId === null) {
@@ -360,6 +358,88 @@ class InstagramQueueService
         }
 
         return $mediaId;
+    }
+
+    protected function publishImageWithDefaultFallback(
+        InstagramQueueItem $item,
+        InstagramPostImageService $media,
+        InstagramGraphService $graph,
+        string $caption,
+    ): ?string {
+        $this->lastPublishNote = null;
+        $originalError = null;
+
+        $mediaUrl = $media->signedPublicUrl($item->fresh() ?? $item);
+        if ($mediaUrl === null) {
+            $originalError = $media->lastError ?? 'Không tạo được URL ảnh.';
+        } else {
+            $urlError = $media->validatePublicImageUrl($mediaUrl);
+            if ($urlError !== null) {
+                $originalError = $urlError;
+            } else {
+                $mediaId = $graph->publishImage($mediaUrl, $caption);
+                if ($mediaId !== null) {
+                    return $mediaId;
+                }
+
+                $originalError = $graph->lastError;
+            }
+        }
+
+        if (! $this->isInstagramImageDeliveryError($originalError)) {
+            return null;
+        }
+
+        if (! $media->applyDefaultImageForItem($item)) {
+            $graph->lastError = $originalError ?? $media->lastError ?? $graph->lastError;
+
+            return null;
+        }
+
+        $item = $item->fresh() ?? $item;
+        $fallbackUrl = $media->signedPublicUrl($item);
+        if ($fallbackUrl === null) {
+            $graph->lastError = $originalError ?? $media->lastError;
+
+            return null;
+        }
+
+        $fallbackUrlError = $media->validatePublicImageUrl($fallbackUrl);
+        if ($fallbackUrlError !== null) {
+            $graph->lastError = $fallbackUrlError;
+
+            return null;
+        }
+
+        $mediaId = $graph->publishImage($fallbackUrl, $caption);
+        if ($mediaId !== null) {
+            $note = 'Đã đăng với ảnh mặc định.';
+            if (filled($originalError)) {
+                $note .= ' Ảnh gốc: '.trim((string) $originalError);
+            }
+            $this->lastPublishNote = $note;
+
+            return $mediaId;
+        }
+
+        return null;
+    }
+
+    protected function isInstagramImageDeliveryError(?string $message): bool
+    {
+        if (! filled($message)) {
+            return false;
+        }
+
+        $message = strtolower((string) $message);
+
+        return str_contains($message, '9004')
+            || str_contains($message, '2207052')
+            || str_contains($message, 'only photo or video')
+            || str_contains($message, 'meta không tải được ảnh')
+            || str_contains($message, 'content-type không phải jpeg')
+            || str_contains($message, 'không truy cập được url ảnh')
+            || str_contains($message, 'không kiểm tra được url ảnh');
     }
 
     /**
