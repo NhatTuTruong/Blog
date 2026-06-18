@@ -3,7 +3,7 @@
 namespace App\Filament\Admin\Pages;
 
 use App\Exports\InstagramTemplateExport;
-use App\Filament\Admin\Pages\UserIntegrationSettings;
+use App\Filament\Admin\Pages\SystemSettings;
 use App\Filament\Admin\Concerns\ManagesCrossPlatformPublish;
 use App\Filament\Admin\Concerns\ManagesFacebookPublish;
 use App\Filament\Admin\Concerns\ManagesPinterestPublish;
@@ -760,7 +760,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                 ->label('Cài đặt Instagram')
                 ->icon('heroicon-o-cog-6-tooth')
                 ->color('gray')
-                ->url(UserIntegrationSettings::getUrl()),
+                ->url(SystemSettings::getUrl()),
             Action::make('publish')
                 ->label('Đăng bài')
                 ->icon('heroicon-o-sparkles')

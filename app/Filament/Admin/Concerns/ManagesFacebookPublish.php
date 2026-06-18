@@ -3,7 +3,7 @@
 namespace App\Filament\Admin\Concerns;
 
 use App\Exports\FacebookTemplateExport;
-use App\Filament\Admin\Pages\UserIntegrationSettings;
+use App\Filament\Admin\Pages\SystemSettings;
 use App\Models\FacebookAccount;
 use App\Models\FacebookQueueItem;
 use App\Models\FacebookSavedList;
@@ -151,7 +151,7 @@ trait ManagesFacebookPublish
             Action::make('testFacebook')->label('Kiểm tra Facebook')->icon('heroicon-o-signal')->color('gray')
                 ->action(fn () => $this->testFacebookConnection()),
             Action::make('openFacebookSettings')->label('Cài đặt Facebook')->icon('heroicon-o-cog-6-tooth')->color('gray')
-                ->url(UserIntegrationSettings::getUrl()),
+                ->url(SystemSettings::getUrl()),
             Action::make('publishFacebook')->label('Đăng bài')->icon('heroicon-o-sparkles')->color('success')
                 ->modalHeading('Đăng danh sách lên Facebook')
                 ->modalDescription(function (): string {

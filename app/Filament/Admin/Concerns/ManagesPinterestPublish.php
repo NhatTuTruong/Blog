@@ -3,7 +3,7 @@
 namespace App\Filament\Admin\Concerns;
 
 use App\Exports\PinterestTemplateExport;
-use App\Filament\Admin\Pages\UserIntegrationSettings;
+use App\Filament\Admin\Pages\SystemSettings;
 use App\Filament\Admin\Support\SocialMediaQueueTable;
 use App\Models\PinterestAccount;
 use App\Models\PinterestQueueItem;
@@ -150,7 +150,7 @@ trait ManagesPinterestPublish
             Action::make('testPinterest')->label('Kiểm tra Pinterest')->icon('heroicon-o-signal')->color('gray')
                 ->action(fn () => $this->testPinterestConnection()),
             Action::make('openPinterestSettings')->label('Cài đặt Pinterest')->icon('heroicon-o-cog-6-tooth')->color('gray')
-                ->url(UserIntegrationSettings::getUrl()),
+                ->url(SystemSettings::getUrl()),
             Action::make('publishPinterest')->label('Đăng bài')->icon('heroicon-o-sparkles')->color('success')
                 ->modalHeading('Đăng danh sách lên Pinterest')
                 ->modalDescription(function (): string {
