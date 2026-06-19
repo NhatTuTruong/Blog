@@ -18,7 +18,10 @@ class InstagramPostImageService
     {
         $existing = $this->normalizeStoragePath($item->image_path);
         if ($existing !== null && $this->isInstagramFeedReady($existing)) {
-            return $existing;
+            $absolute = $this->absolutePath($existing);
+            if (! app(SocialMediaImageSourceService::class)->isBlockedPlaceholderImage($absolute)) {
+                return $existing;
+            }
         }
 
         if ($existing !== null) {

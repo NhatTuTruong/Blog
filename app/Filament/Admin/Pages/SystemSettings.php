@@ -136,6 +136,14 @@ class SystemSettings extends Page implements HasForms
                         ->required()
                         ->maxLength(255),
                 ]),
+            Section::make('Đồng bộ Với Web Coupon')
+                ->schema([
+                    Toggle::make('coupon_sync_dedupe_domain')
+                        ->label('Bỏ qua domain trùng trong hàng đợi')
+                        ->helperText('Tắt = luôn đẩy mọi domain vào hàng đợi, kể cả trùng.')
+                        ->default(true)
+                        ->inline(false),
+                ]),
         ];
     }
 
@@ -188,6 +196,7 @@ class SystemSettings extends Page implements HasForms
             'seo_title_suffix' => (string) AdminSettings::get('seo_title_suffix', '- '.config('app.name')),
             'seo_meta_description_default' => (string) AdminSettings::get('seo_meta_description_default', 'Latest articles and insights from our blog.'),
             'seo_og_image_default' => (string) AdminSettings::get('seo_og_image_default', ''),
+            'coupon_sync_dedupe_domain' => \App\Support\CouponSyncSettings::dedupeDomainEnabled(),
         ]);
     }
 
@@ -207,6 +216,7 @@ class SystemSettings extends Page implements HasForms
         AdminSettings::set('seo_title_suffix', trim((string) ($data['seo_title_suffix'] ?? ('- '.config('app.name')))));
         AdminSettings::set('seo_meta_description_default', trim((string) ($data['seo_meta_description_default'] ?? 'Latest articles and insights from our blog.')));
         AdminSettings::set('seo_og_image_default', trim((string) ($data['seo_og_image_default'] ?? '')));
+        AdminSettings::set('coupon_sync_dedupe_domain', (bool) ($data['coupon_sync_dedupe_domain'] ?? true));
     }
 
     protected function persistence(): IntegrationSettingsPersistence

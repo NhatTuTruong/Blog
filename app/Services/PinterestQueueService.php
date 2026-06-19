@@ -97,7 +97,7 @@ class PinterestQueueService
 
     public function recoverStaleProcessingItems(): int
     {
-        return $this->releaseStuckProcessingItems(force: false);
+        return app(QueueStaleRecoveryService::class)->failStaleItems(PinterestQueueItem::class);
     }
 
     public function abortQueueOnError(string $reason): int

@@ -97,7 +97,7 @@ class FacebookQueueService
 
     public function recoverStaleProcessingItems(): int
     {
-        return $this->releaseStuckProcessingItems(force: false);
+        return app(QueueStaleRecoveryService::class)->failStaleItems(FacebookQueueItem::class);
     }
 
     public function abortQueueOnError(string $reason): int

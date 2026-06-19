@@ -18,7 +18,10 @@ class FacebookPostMediaService
     {
         $existing = $this->normalizeStoragePath($item->image_path);
         if ($existing !== null && $this->isJpegAtPath($existing)) {
-            return $existing;
+            $absolute = PublicStorage::absolutePath($existing);
+            if (! app(SocialMediaImageSourceService::class)->isBlockedPlaceholderImage($absolute)) {
+                return $existing;
+            }
         }
 
         if ($existing !== null) {

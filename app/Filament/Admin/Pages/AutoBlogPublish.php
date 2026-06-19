@@ -246,9 +246,11 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                         AutoBlogQueueItem::STATUS_FAILED => 'danger',
                         default => 'gray',
                     })
-                    ->description(fn (AutoBlogQueueItem $record): ?string => $record->status === AutoBlogQueueItem::STATUS_FAILED
-                        ? $record->error_message
-                        : null),
+                    ->description(fn (AutoBlogQueueItem $record): ?string =>
+                        $record->status === AutoBlogQueueItem::STATUS_FAILED
+                            ? \Illuminate\Support\Str::limit($record->error_message, 60)
+                            : null
+                    ),
                 Tables\Columns\TextColumn::make('scheduled_at')
                     ->label('Lên lịch')
                     ->dateTime('d/m/Y H:i')

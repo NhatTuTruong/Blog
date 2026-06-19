@@ -16,14 +16,23 @@ class SocialMediaImageSourceService
         $query = $this->buildSearchQuery($brandDomain);
         if ($query !== null) {
             $apify = app(ApifyGoogleImagesService::class);
-            if ($apify->downloadLargestImageForQuery($query, $userId, $destAbsolute)) {
+            if ($apify->downloadLargestImageForQuery($query, $userId, $destAbsolute)
+                && ! $this->isBlockedPlaceholderImage($destAbsolute)) {
                 return $destStoragePath;
             }
 
-            Log::info('SocialMediaImageSource: Apify fallback to default images', [
+            if (is_file($destAbsolute)) {
+                @unlink($destAbsolute);
+            }
+
+            Log::info('SocialMediaImageSource: Apify image unavailable — using default1', [
                 'query' => $query,
                 'error' => $apify->lastError,
             ]);
+        }
+
+        if ($this->copyPrimaryDefaultImage($destAbsolute)) {
+            return $destStoragePath;
         }
 
         $defaultSource = $this->pickRandomDefaultImage();
@@ -44,6 +53,10 @@ class SocialMediaImageSourceService
 
         $settingsUrl = \App\Support\InstagramSettings::defaultImageUrl($userId);
         if (filled($settingsUrl) && $this->downloadRemoteImageAsJpeg($settingsUrl, $destAbsolute)) {
+            return $destStoragePath;
+        }
+
+        if ($this->copyPrimaryDefaultImage($destAbsolute)) {
             return $destStoragePath;
         }
 
@@ -94,6 +107,14 @@ class SocialMediaImageSourceService
             return false;
         }
 
+        if ($this->responseBodyLooksLikeBlockedPlaceholder($body)) {
+            Log::info('SocialMediaImageSource: remote image looks like permission placeholder', [
+                'url' => $imageUrl,
+            ]);
+
+            return false;
+        }
+
         $temp = tempnam(sys_get_temp_dir(), 'smp-img-');
         if ($temp === false) {
             return false;
@@ -102,10 +123,149 @@ class SocialMediaImageSourceService
         try {
             file_put_contents($temp, $body);
 
-            return $this->copyImageAsJpeg($temp, $destAbsolute);
+            if (! $this->copyImageAsJpeg($temp, $destAbsolute)) {
+                return false;
+            }
+
+            if ($this->isBlockedPlaceholderImage($destAbsolute)) {
+                @unlink($destAbsolute);
+
+                return false;
+            }
+
+            return true;
         } finally {
             @unlink($temp);
         }
+    }
+
+    public function isBlockedPlaceholderImage(string $absolutePath): bool
+    {
+        if (! is_file($absolutePath)) {
+            return true;
+        }
+
+        $size = filesize($absolutePath);
+        if ($size === false || $size < 500) {
+            return true;
+        }
+
+        if (@getimagesize($absolutePath) === false) {
+            return true;
+        }
+
+        $sample = @file_get_contents($absolutePath, false, null, 0, min((int) $size, 131072));
+        if ($sample === false || $sample === '') {
+            return false;
+        }
+
+        return $this->responseBodyLooksLikeBlockedPlaceholder($sample)
+            || $this->looksLikePermissionPlaceholderImage($absolutePath);
+    }
+
+    protected function looksLikePermissionPlaceholderImage(string $absolutePath): bool
+    {
+        if (! extension_loaded('gd')) {
+            return false;
+        }
+
+        $image = $this->loadImage($absolutePath);
+        if ($image === null) {
+            return false;
+        }
+
+        $width = imagesx($image);
+        $height = imagesy($image);
+
+        if ($width < 80 || $height < 80) {
+            imagedestroy($image);
+
+            return true;
+        }
+
+        $lightBackground = 0;
+        $darkText = 0;
+        $samples = 0;
+        $stepX = max(1, (int) floor($width / 24));
+        $stepY = max(1, (int) floor($height / 24));
+
+        for ($x = 0; $x < $width; $x += $stepX) {
+            for ($y = 0; $y < $height; $y += $stepY) {
+                $rgb = imagecolorat($image, $x, $y);
+                $red = ($rgb >> 16) & 0xFF;
+                $green = ($rgb >> 8) & 0xFF;
+                $blue = $rgb & 0xFF;
+                $samples++;
+
+                if ($red > 175 && $green > 185 && $blue > 195 && abs($red - $green) < 35) {
+                    $lightBackground++;
+                }
+
+                if ($red < 45 && $green < 45 && $blue < 45) {
+                    $darkText++;
+                }
+            }
+        }
+
+        imagedestroy($image);
+
+        if ($samples === 0) {
+            return false;
+        }
+
+        $lightRatio = $lightBackground / $samples;
+        $darkRatio = $darkText / $samples;
+
+        return $lightRatio > 0.3 && $darkRatio > 0.015 && $darkRatio < 0.2;
+    }
+
+    protected function responseBodyLooksLikeBlockedPlaceholder(string $body): bool
+    {
+        $lower = strtolower($body);
+
+        $needles = [
+            'does not have permission to access or serve this content',
+            'does not have permission',
+            'permission to access or serve',
+            'this site does not have permission',
+        ];
+
+        foreach ($needles as $needle) {
+            if (str_contains($lower, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function primaryDefaultImagePath(): ?string
+    {
+        $directory = public_path('images/instagram');
+
+        if (! is_dir($directory)) {
+            return null;
+        }
+
+        foreach (['webp', 'jpg', 'jpeg', 'png'] as $extension) {
+            $absolute = $directory.DIRECTORY_SEPARATOR.'default1.'.$extension;
+            if (is_file($absolute)) {
+                return $absolute;
+            }
+        }
+
+        return null;
+    }
+
+    protected function copyPrimaryDefaultImage(string $destAbsolute): bool
+    {
+        $source = $this->primaryDefaultImagePath();
+
+        if ($source === null) {
+            return false;
+        }
+
+        return $this->copyImageAsJpeg($source, $destAbsolute);
     }
 
     protected function pickRandomDefaultImage(): ?string

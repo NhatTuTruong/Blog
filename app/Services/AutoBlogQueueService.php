@@ -59,29 +59,7 @@ class AutoBlogQueueService
 
     public function recoverStaleProcessingItems(): int
     {
-        $staleItems = AutoBlogQueueItem::query()
-            ->where('status', AutoBlogQueueItem::STATUS_PROCESSING)
-            ->where('updated_at', '<', now()->subMinutes($this->staleProcessingMinutes()))
-            ->get();
-
-        if ($staleItems->isEmpty()) {
-            return 0;
-        }
-
-        foreach ($staleItems as $item) {
-            $item->update([
-                'status' => AutoBlogQueueItem::STATUS_FAILED,
-                'processed_at' => now(),
-                'error_message' => 'Quá thời gian xử lý — bài này đánh dấu lỗi, các bài chờ vẫn tiếp tục.',
-            ]);
-        }
-
-        Log::warning('AutoBlogQueueService recovered stale processing items', [
-            'count' => $staleItems->count(),
-            'queue_item_ids' => $staleItems->pluck('id')->all(),
-        ]);
-
-        return $staleItems->count();
+        return app(QueueStaleRecoveryService::class)->failStaleItems(AutoBlogQueueItem::class);
     }
 
     public function abortQueueOnError(string $reason): int
