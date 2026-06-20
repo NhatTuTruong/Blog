@@ -228,7 +228,11 @@ trait ManagesFacebookPublish
                 $failed[] = $account->displayLabel().': '.($graph->lastError ?? 'lỗi');
                 continue;
             }
-            $ok[] = $account->displayLabel().' → '.($result['name'] ?? $result['id']);
+            $label = $account->displayLabel().' → '.($result['name'] ?? $result['id']);
+            if (! empty($result['token_upgraded'])) {
+                $label .= ' (đã đổi sang Page token)';
+            }
+            $ok[] = $label;
         }
 
         if ($ok !== []) {

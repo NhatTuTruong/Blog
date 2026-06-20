@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\FacebookAccount;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -13,10 +14,13 @@ class FacebookGraphService
 
     protected ?FacebookAccount $account = null;
 
+    protected ?string $resolvedPageAccessToken = null;
+
     public function forAccount(FacebookAccount $account): self
     {
         $this->account = $account;
         $this->lastError = null;
+        $this->resolvedPageAccessToken = null;
 
         return $this;
     }
@@ -38,16 +42,124 @@ class FacebookGraphService
         return $id !== '' ? $id : null;
     }
 
+    protected function storedAccessToken(): ?string
+    {
+        return $this->activeAccount()?->normalizedAccessToken();
+    }
+
+    /**
+     * Meta yêu cầu Page Access Token để đăng bài — User token (dù có pages_manage_posts) sẽ lỗi publish_actions.
+     */
+    protected function pageAccessToken(): ?string
+    {
+        if ($this->resolvedPageAccessToken !== null) {
+            return $this->resolvedPageAccessToken;
+        }
+
+        $stored = $this->storedAccessToken();
+        $pageId = $this->pageId();
+
+        if ($stored === null || $pageId === null) {
+            return null;
+        }
+
+        $pageToken = $this->fetchPageAccessTokenFromAccounts($stored, $pageId);
+        $this->resolvedPageAccessToken = $pageToken ?? $stored;
+
+        return $this->resolvedPageAccessToken;
+    }
+
+    protected function fetchPageAccessTokenFromAccounts(string $token, string $pageId): ?string
+    {
+        try {
+            $response = Http::acceptJson()
+                ->connectTimeout(30)
+                ->timeout(60)
+                ->get($this->baseUrl().'/me/accounts', [
+                    'fields' => 'id,name,access_token',
+                    'limit' => 100,
+                    'access_token' => $token,
+                ]);
+        } catch (\Throwable $e) {
+            Log::info('FacebookGraphService /me/accounts unavailable', [
+                'error' => $e->getMessage(),
+                'page_id' => $pageId,
+            ]);
+
+            return null;
+        }
+
+        if (! $response->successful()) {
+            return null;
+        }
+
+        foreach ($response->json('data', []) as $page) {
+            if (! is_array($page)) {
+                continue;
+            }
+
+            if ((string) ($page['id'] ?? '') === $pageId) {
+                $pageToken = trim((string) ($page['access_token'] ?? ''));
+
+                return $pageToken !== '' ? $pageToken : null;
+            }
+        }
+
+        return null;
+    }
+
+    protected function persistResolvedPageTokenIfChanged(): void
+    {
+        if ($this->account === null) {
+            return;
+        }
+
+        $stored = $this->storedAccessToken();
+        $resolved = $this->pageAccessToken();
+
+        if ($stored === null || $resolved === null || hash_equals($stored, $resolved)) {
+            return;
+        }
+
+        $this->account->update(['access_token' => $resolved]);
+        $this->account = $this->account->fresh();
+    }
+
     protected function http(): PendingRequest
     {
         return Http::acceptJson()
-            ->withToken((string) $this->activeAccount()?->normalizedAccessToken())
             ->connectTimeout(30)
             ->timeout(120);
     }
 
     /**
-     * @return array{id: string, name?: string}|null
+     * @param  array<string, mixed>  $query
+     */
+    protected function graphGet(string $path, array $query = []): Response
+    {
+        $token = $this->pageAccessToken();
+        if ($token !== null) {
+            $query['access_token'] = $token;
+        }
+
+        return $this->http()->get($this->baseUrl().$path, $query);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function graphPost(string $path, array $data = []): Response
+    {
+        $token = $this->pageAccessToken();
+        if ($token !== null) {
+            $data['access_token'] = $token;
+        }
+
+        return $this->http()->post($this->baseUrl().$path, $data);
+    }
+
+    /**
+     * @return array{id: string, name?: string, token_upgraded?: bool}|null
      */
     public function testConnection(?FacebookAccount $account = null): ?array
     {
@@ -55,10 +167,11 @@ class FacebookGraphService
 
         if ($account !== null) {
             $this->account = $account;
+            $this->resolvedPageAccessToken = null;
         }
 
         if ($this->activeAccount() === null || ! $this->activeAccount()->isConfigured()) {
-            $this->lastError = 'Facebook Page chưa được cấu hình — cần Page ID và Page Access Token.';
+            $this->lastError = 'Facebook Page chưa được cấu hình — cần Page ID và Access Token.';
 
             return null;
         }
@@ -70,7 +183,19 @@ class FacebookGraphService
             return null;
         }
 
-        $response = $this->http()->get($this->baseUrl().'/'.$pageId, [
+        $storedBefore = $this->storedAccessToken();
+        $resolvedBefore = $this->pageAccessToken();
+
+        if ($resolvedBefore === null) {
+            $this->lastError = 'Thiếu Access Token hợp lệ.';
+
+            return null;
+        }
+
+        $tokenUpgraded = $resolvedBefore !== $storedBefore;
+        $this->persistResolvedPageTokenIfChanged();
+
+        $response = $this->graphGet('/'.$pageId, [
             'fields' => 'id,name',
         ]);
 
@@ -85,6 +210,7 @@ class FacebookGraphService
         $profile = [
             'id' => (string) ($data['id'] ?? $pageId),
             'name' => isset($data['name']) ? (string) $data['name'] : null,
+            'token_upgraded' => $tokenUpgraded,
         ];
 
         $this->syncAccountProfile($profile);
@@ -93,7 +219,7 @@ class FacebookGraphService
     }
 
     /**
-     * @param  array{id: string, name?: string|null}  $profile
+     * @param  array{id: string, name?: string|null, token_upgraded?: bool}  $profile
      */
     protected function syncAccountProfile(array $profile): void
     {
@@ -122,9 +248,12 @@ class FacebookGraphService
             return null;
         }
 
-        $response = $this->http()->post($this->baseUrl().'/'.$pageId.'/photos', [
+        $this->persistResolvedPageTokenIfChanged();
+
+        $response = $this->graphPost('/'.$pageId.'/photos', [
             'url' => $imageUrl,
             'caption' => $message,
+            'published' => true,
         ]);
 
         if (! $response->successful()) {
@@ -133,6 +262,7 @@ class FacebookGraphService
                 'status' => $response->status(),
                 'body' => $response->json(),
                 'image_url' => $imageUrl,
+                'page_id' => $pageId,
             ]);
 
             return null;
@@ -154,9 +284,12 @@ class FacebookGraphService
             return null;
         }
 
-        $response = $this->http()->post($this->baseUrl().'/'.$pageId.'/videos', [
+        $this->persistResolvedPageTokenIfChanged();
+
+        $response = $this->graphPost('/'.$pageId.'/videos', [
             'file_url' => $videoUrl,
             'description' => $message,
+            'published' => true,
         ]);
 
         if (! $response->successful()) {
@@ -165,6 +298,7 @@ class FacebookGraphService
                 'status' => $response->status(),
                 'body' => $response->json(),
                 'video_url' => $videoUrl,
+                'page_id' => $pageId,
             ]);
 
             return null;
@@ -186,12 +320,17 @@ class FacebookGraphService
             return null;
         }
 
-        $payload = ['message' => $message];
+        $this->persistResolvedPageTokenIfChanged();
+
+        $payload = [
+            'message' => $message,
+            'published' => true,
+        ];
         if (filled($link)) {
             $payload['link'] = $link;
         }
 
-        $response = $this->http()->post($this->baseUrl().'/'.$pageId.'/feed', $payload);
+        $response = $this->graphPost('/'.$pageId.'/feed', $payload);
 
         if (! $response->successful()) {
             $this->lastError = $this->formatGraphError($response->json(), $response->status());
@@ -210,6 +349,13 @@ class FacebookGraphService
         $code = data_get($body, 'error.code');
         $subcode = data_get($body, 'error.error_subcode');
 
+        if ($this->isPublishActionsDeprecatedError($message, $code)) {
+            $message = 'Token đang là User Access Token (hoặc sai Page). Meta không còn cho đăng bằng publish_actions. '
+                .'Cần Page Access Token của đúng Page ID: vào developers.facebook.com → Graph API Explorer → chọn App + User token có pages_manage_posts → '
+                .'gọi GET /me/accounts?fields=id,name,access_token → copy access_token của Page (EAA…). '
+                .'Hoặc nhập User token hợp lệ — hệ thống sẽ tự đổi sang Page token khi Test kết nối.';
+        }
+
         $parts = ["HTTP {$status}: {$message}"];
         if ($code !== null) {
             $parts[] = "code={$code}";
@@ -219,5 +365,13 @@ class FacebookGraphService
         }
 
         return implode(' ', $parts);
+    }
+
+    protected function isPublishActionsDeprecatedError(string $message, mixed $code): bool
+    {
+        $lower = strtolower($message);
+
+        return (int) $code === 200
+            && (str_contains($lower, 'publish_actions') || str_contains($lower, 'sharing products'));
     }
 }

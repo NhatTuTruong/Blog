@@ -168,7 +168,7 @@ class IntegrationSettingsForm
                                 ->label('Page Access Token')
                                 ->password()
                                 ->revealable()
-                                ->helperText('Token EAA… của Page. Nhập mới để lưu; "********" giữ token hiện tại.')
+                                ->helperText('Token EAA… của Page (không phải User token). Có thể dán User token tạm thời — bấm «Test Facebook» để tự đổi sang Page token qua /me/accounts. Lấy token: Graph API Explorer → GET me/accounts?fields=id,name,access_token.')
                                 ->maxLength(2048)
                                 ->columnSpanFull(),
                             Toggle::make('enabled')
