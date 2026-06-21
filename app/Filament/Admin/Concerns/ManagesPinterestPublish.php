@@ -135,6 +135,7 @@ trait ManagesPinterestPublish
             ->defaultSort('id', 'desc')
             ->paginated([10, 25, 50])
             ->actions([
+                SocialMediaQueueTable::republishAction(),
                 SocialMediaQueueTable::detailAction('pinterest'),
             ])
             ->bulkActions(SocialMediaQueueTable::bulkActions())

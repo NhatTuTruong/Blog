@@ -106,6 +106,11 @@
         <div>
             <dt class="font-medium text-gray-500 dark:text-gray-400">File media</dt>
             <dd class="mt-0.5 break-all font-mono text-xs">{{ $mediaPath }}</dd>
+            @if (filled($record->video_path) && str_contains(strtolower((string) $record->video_path), '-ready.mp4'))
+                <dd class="mt-1 text-xs text-success-600 dark:text-success-400">Đã xử lý FFmpeg (1080×1920, cắt 1s đầu)</dd>
+            @elseif (filled($record->video_path))
+                <dd class="mt-1 text-xs text-warning-600 dark:text-warning-400">Video gốc — sẽ xử lý FFmpeg khi đăng</dd>
+            @endif
         </div>
     @endif
 </div>

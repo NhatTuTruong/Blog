@@ -84,7 +84,7 @@ trait ManagesFacebookPublish
                 ]),
             Section::make('Chi tiết bài đăng Facebook')
                 ->description(fn (): string => FacebookSettings::isConfigured()
-                    ? ''
+                    ? 'Ưu tiên file upload; không có file: ảnh → Apify Google Images, video → Apify TikTok (#hashtag từ tên brand).'
                     : 'Chưa cấu hình Facebook — vào Cài đặt tùy chỉnh để thêm Page và token.')
                 ->schema([
                     Placeholder::make('facebook_status')
@@ -106,6 +106,7 @@ trait ManagesFacebookPublish
                                 : $this->mediaRepeaterItemLabel($state)))
                         ->schema([
                             ...$this->socialMediaRepeaterUploadFields('facebook-uploads', 'facebook-temp-videos'),
+                            $this->socialMediaRepeaterMediaTypeField(),
                             TextInput::make('brand_domain')->label('Domain brand')->placeholder('nike.com')->maxLength(255)->columnSpan(['default' => 6, 'md' => 2]),
                             TextInput::make('aff_link')->label('Link Affiliate')->url()->maxLength(2048)->columnSpan(['default' => 6, 'md' => 2]),
                             Textarea::make('content_idea')->label('Ý tưởng nội dung cho AI')->rows(4)->maxLength(2000)->columnSpan(['default' => 6, 'md' => 4]),
@@ -136,6 +137,7 @@ trait ManagesFacebookPublish
             ->defaultSort('id', 'desc')
             ->paginated([10, 25, 50])
             ->actions([
+                SocialMediaQueueTable::republishAction(),
                 SocialMediaQueueTable::detailAction('facebook'),
             ])
             ->bulkActions(SocialMediaQueueTable::bulkActions())

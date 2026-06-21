@@ -57,6 +57,7 @@ class InstagramImportService
             $affLink = $this->cellValue($row, $columnMap['aff_link'] ?? null);
             $couponRaw = $this->cellValue($row, $columnMap['coupon_codes'] ?? null);
             $couponCodes = $this->parseCouponCodes($couponRaw);
+            $mediaTypeRaw = $this->cellValue($row, $columnMap['media_type'] ?? null);
 
             if ($brandDomain === '' && $contentIdea === '' && $affLink === '' && $couponCodes === []) {
                 continue;
@@ -64,6 +65,7 @@ class InstagramImportService
 
             $items[] = [
                 'media' => null,
+                'media_type' => $this->parseMediaType($mediaTypeRaw),
                 'brand_domain' => $brandDomain !== '' ? $brandDomain : null,
                 'content_idea' => $contentIdea !== '' ? $contentIdea : null,
                 'aff_link' => $affLink !== '' ? $affLink : null,
@@ -98,6 +100,7 @@ class InstagramImportService
                 in_array($normalized, ['noi dung y tuong', 'nội dung ý tưởng', 'nội dung / ý tưởng', 'content idea', 'content_idea', 'content', 'idea', 'y tuong caption', 'ý tưởng caption'], true) => 'content_idea',
                 in_array($normalized, ['Link Affiliate', 'aff link', 'aff_link', 'affiliate', 'aff'], true) => 'aff_link',
                 in_array($normalized, ['coupon code', 'coupon codes', 'coupon_code', 'coupon_codes', 'coupon', 'coupons'], true) => 'coupon_codes',
+                in_array($normalized, ['media type', 'media_type', 'loai media', 'loại media', 'type'], true) => 'media_type',
                 default => null,
             };
 
@@ -177,5 +180,16 @@ class InstagramImportService
             ->unique()
             ->values()
             ->all();
+    }
+
+    protected function parseMediaType(string $raw): string
+    {
+        $raw = strtolower(trim($raw));
+
+        if (in_array($raw, ['video', 'vid', 'mp4', 'tiktok'], true)) {
+            return \App\Support\SocialMediaMediaType::VIDEO;
+        }
+
+        return \App\Support\SocialMediaMediaType::IMAGE;
     }
 }

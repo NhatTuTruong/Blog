@@ -28,6 +28,7 @@ class FacebookQueueItem extends Model
         'coupon_codes',
         'image_path',
         'video_path',
+        'media_type',
         'caption',
         'used_default_caption',
         'facebook_post_id',

@@ -62,7 +62,8 @@ class IntegrationSettingsForm
                 ->description('Mỗi phần dùng một API key riêng. Nhập key mới để lưu; "********" giữ key hiện tại; để trống xóa key.')
                 ->schema($geminiKeyFields)
                 ->columns(3),
-            Section::make('Apify — Google Images')
+            Section::make('Apify — Google Images & TikTok')
+                ->description('Token dùng chung. Ảnh: Google Images (tên brand). Video: TikTok actor — bật tải video Apify (shouldDownloadVideos) để lấy file MP4.')
                 ->schema([
                     TextInput::make('apify_api_token')
                         ->label('Apify API token')

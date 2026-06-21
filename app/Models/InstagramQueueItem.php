@@ -28,6 +28,7 @@ class InstagramQueueItem extends Model
         'coupon_codes',
         'image_path',
         'video_path',
+        'media_type',
         'caption',
         'used_default_caption',
         'instagram_media_id',

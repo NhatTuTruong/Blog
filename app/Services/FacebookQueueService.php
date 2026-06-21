@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\AdminSettings;
 use App\Support\FacebookSettings;
 use App\Support\GeminiKeyScope;
+use App\Support\SocialMediaMediaType;
 use App\Support\SocialMediaQueueSource;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -196,6 +197,7 @@ class FacebookQueueService
                     'coupon_codes' => $couponCodes !== [] ? $couponCodes : null,
                     'image_path' => filled($record['image'] ?? null) ? trim((string) $record['image']) : null,
                     'video_path' => filled($record['video'] ?? null) ? trim((string) $record['video']) : null,
+                    'media_type' => $this->resolveMediaType($record),
                     'caption' => null,
                     'used_default_caption' => false,
                     'status' => FacebookQueueItem::STATUS_PENDING,
@@ -321,6 +323,12 @@ class FacebookQueueService
 
         $item->loadMissing('facebookAccount');
 
+        $videoSource = app(SocialMediaVideoSourceService::class);
+        if ($videoSource->itemWantsAutoVideo($item)) {
+            $videoSource->ensureStoredVideoForFacebookItem($item);
+            $item = $item->fresh() ?? $item;
+        }
+
         /** @var FacebookAccount|null $account */
         $account = $item->facebookAccount;
         if ($account === null || ! $account->isConfigured()) {
@@ -401,6 +409,18 @@ class FacebookQueueService
         }
 
         return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     */
+    protected function resolveMediaType(array $record): string
+    {
+        if (filled($record['video'] ?? null)) {
+            return SocialMediaMediaType::VIDEO;
+        }
+
+        return SocialMediaMediaType::normalize($record['media_type'] ?? null);
     }
 
     /**

@@ -24,6 +24,7 @@ use App\Support\InstagramSettings;
 use App\Support\FormDraftService;
 use App\Support\PinterestUi;
 use App\Support\PublicStorage;
+use App\Support\SocialMediaMediaType;
 use App\Support\UploadLimits;
 use App\Filament\Admin\Support\SocialMediaQueueTable;
 use Carbon\Carbon;
@@ -619,7 +620,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     ]),
                 Section::make('Chi tiết bài đăng Instagram')
                     ->description(fn (): string => InstagramSettings::isConfigured()
-                        ? 'Ưu tiên ảnh/video upload; không có thì Apify Google Images (domain brand); lỗi Apify → random ảnh default1–3.'
+                        ? 'Ưu tiên file upload; không có file: ảnh → Apify Google Images (tên brand), video → Apify TikTok (#hashtag từ brand); lỗi ảnh → default1–3.'
                         : 'Chưa cấu hình Instagram — vào Cài đặt tùy chỉnh để thêm tài khoản.')
                     ->schema([
                         Placeholder::make('instagram_status')
@@ -644,6 +645,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                                     : $this->mediaRepeaterItemLabel($state)))
                             ->schema([
                                 ...$this->socialMediaRepeaterUploadFields('instagram-uploads', 'instagram-temp-videos'),
+                                $this->socialMediaRepeaterMediaTypeField(),
                                 TextInput::make('brand_domain')
                                     ->label('Domain brand')
                                     ->placeholder('nike.com')
@@ -725,6 +727,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             ->defaultSort('id', 'desc')
             ->paginated([10, 25, 50])
             ->actions([
+                SocialMediaQueueTable::republishAction(),
                 SocialMediaQueueTable::detailAction('instagram'),
             ])
             ->bulkActions(SocialMediaQueueTable::bulkActions())
@@ -1500,6 +1503,9 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     'media' => $media,
                     'image' => $split['image'],
                     'video' => $split['video'],
+                    'media_type' => filled($split['video'])
+                        ? SocialMediaMediaType::VIDEO
+                        : SocialMediaMediaType::normalize($record['media_type'] ?? null),
                 ];
             })
             ->values()
@@ -1856,6 +1862,9 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     'media' => $media,
                     'image' => $split['image'],
                     'video' => $split['video'],
+                    'media_type' => filled($split['video'])
+                        ? SocialMediaMediaType::VIDEO
+                        : SocialMediaMediaType::normalize($record['media_type'] ?? null),
                 ];
             })
             ->values()
@@ -1895,6 +1904,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     {
         return [
             'media' => null,
+            'media_type' => SocialMediaMediaType::IMAGE,
             'brand_domain' => null,
             'content_idea' => null,
             'aff_link' => null,
@@ -1909,7 +1919,9 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     {
         $media = $this->normalizeMediaPath($state['media'] ?? null);
         if ($media === null) {
-            return 'Bài mới';
+            $type = SocialMediaMediaType::normalize($state['media_type'] ?? null);
+
+            return $type === SocialMediaMediaType::VIDEO ? 'Video (TikTok)' : 'Bài mới';
         }
 
         return $this->isVideoMediaPath($media) ? 'Có video' : 'Có ảnh';
@@ -1951,6 +1963,20 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
         return in_array($extension, ['mp4', 'mov', 'qt', 'm4v', 'webm'], true);
+    }
+
+    /**
+     * @return array<int, \Filament\Forms\Components\Component>
+     */
+    protected function socialMediaRepeaterMediaTypeField(): Select
+    {
+        return Select::make('media_type')
+            ->label('Loại media tự động')
+            ->options(SocialMediaMediaType::options())
+            ->default(SocialMediaMediaType::IMAGE)
+            ->native(false)
+            ->helperText('Khi không upload: ảnh → Google Images, video → TikTok (Apify). Hashtag = tên brand, vd. mayvenn.com → #mayvenn.')
+            ->columnSpan(['default' => 6, 'md' => 2]);
     }
 
     /**

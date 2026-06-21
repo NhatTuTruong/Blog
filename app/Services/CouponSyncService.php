@@ -536,6 +536,8 @@ class CouponSyncService
 
                 'coupon_codes' => $record['coupon_codes'] ?? [],
 
+                'media_type' => \App\Support\SocialMediaMediaType::normalize($record['media_type'] ?? null),
+
             ])
 
             ->values()

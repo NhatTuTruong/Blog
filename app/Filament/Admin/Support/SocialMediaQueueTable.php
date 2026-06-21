@@ -5,7 +5,9 @@ namespace App\Filament\Admin\Support;
 use App\Models\FacebookQueueItem;
 use App\Models\InstagramQueueItem;
 use App\Models\PinterestQueueItem;
+use App\Services\SocialMediaQueueRepublishService;
 use App\Support\PublicStorage;
+use Filament\Notifications\Notification;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
@@ -66,6 +68,37 @@ class SocialMediaQueueTable
             ->extraCellAttributes([
                 'class' => 'max-w-[8rem] [&_.fi-ta-text-item-description]:truncate',
             ]);
+    }
+
+    public static function republishAction(): Action
+    {
+        return Action::make('republish')
+            ->label('Đăng lại')
+            ->icon('heroicon-o-arrow-path')
+            ->color('primary')
+            ->tooltip('Đăng lại với cùng nội dung, ưu tiên chạy trước')
+            ->visible(fn (InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $record): bool => app(SocialMediaQueueRepublishService::class)->canRepublish($record))
+            ->requiresConfirmation()
+            ->modalHeading('Đăng lại bài này')
+            ->modalDescription('Bài sẽ được đưa vào hàng đợi với cùng caption, brand, tài khoản và loại media. Bài này sẽ được ưu tiên chạy trước các bài đang chờ.')
+            ->modalSubmitActionLabel('Đăng lại')
+            ->action(function (InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $record): void {
+                try {
+                    app(SocialMediaQueueRepublishService::class)->republish($record);
+
+                    Notification::make()
+                        ->title('Đã xếp hàng đăng lại')
+                        ->body('Bài #'.$record->id.' sẽ được xử lý ưu tiên trong hàng đợi.')
+                        ->success()
+                        ->send();
+                } catch (\Throwable $e) {
+                    Notification::make()
+                        ->title('Không thể đăng lại')
+                        ->body($e->getMessage())
+                        ->danger()
+                        ->send();
+                }
+            });
     }
 
     public static function detailAction(string $platform): Action

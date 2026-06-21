@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\AdminSettings;
 use App\Support\GeminiKeyScope;
 use App\Support\InstagramSettings;
+use App\Support\SocialMediaMediaType;
 use App\Support\SocialMediaQueueSource;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -198,6 +199,7 @@ class InstagramQueueService
                     'coupon_codes' => $couponCodes !== [] ? $couponCodes : null,
                     'image_path' => filled($record['image'] ?? null) ? trim((string) $record['image']) : null,
                     'video_path' => filled($record['video'] ?? null) ? trim((string) $record['video']) : null,
+                    'media_type' => $this->resolveMediaType($record),
                     'caption' => null,
                     'used_default_caption' => false,
                     'status' => InstagramQueueItem::STATUS_PENDING,
@@ -324,6 +326,12 @@ class InstagramQueueService
         }
 
         $item->loadMissing('instagramAccount');
+
+        $videoSource = app(SocialMediaVideoSourceService::class);
+        if ($videoSource->itemWantsAutoVideo($item)) {
+            $videoSource->ensureStoredVideoForInstagramItem($item);
+            $item = $item->fresh() ?? $item;
+        }
 
         /** @var InstagramAccount|null $account */
         $account = $item->instagramAccount;
@@ -477,6 +485,18 @@ class InstagramQueueService
         }
 
         return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     */
+    protected function resolveMediaType(array $record): string
+    {
+        if (filled($record['video'] ?? null)) {
+            return SocialMediaMediaType::VIDEO;
+        }
+
+        return SocialMediaMediaType::normalize($record['media_type'] ?? null);
     }
 
     /**

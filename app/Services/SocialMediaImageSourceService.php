@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\BrandDomain;
 use App\Support\PublicStorage;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -70,17 +71,7 @@ class SocialMediaImageSourceService
 
     public function buildSearchQuery(?string $brandDomain): ?string
     {
-        $domain = trim((string) $brandDomain);
-        if ($domain === '') {
-            return null;
-        }
-
-        $lower = strtolower($domain);
-        if (str_starts_with($lower, 'http://') || str_starts_with($lower, 'https://')) {
-            return $domain;
-        }
-
-        return 'https://'.$domain;
+        return BrandDomain::brandName($brandDomain);
     }
 
     public function downloadRemoteImageAsJpeg(string $imageUrl, string $destAbsolute): bool
