@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Support\BundledMediaBinary;
+use App\Support\SocialMediaVideoTitleFont;
 use Illuminate\Console\Command;
 
 class CheckSocialMediaEncoderCommand extends Command
@@ -47,6 +48,17 @@ class CheckSocialMediaEncoderCommand extends Command
         }
 
         $this->info('Media encoder: '.$selected);
+        $this->newLine();
+
+        $fontPath = SocialMediaVideoTitleFont::resolvePath();
+        if ($fontPath === null) {
+            $this->error('Title font: NOT FOUND');
+            $this->line('Upload public/fonts/social/DejaVuSans.ttf hoặc đặt SOCIAL_VIDEO_TITLE_FONT_PATH.');
+
+            return self::FAILURE;
+        }
+
+        $this->info('Title font: '.$fontPath);
 
         return self::SUCCESS;
     }

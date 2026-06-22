@@ -4,8 +4,9 @@ namespace App\Services;
 
 use App\Support\BundledMediaBinary;
 use App\Support\PublicStorage;
-use App\Support\SocialMediaVideoBottomOverlay;
+use App\Support\SocialMediaVideoDrawtext;
 use App\Support\SocialMediaVideoProbe;
+use App\Support\SocialMediaVideoTitleFont;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
@@ -19,7 +20,7 @@ class SocialMediaVideoPrepareService
     }
 
     /**
-     * Chuẩn bị video Reels: cắt 1s, crop/blur 9:16, watermark, nền tiêu đề, encode lại.
+     * Chuẩn bị video Reels: cắt 1s, crop/blur 9:16, tiêu đề dưới (drawtext), encode lại.
      * Trả về path storage-relative của file đã xử lý.
      */
     public function prepareForQueueItem(object $item, string $platformDirectory): string
@@ -50,9 +51,16 @@ class SocialMediaVideoPrepareService
         $readyAbsolute = PublicStorage::absolutePath($readyRelative);
         $sourceAbsolute = PublicStorage::absolutePath($sourcePath);
 
-        $title = $this->bottomTitleOverlayEnabled()
-            ? app(SocialMediaVideoTitleService::class)->resolveForQueueItem($item)
-            : null;
+        $title = null;
+        if ($this->bottomTitleOverlayEnabled()) {
+            if (SocialMediaVideoTitleFont::resolvePath() === null) {
+                $this->lastError = 'Không tìm thấy font tiêu đề video. Upload DejaVuSans.ttf vào public/fonts/social/ hoặc cấu hình SOCIAL_VIDEO_TITLE_FONT_PATH.';
+
+                throw new \RuntimeException($this->lastError);
+            }
+
+            $title = app(SocialMediaVideoTitleService::class)->resolveForQueueItem($item);
+        }
 
         if ($this->prepareFile($sourceAbsolute, $readyAbsolute, $title)) {
             $item->update(['video_path' => $readyRelative]);
@@ -108,18 +116,30 @@ class SocialMediaVideoPrepareService
         $targetW = (int) config('social_media_video.target_width', 1080);
         $targetH = (int) config('social_media_video.target_height', 1920);
 
-        $bottomOverlayAbsolute = null;
+        $titleForOverlay = null;
         if ($this->bottomTitleOverlayEnabled()) {
-            $title = filled($overlayTitle)
+            if (SocialMediaVideoTitleFont::resolvePath() === null) {
+                $this->lastError = 'Không tìm thấy font tiêu đề video. Upload DejaVuSans.ttf vào public/fonts/social/ hoặc cấu hình SOCIAL_VIDEO_TITLE_FONT_PATH.';
+
+                return false;
+            }
+
+            $titleForOverlay = filled($overlayTitle)
                 ? $overlayTitle
                 : app(SocialMediaVideoTitleService::class)->randomFallbackTitle();
-            $bottomOverlayAbsolute = SocialMediaVideoBottomOverlay::generate($targetW, $targetH, $title);
 
-            if ($bottomOverlayAbsolute === null) {
-                Log::warning('SocialMediaVideoPrepareService bottom overlay skipped', [
-                    'gd' => extension_loaded('gd'),
-                    'title' => $title,
-                ]);
+            $titleFilters = SocialMediaVideoDrawtext::buildBottomTitleFilters(
+                'vid',
+                'vpre',
+                $targetW,
+                $targetH,
+                $titleForOverlay,
+            );
+
+            if ($titleFilters === null) {
+                $this->lastError = 'Không tạo được tiêu đề dưới video.';
+
+                return false;
             }
         }
 
@@ -143,7 +163,7 @@ class SocialMediaVideoPrepareService
             $outputAbsolute,
             $useCropPreset,
             $watermarkAbsolute,
-            $bottomOverlayAbsolute,
+            $titleForOverlay,
             $musicAbsolute,
         );
 
@@ -164,10 +184,6 @@ class SocialMediaVideoPrepareService
             }
 
             return false;
-        } finally {
-            if ($bottomOverlayAbsolute !== null && is_file($bottomOverlayAbsolute)) {
-                @unlink($bottomOverlayAbsolute);
-            }
         }
 
         if (! is_file($outputAbsolute) || filesize($outputAbsolute) < 10_000) {
@@ -266,7 +282,7 @@ class SocialMediaVideoPrepareService
         string $outputAbsolute,
         bool $useCropPreset,
         ?string $watermarkAbsolute,
-        ?string $bottomOverlayAbsolute,
+        ?string $overlayTitle,
         ?string $musicAbsolute,
     ): array {
         $encoder = $this->mediaEncoderPath();
@@ -277,7 +293,6 @@ class SocialMediaVideoPrepareService
 
         $musicInput = null;
         $watermarkInput = null;
-        $overlayInput = null;
         $nextInputIndex = 1;
 
         $command = [
@@ -307,12 +322,6 @@ class SocialMediaVideoPrepareService
             $watermarkInput = $nextInputIndex++;
         }
 
-        if ($bottomOverlayAbsolute !== null) {
-            $command[] = '-i';
-            $command[] = $bottomOverlayAbsolute;
-            $overlayInput = $nextInputIndex++;
-        }
-
         $command[] = '-filter_complex';
         $command[] = $this->buildFilterComplex(
             $useCropPreset,
@@ -320,7 +329,7 @@ class SocialMediaVideoPrepareService
             $targetH,
             $musicInput,
             $watermarkInput,
-            $overlayInput,
+            $overlayTitle,
         );
         $command[] = '-map';
         $command[] = '[vout]';
@@ -352,7 +361,7 @@ class SocialMediaVideoPrepareService
         int $targetH,
         ?int $musicInput,
         ?int $watermarkInput,
-        ?int $overlayInput,
+        ?string $overlayTitle,
     ): string {
         if ($useCropPreset) {
             $parts = ['[0:v]'.$this->sourceVideoTransformFilter().$this->cropPresetFilterSimple().'[vid]'];
@@ -378,10 +387,12 @@ class SocialMediaVideoPrepareService
             $current = 'vwm';
         }
 
-        if ($overlayInput !== null) {
-            $parts[] = "[{$overlayInput}:v]format=rgba,scale={$targetW}:-2[btm]";
-            $parts[] = "[{$current}][btm]overlay=0:H-h:format=auto[vpre]";
-            $current = 'vpre';
+        if (filled($overlayTitle)) {
+            $titleFilters = SocialMediaVideoDrawtext::buildBottomTitleFilters($current, 'vpre', $targetW, $targetH, $overlayTitle);
+            if ($titleFilters !== null) {
+                [$titleFilterChain, $current] = $titleFilters;
+                $parts[] = $titleFilterChain;
+            }
         }
 
         $parts[] = $this->videoEnhancementFilter($current);

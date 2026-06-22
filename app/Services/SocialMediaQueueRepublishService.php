@@ -5,10 +5,14 @@ namespace App\Services;
 use App\Models\FacebookQueueItem;
 use App\Models\InstagramQueueItem;
 use App\Models\PinterestQueueItem;
+use App\Support\FacebookSettings;
+use App\Support\InstagramSettings;
+use App\Support\PinterestSettings;
 use App\Support\PublicStorage;
 use App\Support\SocialMediaQueueSource;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 class SocialMediaQueueRepublishService
 {
@@ -20,8 +24,10 @@ class SocialMediaQueueRepublishService
         ], true);
     }
 
-    public function republish(InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $item): void
-    {
+    public function republish(
+        InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $item,
+        ?Carbon $scheduledAt = null,
+    ): void {
         if ($item->status === InstagramQueueItem::STATUS_PROCESSING) {
             throw new \RuntimeException('Bài đang xử lý, không thể đăng lại.');
         }
@@ -32,7 +38,7 @@ class SocialMediaQueueRepublishService
 
         $updates = [
             'status' => InstagramQueueItem::STATUS_PENDING,
-            'scheduled_at' => $this->priorityScheduledAt($item::class),
+            'scheduled_at' => $scheduledAt ?? $this->priorityScheduledAt($item::class),
             'sort_order' => 0,
             'processed_at' => null,
             'error_message' => null,
@@ -53,16 +59,89 @@ class SocialMediaQueueRepublishService
         $item->update($updates);
     }
 
+    /**
+     * @param  Collection<int, InstagramQueueItem|FacebookQueueItem|PinterestQueueItem>  $items
+     * @return array{success: int, errors: array<int, string>}
+     */
+    public function republishMany(Collection $items): array
+    {
+        $success = 0;
+        $errors = [];
+
+        $sorted = $items
+            ->filter(fn (mixed $item): bool => $item instanceof InstagramQueueItem
+                || $item instanceof FacebookQueueItem
+                || $item instanceof PinterestQueueItem)
+            ->sortBy('id')
+            ->values();
+
+        foreach ($sorted->groupBy(fn (InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $item): string => $item::class) as $modelClass => $group) {
+            /** @var Collection<int, InstagramQueueItem|FacebookQueueItem|PinterestQueueItem> $group */
+            $baseTime = $this->priorityScheduledAt($modelClass);
+            $interval = $this->queueIntervalMinutesFor($group->first());
+
+            foreach ($group->values() as $index => $item) {
+                try {
+                    $this->republish($item, $baseTime->copy()->addMinutes($index * $interval));
+                    $success++;
+                } catch (\Throwable $e) {
+                    $errors[] = '#'.$item->id.': '.$e->getMessage();
+                }
+            }
+        }
+
+        return [
+            'success' => $success,
+            'errors' => $errors,
+        ];
+    }
+
     protected function resolveVideoPathForRepublish(
         InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $item,
     ): ?string {
         $path = trim(str_replace('\\', '/', (string) ($item->video_path ?? '')));
 
-        if ($path === '') {
+        if ($path === '' || ! PublicStorage::exists($path)) {
             return null;
         }
 
-        return PublicStorage::exists($path) ? $path : null;
+        if (! str_contains(strtolower($path), '-ready.mp4')) {
+            return $path;
+        }
+
+        $sourcePath = preg_replace('/-ready\.mp4$/i', '.mp4', $path);
+
+        if (! PublicStorage::exists($sourcePath)) {
+            $sourceAbsolute = PublicStorage::absolutePath($sourcePath);
+            $readyAbsolute = PublicStorage::absolutePath($path);
+            $sourceDir = dirname(str_replace('\\', '/', $sourceAbsolute));
+
+            if (! is_dir($sourceDir) && ! @mkdir($sourceDir, 0755, true) && ! is_dir($sourceDir)) {
+                return $path;
+            }
+
+            if (! @copy($readyAbsolute, $sourceAbsolute)) {
+                return $path;
+            }
+        }
+
+        return $sourcePath;
+    }
+
+    protected function queueIntervalMinutesFor(
+        InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $item,
+    ): int {
+        $userId = $item->user_id;
+
+        if ($item instanceof InstagramQueueItem) {
+            return InstagramSettings::queueIntervalMinutes($userId);
+        }
+
+        if ($item instanceof FacebookQueueItem) {
+            return FacebookSettings::queueIntervalMinutes($userId);
+        }
+
+        return PinterestSettings::queueIntervalMinutes($userId);
     }
 
     /**

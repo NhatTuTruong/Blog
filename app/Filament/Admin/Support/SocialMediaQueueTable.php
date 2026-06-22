@@ -11,6 +11,7 @@ use Filament\Notifications\Notification;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Tables;
 use Filament\Tables\Actions\Action;
+use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Actions\BulkActionGroup;
 use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Columns\TextColumn;
@@ -133,6 +134,48 @@ class SocialMediaQueueTable
     {
         return [
             BulkActionGroup::make([
+                BulkAction::make('republishBulk')
+                    ->label('Đăng lại đã chọn')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('primary')
+                    ->requiresConfirmation()
+                    ->modalHeading('Đăng lại hàng loạt')
+                    ->modalDescription('Các bài đã chọn sẽ được đưa lại vào hàng đợi. Bài đầu được ưu tiên trước; các bài tiếp theo cách nhau theo khoảng thời gian trong cài đặt tích hợp.')
+                    ->modalSubmitActionLabel('Đăng lại')
+                    ->deselectRecordsAfterCompletion()
+                    ->action(function (Collection $records): void {
+                        $eligible = $records->filter(
+                            fn (InstagramQueueItem|FacebookQueueItem|PinterestQueueItem $record): bool => app(SocialMediaQueueRepublishService::class)->canRepublish($record)
+                        );
+
+                        if ($eligible->isEmpty()) {
+                            Notification::make()
+                                ->title('Không có bài phù hợp')
+                                ->body('Chỉ đăng lại được bài ở trạng thái Hoàn thành hoặc Thất bại.')
+                                ->warning()
+                                ->send();
+
+                            return;
+                        }
+
+                        $result = app(SocialMediaQueueRepublishService::class)->republishMany($eligible);
+
+                        if ($result['success'] > 0) {
+                            Notification::make()
+                                ->title('Đã xếp hàng đăng lại')
+                                ->body('Thành công: '.$result['success'].($result['errors'] !== [] ? '. Lỗi: '.count($result['errors']) : '.'))
+                                ->success()
+                                ->send();
+                        }
+
+                        if ($result['errors'] !== []) {
+                            Notification::make()
+                                ->title('Một số bài không đăng lại được')
+                                ->body(implode("\n", array_slice($result['errors'], 0, 5)))
+                                ->danger()
+                                ->send();
+                        }
+                    }),
                 DeleteBulkAction::make()
                     ->label('Xóa đã chọn')
                     ->modalHeading('Xóa các mục đã chọn')

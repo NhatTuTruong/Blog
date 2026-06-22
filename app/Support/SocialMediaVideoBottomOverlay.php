@@ -13,7 +13,7 @@ class SocialMediaVideoBottomOverlay
             return null;
         }
 
-        $fontPath = self::resolveFontPath();
+        $fontPath = SocialMediaVideoTitleFont::resolvePath();
         if ($fontPath === null) {
             return null;
         }
@@ -68,7 +68,7 @@ class SocialMediaVideoBottomOverlay
         $paddingX = (int) round($width * 0.06);
         $maxTextWidth = $width - ($paddingX * 2);
         $baseFontSize = (int) config('social_media_video.title_font_size', 38);
-        $lines = self::wrapTitle($title, $fontPath, $baseFontSize, $maxTextWidth);
+        $lines = SocialMediaVideoTitleFont::wrapTitle($title, $maxTextWidth, $baseFontSize, $fontPath);
 
         if ($lines === []) {
             return;
@@ -80,7 +80,7 @@ class SocialMediaVideoBottomOverlay
             : ($lineCount > 1 ? max(30, $baseFontSize - 4) : $baseFontSize);
 
         if ($lineCount > 1) {
-            $lines = self::wrapTitle($title, $fontPath, $fontSize, $maxTextWidth);
+            $lines = SocialMediaVideoTitleFont::wrapTitle($title, $maxTextWidth, $fontSize, $fontPath);
             $lineCount = count($lines);
         }
 
@@ -113,63 +113,4 @@ class SocialMediaVideoBottomOverlay
         }
     }
 
-    /**
-     * @return array<int, string>
-     */
-    protected static function wrapTitle(string $title, string $fontPath, int $fontSize, int $maxWidth): array
-    {
-        $words = preg_split('/\s+/u', trim($title)) ?: [];
-        $lines = [];
-        $current = '';
-
-        foreach ($words as $word) {
-            $candidate = $current === '' ? $word : $current.' '.$word;
-            $box = imagettfbbox($fontSize, 0, $fontPath, $candidate);
-
-            if (! is_array($box)) {
-                continue;
-            }
-
-            $textWidth = abs($box[2] - $box[0]);
-
-            if ($textWidth <= $maxWidth || $current === '') {
-                $current = $candidate;
-
-                continue;
-            }
-
-            $lines[] = $current;
-            $current = $word;
-        }
-
-        if ($current !== '') {
-            $lines[] = $current;
-        }
-
-        return array_slice($lines, 0, 3);
-    }
-
-    protected static function resolveFontPath(): ?string
-    {
-        $candidates = array_filter([
-            config('social_media_video.title_font_path'),
-            'C:\\Windows\\Fonts\\segoeuib.ttf',
-            'C:\\Windows\\Fonts\\seguisb.ttf',
-            'C:\\Windows\\Fonts\\Segoe UI Bold.ttf',
-            'C:\\Windows\\Fonts\\calibrib.ttf',
-            'C:\\Windows\\Fonts\\georgiab.ttf',
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-            '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
-            '/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf',
-            'C:\\Windows\\Fonts\\arialbd.ttf',
-        ]);
-
-        foreach ($candidates as $candidate) {
-            if (is_string($candidate) && is_file($candidate)) {
-                return $candidate;
-            }
-        }
-
-        return null;
-    }
 }

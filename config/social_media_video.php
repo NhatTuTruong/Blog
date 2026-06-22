@@ -69,7 +69,7 @@ return [
     /** Opacity nền đen vùng tiêu đề (0–1) */
     'bottom_overlay_max_opacity' => (float) env('SOCIAL_VIDEO_BOTTOM_OVERLAY_MAX_OPACITY', 0.2),
 
-    /** Font tiêu đề — mặc định Segoe UI Bold / Calibri Bold trên Windows */
+    /** Font tiêu đề — mặc định public/fonts/social/DejaVuSans.ttf (upload cùng code lên server) */
     'title_font_path' => env('SOCIAL_VIDEO_TITLE_FONT_PATH'),
 
     'title_font_size' => (int) env('SOCIAL_VIDEO_TITLE_FONT_SIZE', 38),
