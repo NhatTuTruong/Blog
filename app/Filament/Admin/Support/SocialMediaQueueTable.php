@@ -14,6 +14,7 @@ use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\BulkActionGroup;
 use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -21,6 +22,13 @@ use Illuminate\Support\Str;
 class SocialMediaQueueTable
 {
     public const STATUS_NOTE_LIMIT = 30;
+
+    public static function mediaColumn(): ViewColumn
+    {
+        return ViewColumn::make('image_path')
+            ->label('Media')
+            ->view('filament.admin.components.social-media-queue-media-thumb');
+    }
 
     public static function queueSourceColumn(): TextColumn
     {
@@ -182,6 +190,11 @@ class SocialMediaQueueTable
             }
 
             PublicStorage::delete((string) $record->video_path);
+
+            $coverPath = preg_replace('/\.mp4$/i', '-cover.jpg', str_replace('\\', '/', (string) $record->video_path));
+            if (is_string($coverPath) && PublicStorage::exists($coverPath)) {
+                PublicStorage::delete($coverPath);
+            }
         }
     }
 }

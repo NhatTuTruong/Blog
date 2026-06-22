@@ -89,6 +89,77 @@ class SocialMediaVideoDownloadService
         }
     }
 
+    public function downloadImageToFile(string $imageUrl, string $destAbsolute, ?int $userId = null): bool
+    {
+        $this->lastError = null;
+        $imageUrl = $this->prepareDownloadUrl(trim($imageUrl), $userId);
+
+        if ($imageUrl === '') {
+            $this->lastError = 'URL ảnh trống.';
+
+            return false;
+        }
+
+        $directory = dirname(str_replace('\\', '/', $destAbsolute));
+        if (! is_dir($directory) && ! @mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            $this->lastError = 'Không tạo được thư mục lưu ảnh.';
+
+            return false;
+        }
+
+        $tempPath = $destAbsolute.'.part';
+        $headers = $this->downloadHeaders($imageUrl);
+
+        try {
+            $response = Http::timeout(60)
+                ->withHeaders($headers)
+                ->get($imageUrl);
+
+            if (! $response->successful()) {
+                $this->lastError = 'Tải ảnh HTTP '.$response->status().'.';
+
+                return false;
+            }
+
+            $body = $response->body();
+            if ($body === '' || strlen($body) < 500) {
+                $this->lastError = 'Ảnh cover tải về quá nhỏ hoặc không hợp lệ.';
+
+                return false;
+            }
+
+            file_put_contents($tempPath, $body);
+
+            if (is_file($destAbsolute)) {
+                @unlink($destAbsolute);
+            }
+
+            if (! @rename($tempPath, $destAbsolute)) {
+                if (! @copy($tempPath, $destAbsolute)) {
+                    $this->lastError = 'Không lưu được ảnh cover.';
+
+                    return false;
+                }
+
+                @unlink($tempPath);
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            $this->lastError = 'Lỗi tải ảnh: '.$e->getMessage();
+            Log::warning('SocialMediaVideoDownloadService image failed', [
+                'url' => $imageUrl,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        } finally {
+            if (is_file($tempPath)) {
+                @unlink($tempPath);
+            }
+        }
+    }
+
     protected function prepareDownloadUrl(string $videoUrl, ?int $userId): string
     {
         if ($videoUrl === '') {

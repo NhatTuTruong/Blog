@@ -382,3 +382,33 @@
 .fi-theme-switcher {
     display: none !important;
 }
+
+/* ── Social queue: video thumbnail + play badge ─────────────── */
+.social-queue-media-thumb__play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.social-queue-media-thumb__play::before {
+    content: '';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 9999px;
+    background-color: #2563eb;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 35%), 0 0 0 2px rgb(255 255 255 / 85%);
+}
+
+.social-queue-media-thumb__play svg {
+    position: absolute;
+    width: 0.85rem;
+    height: 0.85rem;
+    margin-left: 0.1rem;
+    color: #fff;
+}

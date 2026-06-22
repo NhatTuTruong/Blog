@@ -121,10 +121,7 @@ trait ManagesFacebookPublish
         return $table
             ->query(FacebookQueueItem::query()->with('facebookAccount')->latest('id'))
             ->columns([
-                Tables\Columns\ImageColumn::make('image_path')->label('Media')->disk('public')->height(48)->width(48)
-                    ->defaultImageUrl(fn (FacebookQueueItem $record): string => filled($record->video_path)
-                        ? 'data:image/svg+xml;base64,'.base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect fill="#1e3a5f" width="48" height="48" rx="6"/><polygon fill="#9CA3AF" points="20,16 34,24 20,32"/></svg>')
-                        : 'data:image/svg+xml;base64,'.base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect fill="#374151" width="48" height="48" rx="6"/><text x="24" y="28" text-anchor="middle" fill="#9CA3AF" font-size="10">AI</text></svg>')),
+                SocialMediaQueueTable::mediaColumn(),
                 Tables\Columns\TextColumn::make('facebookAccount.name')->label('Trang FB')
                     ->formatStateUsing(fn ($state, FacebookQueueItem $record): string => $record->facebookAccount?->displayLabel() ?? '—'),
                 Tables\Columns\TextColumn::make('brand_domain')->label('Brand')->searchable(),

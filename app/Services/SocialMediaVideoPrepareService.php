@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Support\BundledMediaBinary;
 use App\Support\PublicStorage;
+use App\Support\SocialMediaVideoBottomOverlay;
+use App\Support\SocialMediaVideoProbe;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
@@ -16,7 +19,7 @@ class SocialMediaVideoPrepareService
     }
 
     /**
-     * Chuẩn bị video Reels: cắt 1s, crop/blur 9:16, watermark, encode lại.
+     * Chuẩn bị video Reels: cắt 1s, crop/blur 9:16, watermark, nền tiêu đề, encode lại.
      * Trả về path storage-relative của file đã xử lý.
      */
     public function prepareForQueueItem(object $item, string $platformDirectory): string
@@ -36,8 +39,8 @@ class SocialMediaVideoPrepareService
             return $sourcePath;
         }
 
-        if (! $this->ffmpegAvailable()) {
-            $this->lastError = 'FFmpeg chưa cài trên server (sudo apt install -y ffmpeg).';
+        if (! $this->encoderAvailable()) {
+            $this->lastError = 'Media encoder chưa sẵn sàng. Chạy composer install (mathiasgrimm/laravel-cloud-binaries) hoặc đặt binary vào thư mục bin/.';
 
             throw new \RuntimeException($this->lastError);
         }
@@ -47,13 +50,18 @@ class SocialMediaVideoPrepareService
         $readyAbsolute = PublicStorage::absolutePath($readyRelative);
         $sourceAbsolute = PublicStorage::absolutePath($sourcePath);
 
-        if ($this->prepareFile($sourceAbsolute, $readyAbsolute)) {
+        $title = $this->bottomTitleOverlayEnabled()
+            ? app(SocialMediaVideoTitleService::class)->resolveForQueueItem($item)
+            : null;
+
+        if ($this->prepareFile($sourceAbsolute, $readyAbsolute, $title)) {
             $item->update(['video_path' => $readyRelative]);
 
             Log::info('SocialMediaVideoPrepareService prepared video', [
                 'queue_item_id' => $item->id ?? null,
                 'source' => $sourcePath,
                 'output' => $readyRelative,
+                'overlay_title' => $title,
                 'source_bytes' => is_file($sourceAbsolute) ? filesize($sourceAbsolute) : null,
                 'output_bytes' => filesize($readyAbsolute),
             ]);
@@ -68,7 +76,7 @@ class SocialMediaVideoPrepareService
         throw new \RuntimeException($this->lastError ?? 'Không xử lý được video.');
     }
 
-    public function prepareFile(string $inputAbsolute, string $outputAbsolute): bool
+    public function prepareFile(string $inputAbsolute, string $outputAbsolute, ?string $overlayTitle = null): bool
     {
         $this->lastError = null;
 
@@ -97,12 +105,46 @@ class SocialMediaVideoPrepareService
             @unlink($outputAbsolute);
         }
 
+        $targetW = (int) config('social_media_video.target_width', 1080);
+        $targetH = (int) config('social_media_video.target_height', 1920);
+
+        $bottomOverlayAbsolute = null;
+        if ($this->bottomTitleOverlayEnabled()) {
+            $title = filled($overlayTitle)
+                ? $overlayTitle
+                : app(SocialMediaVideoTitleService::class)->randomFallbackTitle();
+            $bottomOverlayAbsolute = SocialMediaVideoBottomOverlay::generate($targetW, $targetH, $title);
+
+            if ($bottomOverlayAbsolute === null) {
+                Log::warning('SocialMediaVideoPrepareService bottom overlay skipped', [
+                    'gd' => extension_loaded('gd'),
+                    'title' => $title,
+                ]);
+            }
+        }
+
         $watermarkAbsolute = $this->resolveWatermarkAbsolutePath();
-        $command = $this->buildFfmpegCommand(
+        $musicAbsolute = $this->shouldReplaceAudioWithMusic()
+            ? $this->resolveBackgroundMusicAbsolutePath()
+            : null;
+
+        if ($this->shouldReplaceAudioWithMusic() && $musicAbsolute === null) {
+            Log::warning('SocialMediaVideoPrepareService background music missing — output will have no audio', [
+                'directory' => config('social_media_video.background_music_directory'),
+            ]);
+        } elseif ($musicAbsolute !== null) {
+            Log::info('SocialMediaVideoPrepareService background music selected', [
+                'file' => basename($musicAbsolute),
+            ]);
+        }
+
+        $command = $this->buildMediaEncoderCommand(
             $inputAbsolute,
             $outputAbsolute,
             $useCropPreset,
             $watermarkAbsolute,
+            $bottomOverlayAbsolute,
+            $musicAbsolute,
         );
 
         $process = new Process($command);
@@ -111,8 +153,8 @@ class SocialMediaVideoPrepareService
         try {
             $process->mustRun();
         } catch (\Throwable $e) {
-            $this->lastError = 'FFmpeg lỗi: '.trim($process->getErrorOutput() ?: $e->getMessage());
-            Log::warning('SocialMediaVideoPrepareService ffmpeg failed', [
+            $this->lastError = 'Media encoder lỗi: '.trim($process->getErrorOutput() ?: $e->getMessage());
+            Log::warning('SocialMediaVideoPrepareService media encoder failed', [
                 'command' => implode(' ', $command),
                 'error' => $this->lastError,
             ]);
@@ -122,10 +164,14 @@ class SocialMediaVideoPrepareService
             }
 
             return false;
+        } finally {
+            if ($bottomOverlayAbsolute !== null && is_file($bottomOverlayAbsolute)) {
+                @unlink($bottomOverlayAbsolute);
+            }
         }
 
         if (! is_file($outputAbsolute) || filesize($outputAbsolute) < 10_000) {
-            $this->lastError = 'FFmpeg không tạo được file output hợp lệ.';
+            $this->lastError = 'Media encoder không tạo được file output hợp lệ.';
 
             return false;
         }
@@ -133,19 +179,36 @@ class SocialMediaVideoPrepareService
         return true;
     }
 
+    public function encoderAvailable(): bool
+    {
+        return app(BundledMediaBinary::class)->isEncoderAvailable();
+    }
+
+    /** @deprecated Use encoderAvailable() */
     public function ffmpegAvailable(): bool
     {
-        $binary = (string) config('social_media_video.ffmpeg_binary', 'ffmpeg');
+        return $this->encoderAvailable();
+    }
 
-        try {
-            $process = new Process([$binary, '-version']);
-            $process->setTimeout(15);
-            $process->run();
+    protected function mediaEncoderPath(): string
+    {
+        $path = app(BundledMediaBinary::class)->mediaEncoderPath();
 
-            return $process->isSuccessful();
-        } catch (\Throwable) {
-            return false;
+        if ($path === null) {
+            throw new \RuntimeException('Media encoder chưa sẵn sàng.');
         }
+
+        return $path;
+    }
+
+    protected function videoProbe(): SocialMediaVideoProbe
+    {
+        return app(SocialMediaVideoProbe::class);
+    }
+
+    protected function bottomTitleOverlayEnabled(): bool
+    {
+        return (bool) config('social_media_video.bottom_title_overlay_enabled', true);
     }
 
     /**
@@ -153,42 +216,37 @@ class SocialMediaVideoPrepareService
      */
     protected function probeDimensions(string $inputAbsolute): ?array
     {
-        $binary = (string) config('social_media_video.ffprobe_binary', 'ffprobe');
+        $dimensions = $this->videoProbe()->dimensions($inputAbsolute);
 
-        $process = new Process([
-            $binary,
-            '-v', 'error',
-            '-select_streams', 'v:0',
-            '-show_entries', 'stream=width,height',
-            '-of', 'csv=s=x:p=0',
-            $inputAbsolute,
-        ]);
-        $process->setTimeout(30);
-
-        try {
-            $process->mustRun();
-        } catch (\Throwable $e) {
-            $this->lastError = 'Không đọc được metadata video: '.$e->getMessage();
+        if ($dimensions === null) {
+            $this->lastError = 'Không đọc được kích thước video (getID3).';
 
             return null;
         }
 
-        $output = trim($process->getOutput());
-        if (! str_contains($output, 'x')) {
-            $this->lastError = 'FFprobe không trả về kích thước video.';
+        return $dimensions;
+    }
 
+    protected function probeDuration(string $inputAbsolute): ?float
+    {
+        return $this->videoProbe()->duration($inputAbsolute);
+    }
+
+    protected function resolveInputDurationLimit(string $inputAbsolute, int $skipStartSeconds): ?float
+    {
+        $trimEnd = max(0, (int) config('social_media_video.trim_end_seconds', 3));
+        if ($trimEnd <= 0) {
             return null;
         }
 
-        [$width, $height] = array_map('intval', explode('x', $output, 2));
-
-        if ($width <= 0 || $height <= 0) {
-            $this->lastError = 'Kích thước video không hợp lệ.';
-
+        $duration = $this->probeDuration($inputAbsolute);
+        if ($duration === null) {
             return null;
         }
 
-        return [$width, $height];
+        $usable = $duration - $skipStartSeconds - $trimEnd;
+
+        return max(1.0, $usable);
     }
 
     protected function isNearVerticalNineSixteen(int $width, int $height): bool
@@ -203,43 +261,79 @@ class SocialMediaVideoPrepareService
     /**
      * @return array<int, string>
      */
-    protected function buildFfmpegCommand(
+    protected function buildMediaEncoderCommand(
         string $inputAbsolute,
         string $outputAbsolute,
         bool $useCropPreset,
         ?string $watermarkAbsolute,
+        ?string $bottomOverlayAbsolute,
+        ?string $musicAbsolute,
     ): array {
-        $ffmpeg = (string) config('social_media_video.ffmpeg_binary', 'ffmpeg');
+        $encoder = $this->mediaEncoderPath();
         $skip = max(0, (int) config('social_media_video.skip_start_seconds', 1));
         $targetW = (int) config('social_media_video.target_width', 1080);
         $targetH = (int) config('social_media_video.target_height', 1920);
-        $needsFilterComplex = ! $useCropPreset || $watermarkAbsolute !== null;
+        $durationLimit = $this->resolveInputDurationLimit($inputAbsolute, $skip);
+
+        $musicInput = null;
+        $watermarkInput = null;
+        $overlayInput = null;
+        $nextInputIndex = 1;
 
         $command = [
-            $ffmpeg, '-y',
+            $encoder, '-y',
             '-ss', (string) $skip,
-            '-i', $inputAbsolute,
         ];
+
+        if ($durationLimit !== null) {
+            $command[] = '-t';
+            $command[] = sprintf('%.3f', $durationLimit);
+        }
+
+        $command[] = '-i';
+        $command[] = $inputAbsolute;
+
+        if ($musicAbsolute !== null) {
+            $command[] = '-stream_loop';
+            $command[] = '-1';
+            $command[] = '-i';
+            $command[] = $musicAbsolute;
+            $musicInput = $nextInputIndex++;
+        }
 
         if ($watermarkAbsolute !== null) {
             $command[] = '-i';
             $command[] = $watermarkAbsolute;
+            $watermarkInput = $nextInputIndex++;
         }
 
-        if ($needsFilterComplex) {
-            $command[] = '-filter_complex';
-            $command[] = $this->buildFilterComplex($useCropPreset, $targetW, $targetH, $watermarkAbsolute);
+        if ($bottomOverlayAbsolute !== null) {
+            $command[] = '-i';
+            $command[] = $bottomOverlayAbsolute;
+            $overlayInput = $nextInputIndex++;
+        }
+
+        $command[] = '-filter_complex';
+        $command[] = $this->buildFilterComplex(
+            $useCropPreset,
+            $targetW,
+            $targetH,
+            $musicInput,
+            $watermarkInput,
+            $overlayInput,
+        );
+        $command[] = '-map';
+        $command[] = '[vout]';
+
+        if ($musicInput !== null) {
             $command[] = '-map';
-            $command[] = '[vout]';
+            $command[] = '[aout]';
+            $command[] = '-shortest';
         } else {
-            $command[] = '-vf';
-            $command[] = $this->cropPresetFilterSimple();
-            $command[] = '-map';
-            $command[] = '0:v:0';
+            $command[] = '-an';
         }
 
         return array_merge($command, [
-            '-map', '0:a?',
             '-c:v', 'libx264',
             '-crf', (string) config('social_media_video.crf', 21),
             '-preset', (string) config('social_media_video.encode_preset', 'medium'),
@@ -254,20 +348,107 @@ class SocialMediaVideoPrepareService
         bool $useCropPreset,
         int $targetW,
         int $targetH,
-        ?string $watermarkAbsolute,
+        ?int $musicInput,
+        ?int $watermarkInput,
+        ?int $overlayInput,
     ): string {
-        $base = $useCropPreset
-            ? '[0:v]'.$this->cropPresetFilterSimple().'[base]'
-            : $this->blurBackgroundFilter($targetW, $targetH);
-
-        if ($watermarkAbsolute === null) {
-            return str_replace('[base]', '[vout]', $base);
+        if ($useCropPreset) {
+            $parts = ['[0:v]'.$this->sourceVideoTransformFilter().$this->cropPresetFilterSimple().'[vid]'];
+        } else {
+            $parts = [
+                '[0:v]'.$this->sourceVideoTransformFilter().'split=2[orig][blursrc];'
+                ."[blursrc]scale={$targetW}:{$targetH}:force_original_aspect_ratio=increase,crop={$targetW}:{$targetH},boxblur=20:10[bg];"
+                ."[orig]scale={$targetW}:-2:force_original_aspect_ratio=decrease[fg];"
+                .'[bg][fg]overlay=(W-w)/2:(H-h)/2[vid]',
+            ];
         }
 
-        $watermarkWidth = max(48, (int) round($targetW * ((int) config('social_media_video.watermark_width_percent', 15) / 100)));
-        $margin = (int) config('social_media_video.watermark_margin', 40);
+        $current = 'vid';
 
-        return $base.';[1:v]scale='.$watermarkWidth.':-1[wm];[base][wm]overlay=W-w-'.$margin.':H-h-'.$margin.'[vout]';
+        if ($watermarkInput !== null) {
+            $watermarkWidth = max(48, (int) round($targetW * ((int) config('social_media_video.watermark_width_percent', 12) / 100)));
+            $margin = (int) config('social_media_video.watermark_margin', 32);
+            $parts[] = "[{$watermarkInput}:v]scale={$watermarkWidth}:-1[wm]";
+            $parts[] = "[{$current}][wm]overlay=W-w-{$margin}:{$margin}[vwm]";
+            $current = 'vwm';
+        }
+
+        if ($overlayInput !== null) {
+            $parts[] = "[{$overlayInput}:v]scale={$targetW}:-1[btm]";
+            $parts[] = "[{$current}][btm]overlay=0:H-h[vpre]";
+            $current = 'vpre';
+        }
+
+        $parts[] = $this->videoEnhancementFilter($current);
+
+        if ($musicInput !== null) {
+            $volume = max(0.1, min(2.0, (float) config('social_media_video.background_music_volume', 0.85)));
+            $parts[] = "[{$musicInput}:a]volume={$volume}[aout]";
+        }
+
+        return implode(';', $parts);
+    }
+
+    protected function videoEnhancementFilter(string $inputLabel): string
+    {
+        $speed = max(0.5, min(2.0, (float) config('social_media_video.playback_speed', 1.2)));
+        $contrast = max(0.5, min(2.0, (float) config('social_media_video.contrast', 1.08)));
+        $brightness = max(-0.5, min(0.5, (float) config('social_media_video.brightness', 0.02)));
+        $saturation = max(0.0, min(3.0, (float) config('social_media_video.saturation', 1.06)));
+        $gammaR = max(0.5, min(2.0, (float) config('social_media_video.gamma_r', 1.05)));
+        $gammaG = max(0.5, min(2.0, (float) config('social_media_video.gamma_g', 1.01)));
+        $gammaB = max(0.5, min(2.0, (float) config('social_media_video.gamma_b', 0.94)));
+
+        return "[{$inputLabel}]eq=contrast={$contrast}:brightness={$brightness}:saturation={$saturation}:gamma_r={$gammaR}:gamma_g={$gammaG}:gamma_b={$gammaB},setpts=PTS/{$speed}[vout]";
+    }
+
+    protected function shouldReplaceAudioWithMusic(): bool
+    {
+        return (bool) config('social_media_video.replace_audio_with_music', true);
+    }
+
+    protected function resolveBackgroundMusicAbsolutePath(): ?string
+    {
+        $directory = (string) config('social_media_video.background_music_directory', public_path('audio/social'));
+        if (! is_dir($directory)) {
+            return null;
+        }
+
+        /** @var array<int, string> $extensions */
+        $extensions = config('social_media_video.background_music_extensions', ['mp3', 'm4a', 'wav']);
+        $extensions = array_map('strtolower', $extensions);
+
+        $files = [];
+        foreach (scandir($directory) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+
+            $path = $directory.DIRECTORY_SEPARATOR.$entry;
+            if (! is_file($path)) {
+                continue;
+            }
+
+            $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+            if (in_array($extension, $extensions, true)) {
+                $files[] = $path;
+            }
+        }
+
+        if ($files === []) {
+            return null;
+        }
+
+        return $files[array_rand($files)];
+    }
+
+    protected function sourceVideoTransformFilter(): string
+    {
+        if (! (bool) config('social_media_video.flip_horizontal', true)) {
+            return '';
+        }
+
+        return 'hflip,';
     }
 
     protected function cropPresetFilterSimple(): string
@@ -276,14 +457,6 @@ class SocialMediaVideoPrepareService
         $crop = (string) config('social_media_video.crop_box', '1080:1920:27:48');
 
         return "scale={$scale},crop={$crop}";
-    }
-
-    protected function blurBackgroundFilter(int $width, int $height): string
-    {
-        return '[0:v]split=2[orig][blursrc];'
-            ."[blursrc]scale={$width}:{$height}:force_original_aspect_ratio=increase,crop={$width}:{$height},boxblur=20:10[bg];"
-            ."[orig]scale={$width}:-2:force_original_aspect_ratio=decrease[fg];"
-            .'[bg][fg]overlay=(W-w)/2:(H-h)/2[base]';
     }
 
     protected function resolveWatermarkAbsolutePath(): ?string

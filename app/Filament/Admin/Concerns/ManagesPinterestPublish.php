@@ -117,10 +117,7 @@ trait ManagesPinterestPublish
         return $table
             ->query(PinterestQueueItem::query()->with('pinterestAccount')->latest('id'))
             ->columns([
-                Tables\Columns\ImageColumn::make('image_path')->label('Media')->disk('public')->height(48)->width(48)
-                    ->defaultImageUrl(fn (PinterestQueueItem $record): string => filled($record->video_path)
-                        ? 'data:image/svg+xml;base64,'.base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect fill="#7f1d1d" width="48" height="48" rx="6"/><polygon fill="#fca5a5" points="20,16 34,24 20,32"/></svg>')
-                        : 'data:image/svg+xml;base64,'.base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect fill="#991b1b" width="48" height="48" rx="6"/><text x="24" y="28" text-anchor="middle" fill="#fecaca" font-size="10">Pin</text></svg>')),
+                SocialMediaQueueTable::mediaColumn(),
                 Tables\Columns\TextColumn::make('board_name')->label('Board')
                     ->formatStateUsing(fn ($state, PinterestQueueItem $record): string => filled($record->board_name)
                         ? (string) $record->board_name

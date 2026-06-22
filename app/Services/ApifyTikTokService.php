@@ -35,6 +35,7 @@ class ApifyTikTokService
         }
 
         $videoUrl = null;
+        $selectedItem = null;
         foreach ($items as $item) {
             if (! is_array($item)) {
                 continue;
@@ -44,8 +45,10 @@ class ApifyTikTokService
                 continue;
             }
 
-            $videoUrl = $this->pickVideoDownloadUrl($item);
-            if ($videoUrl !== null) {
+            $candidateUrl = $this->pickVideoDownloadUrl($item);
+            if ($candidateUrl !== null) {
+                $videoUrl = $candidateUrl;
+                $selectedItem = $item;
                 break;
             }
         }
@@ -61,7 +64,63 @@ class ApifyTikTokService
             return false;
         }
 
-        return app(SocialMediaVideoDownloadService::class)->downloadToFile($videoUrl, $destAbsolute, $userId);
+        $downloader = app(SocialMediaVideoDownloadService::class);
+
+        if (! $downloader->downloadToFile($videoUrl, $destAbsolute, $userId)) {
+            $this->lastError = $downloader->lastError ?? 'Không tải được video TikTok.';
+
+            return false;
+        }
+
+        if ($selectedItem !== null) {
+            $coverUrl = $this->pickCoverUrl($selectedItem);
+            $coverAbsolute = $this->coverPathBesideVideo($destAbsolute);
+
+            if ($coverUrl !== null && $coverAbsolute !== null
+                && ! $downloader->downloadImageToFile($coverUrl, $coverAbsolute, $userId)) {
+                Log::info('ApifyTikTokService cover download skipped', [
+                    'error' => $downloader->lastError,
+                ]);
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    public function pickCoverUrl(array $item): ?string
+    {
+        $candidates = [
+            data_get($item, 'videoMeta.coverUrl'),
+            data_get($item, 'videoMeta.originalCoverUrl'),
+            data_get($item, 'videoMeta.dynamicCover'),
+            data_get($item, 'video.cover'),
+            data_get($item, 'video.originCover'),
+            $item['coverUrl'] ?? null,
+            $item['cover'] ?? null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            $url = trim((string) $candidate);
+            if ($url !== '' && str_starts_with(strtolower($url), 'http')) {
+                return $url;
+            }
+        }
+
+        return null;
+    }
+
+    protected function coverPathBesideVideo(string $videoAbsolute): ?string
+    {
+        $videoAbsolute = str_replace('\\', '/', $videoAbsolute);
+
+        if (! preg_match('/\.mp4$/i', $videoAbsolute)) {
+            return null;
+        }
+
+        return preg_replace('/\.mp4$/i', '-cover.jpg', $videoAbsolute);
     }
 
     public function hashtagFromBrandDomain(?string $brandDomain): string
@@ -178,7 +237,7 @@ class ApifyTikTokService
             'commentsPerPost' => 0,
             'topLevelCommentsPerPost' => 0,
             'maxRepliesPerComment' => 0,
-            'proxyCountryCode' => 'None',
+            'proxyCountryCode' => 'US',
         ];
     }
 

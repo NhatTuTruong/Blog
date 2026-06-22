@@ -687,18 +687,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                 InstagramQueueItem::query()->with('instagramAccount')->latest('id')
             )
             ->columns([
-                Tables\Columns\ImageColumn::make('image_path')
-                    ->label('Media')
-                    ->disk('public')
-                    ->height(48)
-                    ->width(48)
-                    ->defaultImageUrl(fn (InstagramQueueItem $record): string => filled($record->video_path)
-                        ? 'data:image/svg+xml;base64,'.base64_encode(
-                            '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect fill="#1e3a5f" width="48" height="48" rx="6"/><polygon fill="#9CA3AF" points="20,16 34,24 20,32"/></svg>'
-                        )
-                        : 'data:image/svg+xml;base64,'.base64_encode(
-                            '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect fill="#374151" width="48" height="48" rx="6"/><text x="24" y="28" text-anchor="middle" fill="#9CA3AF" font-size="10" font-family="sans-serif">AI</text></svg>'
-                        )),
+                SocialMediaQueueTable::mediaColumn(),
                 Tables\Columns\TextColumn::make('instagramAccount.name')
                     ->label('Tài khoản IG')
                     ->formatStateUsing(fn ($state, InstagramQueueItem $record): string => $record->instagramAccount?->displayLabel() ?? '—')

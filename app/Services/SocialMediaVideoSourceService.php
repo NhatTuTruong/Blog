@@ -30,6 +30,8 @@ class SocialMediaVideoSourceService
 
         $existing = $this->normalizeStoragePath($item->video_path ?? null);
         if ($existing !== null) {
+            $this->syncVideoCoverPath($item, $existing);
+
             return $this->prepareVideoIfNeeded($item, $directory, $existing);
         }
 
@@ -53,9 +55,45 @@ class SocialMediaVideoSourceService
             throw new \RuntimeException($message);
         }
 
-        $item->update(['video_path' => $dest]);
+        $coverRelative = $this->coverRelativePathBesideVideo($dest);
+        $updates = ['video_path' => $dest];
+
+        if ($coverRelative !== null && PublicStorage::exists($coverRelative)) {
+            $updates['image_path'] = $coverRelative;
+        }
+
+        $item->update($updates);
 
         return $this->prepareVideoIfNeeded($item, $directory, $dest);
+    }
+
+    protected function coverRelativePathBesideVideo(string $videoRelative): ?string
+    {
+        $videoRelative = PublicStorage::normalizePath($videoRelative);
+
+        if (! str_ends_with(strtolower($videoRelative), '.mp4')) {
+            return null;
+        }
+
+        return preg_replace('/\.mp4$/i', '-cover.jpg', $videoRelative);
+    }
+
+    /**
+     * @param  InstagramQueueItem|FacebookQueueItem  $item
+     */
+    protected function syncVideoCoverPath(object $item, string $videoRelative): void
+    {
+        $coverRelative = $this->coverRelativePathBesideVideo($videoRelative);
+
+        if ($coverRelative === null || ! PublicStorage::exists($coverRelative)) {
+            return;
+        }
+
+        if ((string) ($item->image_path ?? '') === $coverRelative) {
+            return;
+        }
+
+        $item->update(['image_path' => $coverRelative]);
     }
 
     protected function prepareVideoIfNeeded(object $item, string $directory, string $path): string
