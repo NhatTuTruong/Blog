@@ -84,7 +84,7 @@ trait ManagesFacebookPublish
                 ]),
             Section::make('Chi tiết bài đăng Facebook')
                 ->description(fn (): string => FacebookSettings::isConfigured()
-                    ? 'Ưu tiên file upload; không có file: ảnh → Apify Google Images, video → Apify TikTok (#hashtag từ tên brand).'
+                    ? ''
                     : 'Chưa cấu hình Facebook — vào Cài đặt tùy chỉnh để thêm Page và token.')
                 ->schema([
                     Placeholder::make('facebook_status')
@@ -129,7 +129,7 @@ trait ManagesFacebookPublish
                 SocialMediaQueueTable::statusColumn(),
                 Tables\Columns\TextColumn::make('caption')->label('Nội dung')->limit(50)->placeholder('Tạo khi tới lượt')->toggleable(),
                 Tables\Columns\TextColumn::make('scheduled_at')->label('Lên lịch')->dateTime('d/m/Y H:i')->sortable(),
-                Tables\Columns\TextColumn::make('facebook_post_id')->label('Post ID')->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('facebook_post_id')->label('Post ID')->toggleable(isToggledHiddenByDefault: true)->hidden(),
             ])
             ->defaultSort('id', 'desc')
             ->paginated([10, 25, 50])

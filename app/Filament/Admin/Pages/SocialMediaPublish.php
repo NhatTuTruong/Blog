@@ -620,7 +620,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                     ]),
                 Section::make('Chi tiết bài đăng Instagram')
                     ->description(fn (): string => InstagramSettings::isConfigured()
-                        ? 'Ưu tiên file upload; không có file: ảnh → Apify Google Images (tên brand), video → Apify TikTok (#hashtag từ brand); lỗi ảnh → default1–3.'
+                        ? ''
                         : 'Chưa cấu hình Instagram — vào Cài đặt tùy chỉnh để thêm tài khoản.')
                     ->schema([
                         Placeholder::make('instagram_status')
