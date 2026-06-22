@@ -45,8 +45,11 @@ class SocialMediaVideoSourceService
 
         $apify = app(ApifyTikTokService::class);
         $hashtag = $apify->hashtagFromBrandDomain($item->brand_domain ?? null);
+        $userId = (int) ($item->user_id ?? 0);
 
-        if (! $apify->downloadFirstVideoForHashtag($hashtag, $item->user_id, $destAbsolute)) {
+        PublicStorage::ensureDirectory('apify-videos/user-'.$userId);
+
+        if (! $apify->downloadFirstVideoForHashtag($hashtag, $userId, $destAbsolute)) {
             $message = $apify->lastError
                 ?? app(SocialMediaVideoDownloadService::class)->lastError
                 ?? 'Không tải được video TikTok.';

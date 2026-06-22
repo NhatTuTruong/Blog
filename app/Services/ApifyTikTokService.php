@@ -3,7 +3,11 @@
 namespace App\Services;
 
 use App\Support\ApifySettings;
+use App\Support\ApifyTikTokSharedVideo;
 use App\Support\BrandDomain;
+use App\Support\PublicStorage;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -11,16 +15,64 @@ class ApifyTikTokService
 {
     public ?string $lastError = null;
 
-    public function downloadFirstVideoForHashtag(?string $hashtag, ?int $userId, string $destAbsolute): bool
+    /**
+     * Tải video Apify 1 lần theo hashtag/user — các queue item cùng brand dùng chung file.
+     */
+    public function ensureSharedVideoForHashtag(?string $hashtag, ?int $userId, string $sharedAbsolute): bool
     {
         $this->lastError = null;
         $hashtag = $this->normalizeHashtag($hashtag);
+        $userId = (int) ($userId ?? 0);
 
         if ($hashtag === '') {
             $this->lastError = 'Thiếu hashtag TikTok.';
 
             return false;
         }
+
+        if ($this->isValidVideoFile($sharedAbsolute)) {
+            return true;
+        }
+
+        $lock = Cache::lock(ApifyTikTokSharedVideo::lockKey($userId, $hashtag), 600);
+
+        try {
+            $lock->block(600);
+
+            if ($this->isValidVideoFile($sharedAbsolute)) {
+                return true;
+            }
+
+            return $this->downloadVideoToPath($hashtag, $userId, $sharedAbsolute);
+        } catch (LockTimeoutException $e) {
+            if ($this->isValidVideoFile($sharedAbsolute)) {
+                return true;
+            }
+
+            $this->lastError = 'Đang chờ tải video TikTok từ Apify (timeout). Thử lại sau vài phút.';
+
+            return false;
+        } finally {
+            optional($lock)->release();
+        }
+    }
+
+    public function downloadFirstVideoForHashtag(?string $hashtag, ?int $userId, string $destAbsolute): bool
+    {
+        $userId = (int) ($userId ?? 0);
+        $hashtag = $this->normalizeHashtag($hashtag);
+        $sharedAbsolute = PublicStorage::absolutePath(ApifyTikTokSharedVideo::relativePath($userId, $hashtag));
+
+        if (! $this->ensureSharedVideoForHashtag($hashtag, $userId, $sharedAbsolute)) {
+            return false;
+        }
+
+        return $this->copySharedVideoTo($sharedAbsolute, $destAbsolute);
+    }
+
+    protected function downloadVideoToPath(string $hashtag, int $userId, string $destAbsolute): bool
+    {
+        $this->lastError = null;
 
         $token = ApifySettings::apiToken($userId);
         if ($token === null) {
@@ -29,7 +81,7 @@ class ApifyTikTokService
             return false;
         }
 
-        $items = $this->fetchVideoResults($token, $hashtag);
+        $items = $this->fetchVideoResults($token, $hashtag, $userId);
         if ($items === []) {
             return false;
         }
@@ -58,8 +110,14 @@ class ApifyTikTokService
             Log::warning('ApifyTikTokService no video URL in items', [
                 'hashtag' => $hashtag,
                 'item_keys' => is_array($items[0] ?? null) ? array_keys($items[0]) : [],
-                'video_meta_keys' => is_array(data_get($items[0], 'videoMeta')) ? array_keys(data_get($items[0], 'videoMeta')) : [],
             ]);
+
+            return false;
+        }
+
+        $directory = dirname(str_replace('\\', '/', $destAbsolute));
+        if (! is_dir($directory) && ! @mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            $this->lastError = 'Không tạo được thư mục lưu video Apify.';
 
             return false;
         }
@@ -84,7 +142,66 @@ class ApifyTikTokService
             }
         }
 
+        Log::info('ApifyTikTokService shared video downloaded', [
+            'hashtag' => $hashtag,
+            'user_id' => $userId,
+            'path' => $destAbsolute,
+            'bytes' => is_file($destAbsolute) ? filesize($destAbsolute) : null,
+        ]);
+
         return true;
+    }
+
+    protected function copySharedVideoTo(string $sharedAbsolute, string $destAbsolute): bool
+    {
+        if (! $this->isValidVideoFile($sharedAbsolute)) {
+            $this->lastError = 'File video Apify dùng chung chưa sẵn sàng.';
+
+            return false;
+        }
+
+        $directory = dirname(str_replace('\\', '/', $destAbsolute));
+        if (! is_dir($directory) && ! @mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            $this->lastError = 'Không tạo được thư mục lưu video.';
+
+            return false;
+        }
+
+        if ($this->isValidVideoFile($destAbsolute) && filesize($destAbsolute) === filesize($sharedAbsolute)) {
+            return true;
+        }
+
+        if (is_file($destAbsolute)) {
+            @unlink($destAbsolute);
+        }
+
+        if (! @copy($sharedAbsolute, $destAbsolute)) {
+            $this->lastError = 'Không copy được video Apify sang file queue item.';
+
+            return false;
+        }
+
+        @chmod($destAbsolute, 0644);
+
+        $sharedCover = $this->coverPathBesideVideo($sharedAbsolute);
+        $destCover = $this->coverPathBesideVideo($destAbsolute);
+
+        if ($sharedCover !== null && $destCover !== null && is_file($sharedCover) && ! is_file($destCover)) {
+            @copy($sharedCover, $destCover);
+        }
+
+        return true;
+    }
+
+    protected function isValidVideoFile(string $absolutePath): bool
+    {
+        if (! is_file($absolutePath)) {
+            return false;
+        }
+
+        $size = filesize($absolutePath);
+
+        return is_int($size) && $size > 10_000;
     }
 
     /**
@@ -152,7 +269,50 @@ class ApifyTikTokService
     /**
      * @return array<int, array<string, mixed>>
      */
-    protected function fetchVideoResults(string $token, string $hashtag): array
+    protected function fetchVideoResults(string $token, string $hashtag, int $userId): array
+    {
+        $cacheKey = ApifyTikTokSharedVideo::cacheKey($userId, $hashtag);
+        $cacheSeconds = max(60, (int) config('apify.tiktok_results_cache_seconds', 3600));
+
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached) && $cached !== []) {
+            return $cached;
+        }
+
+        $lock = Cache::lock($cacheKey.':fetch', 300);
+
+        try {
+            $lock->block(300);
+
+            $cached = Cache::get($cacheKey);
+            if (is_array($cached) && $cached !== []) {
+                return $cached;
+            }
+
+            $items = $this->fetchVideoResultsFromApi($token, $hashtag);
+            if ($items !== []) {
+                Cache::put($cacheKey, $items, $cacheSeconds);
+            }
+
+            return $items;
+        } catch (LockTimeoutException $e) {
+            $cached = Cache::get($cacheKey);
+            if (is_array($cached) && $cached !== []) {
+                return $cached;
+            }
+
+            $this->lastError = 'Đang chờ Apify TikTok API (timeout).';
+
+            return [];
+        } finally {
+            optional($lock)->release();
+        }
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function fetchVideoResultsFromApi(string $token, string $hashtag): array
     {
         $actorId = (string) config('apify.tiktok_actor_id', 'GdWCkxBtKWOsKjdch');
         $waitSeconds = max(30, (int) config('apify.run_wait_seconds', 180));
@@ -183,7 +343,6 @@ class ApifyTikTokService
             Log::warning('ApifyTikTokService HTTP error', [
                 'hashtag' => $hashtag,
                 'status' => $response->status(),
-                'body' => $response->body(),
             ]);
 
             return [];
@@ -287,7 +446,7 @@ class ApifyTikTokService
      */
     protected function findVideoUrlRecursive(array $data): ?string
     {
-        foreach ($data as $key => $value) {
+        foreach ($data as $value) {
             if (is_string($value) && $this->isDownloadableVideoUrl($value)) {
                 return trim($value);
             }

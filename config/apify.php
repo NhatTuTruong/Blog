@@ -16,4 +16,10 @@ return [
     'max_results_per_query' => (int) env('APIFY_MAX_RESULTS_PER_QUERY', 3),
 
     'run_wait_seconds' => (int) env('APIFY_RUN_WAIT_SECONDS', 180),
+
+    'tiktok_results_cache_seconds' => (int) env('APIFY_TIKTOK_RESULTS_CACHE_SECONDS', 3600),
+
+    'video_download_timeout_seconds' => (int) env('APIFY_VIDEO_DOWNLOAD_TIMEOUT_SECONDS', 600),
+
+    'video_download_retries' => (int) env('APIFY_VIDEO_DOWNLOAD_RETRIES', 3),
 ];

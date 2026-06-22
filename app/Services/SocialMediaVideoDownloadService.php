@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\ApifySettings;
+use App\Support\ApifyTikTokSharedVideo;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -31,11 +32,34 @@ class SocialMediaVideoDownloadService
             return false;
         }
 
+        $timeout = $this->downloadTimeoutSeconds($videoUrl);
+        $retries = max(1, (int) config('apify.video_download_retries', 3));
+
+        for ($attempt = 1; $attempt <= $retries; $attempt++) {
+            if ($this->attemptDownload($videoUrl, $destAbsolute, $timeout)) {
+                return true;
+            }
+
+            if ($attempt < $retries) {
+                sleep(min(5, $attempt * 2));
+            }
+        }
+
+        return false;
+    }
+
+    protected function attemptDownload(string $videoUrl, string $destAbsolute, int $timeout): bool
+    {
         $tempPath = $destAbsolute.'.part';
         $headers = $this->downloadHeaders($videoUrl);
 
+        if (is_file($tempPath)) {
+            @unlink($tempPath);
+        }
+
         try {
-            $response = Http::timeout(180)
+            $response = Http::timeout($timeout)
+                ->connectTimeout(min(30, $timeout))
                 ->withHeaders($headers)
                 ->withOptions(['sink' => $tempPath])
                 ->get($videoUrl);
@@ -77,7 +101,7 @@ class SocialMediaVideoDownloadService
         } catch (\Throwable $e) {
             $this->lastError = 'Lỗi tải video: '.$e->getMessage();
             Log::warning('SocialMediaVideoDownloadService failed', [
-                'url' => $videoUrl,
+                'url' => $this->redactUrl($videoUrl),
                 'error' => $e->getMessage(),
             ]);
 
@@ -87,6 +111,20 @@ class SocialMediaVideoDownloadService
                 @unlink($tempPath);
             }
         }
+    }
+
+    protected function downloadTimeoutSeconds(string $videoUrl): int
+    {
+        if (str_contains(strtolower($videoUrl), 'api.apify.com')) {
+            return max(180, (int) config('apify.video_download_timeout_seconds', 600));
+        }
+
+        return max(60, (int) config('apify.video_download_timeout_seconds', 600));
+    }
+
+    protected function redactUrl(string $url): string
+    {
+        return preg_replace('/token=[^&]+/', 'token=***', $url) ?? $url;
     }
 
     public function downloadImageToFile(string $imageUrl, string $destAbsolute, ?int $userId = null): bool
@@ -148,7 +186,7 @@ class SocialMediaVideoDownloadService
         } catch (\Throwable $e) {
             $this->lastError = 'Lỗi tải ảnh: '.$e->getMessage();
             Log::warning('SocialMediaVideoDownloadService image failed', [
-                'url' => $imageUrl,
+                'url' => $this->redactUrl($imageUrl),
                 'error' => $e->getMessage(),
             ]);
 
