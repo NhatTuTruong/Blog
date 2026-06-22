@@ -49,7 +49,10 @@ return [
     'vertical_ratio_min' => 0.52,
     'vertical_ratio_max' => 0.62,
 
-    /** Watermark PNG/JPG — để trống hoặc file không tồn tại thì bỏ qua */
+    /** Watermark PNG — tắt mặc định (decoder PNG hay lỗi trên shared hosting) */
+    'watermark_enabled' => (bool) env('SOCIAL_VIDEO_WATERMARK_ENABLED', false),
+
+    /** Watermark PNG/JPG — chỉ dùng khi watermark_enabled = true */
     'watermark_path' => env('SOCIAL_VIDEO_WATERMARK_PATH'),
 
     'watermark_margin' => (int) env('SOCIAL_VIDEO_WATERMARK_MARGIN', 32),

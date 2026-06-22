@@ -487,6 +487,10 @@ class SocialMediaVideoPrepareService
 
     protected function resolveWatermarkAbsolutePath(): ?string
     {
+        if (! config('social_media_video.watermark_enabled', false)) {
+            return null;
+        }
+
         $configured = trim((string) config('social_media_video.watermark_path', ''));
         $candidates = array_filter([
             $configured !== '' ? $configured : null,

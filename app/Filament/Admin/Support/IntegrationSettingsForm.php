@@ -117,6 +117,7 @@ class IntegrationSettingsForm
                         ->maxLength(20),
                     TextInput::make('instagram_queue_interval_minutes')
                         ->label('Khoảng cách đăng hàng đợi thủ công (phút)')
+                        ->helperText('Áp dụng giữa các bài trong cùng lần đăng. Nhiều tài khoản cho cùng một bài đăng lần lượt ngay khi bài trước xong, không chờ thêm khoảng cách này.')
                         ->numeric()
                         ->minValue(1)
                         ->maxValue(1440)
@@ -193,6 +194,7 @@ class IntegrationSettingsForm
                         ->maxLength(20),
                     TextInput::make('facebook_queue_interval_minutes')
                         ->label('Khoảng cách đăng hàng đợi thủ công (phút)')
+                        ->helperText('Áp dụng giữa các bài trong cùng lần đăng. Nhiều tài khoản cho cùng một bài đăng lần lượt ngay khi bài trước xong, không chờ thêm khoảng cách này.')
                         ->numeric()
                         ->minValue(1)
                         ->maxValue(1440)
@@ -259,6 +261,7 @@ class IntegrationSettingsForm
                         ->columnSpanFull(),
                     TextInput::make('pinterest_queue_interval_minutes')
                         ->label('Khoảng cách đăng hàng đợi thủ công (phút)')
+                        ->helperText('Áp dụng giữa các bài trong cùng lần đăng. Nhiều board/tài khoản cho cùng một bài đăng lần lượt ngay khi bài trước xong, không chờ thêm khoảng cách này.')
                         ->numeric()
                         ->minValue(1)
                         ->maxValue(1440)

@@ -196,7 +196,7 @@ class PinterestQueueService
         $baseTime = ($startAt ?? now())->copy();
         $queueIndex = 0;
 
-        foreach ($validRecords as $record) {
+        foreach ($validRecords as $recordIndex => $record) {
             $couponCodes = collect($record['coupon_codes'] ?? [])
                 ->map(fn (mixed $code): string => trim((string) $code))
                 ->filter()
@@ -207,6 +207,7 @@ class PinterestQueueService
             $brandDomain = filled($record['brand_domain'] ?? null) ? trim((string) $record['brand_domain']) : null;
             $contentIdea = filled($record['content_idea'] ?? null) ? trim((string) $record['content_idea']) : null;
             $affLink = filled($record['aff_link'] ?? null) ? trim((string) $record['aff_link']) : null;
+            $scheduledAt = $baseTime->copy()->addMinutes($recordIndex * $interval);
 
             foreach ($targets as $target) {
                 $account = $accounts->get($target['account_id']);
@@ -231,7 +232,7 @@ class PinterestQueueService
                     'caption' => null,
                     'used_default_caption' => false,
                     'status' => PinterestQueueItem::STATUS_PENDING,
-                    'scheduled_at' => $baseTime->copy()->addMinutes($queueIndex * $interval),
+                    'scheduled_at' => $scheduledAt,
                 ]);
 
                 $queueIndex++;
