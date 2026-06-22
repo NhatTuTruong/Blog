@@ -153,7 +153,7 @@ class SocialMediaVideoPrepareService
         try {
             $process->mustRun();
         } catch (\Throwable $e) {
-            $this->lastError = 'Media encoder lỗi: '.trim($process->getErrorOutput() ?: $e->getMessage());
+            $this->lastError = 'Media encoder lỗi: '.$this->summarizeEncoderError(trim($process->getErrorOutput() ?: $e->getMessage()));
             Log::warning('SocialMediaVideoPrepareService media encoder failed', [
                 'command' => implode(' ', $command),
                 'error' => $this->lastError,
@@ -335,8 +335,10 @@ class SocialMediaVideoPrepareService
 
         return array_merge($command, [
             '-c:v', 'libx264',
+            '-pix_fmt', 'yuv420p',
             '-crf', (string) config('social_media_video.crf', 21),
-            '-preset', (string) config('social_media_video.encode_preset', 'medium'),
+            '-preset', (string) config('social_media_video.encode_preset', 'fast'),
+            '-threads', (string) max(1, (int) config('social_media_video.encode_threads', 2)),
             '-c:a', 'aac',
             '-b:a', (string) config('social_media_video.audio_bitrate', '128k'),
             '-movflags', '+faststart',
@@ -367,15 +369,18 @@ class SocialMediaVideoPrepareService
 
         if ($watermarkInput !== null) {
             $watermarkWidth = max(48, (int) round($targetW * ((int) config('social_media_video.watermark_width_percent', 12) / 100)));
+            if ($watermarkWidth % 2 === 1) {
+                $watermarkWidth++;
+            }
             $margin = (int) config('social_media_video.watermark_margin', 32);
-            $parts[] = "[{$watermarkInput}:v]scale={$watermarkWidth}:-1[wm]";
-            $parts[] = "[{$current}][wm]overlay=W-w-{$margin}:{$margin}[vwm]";
+            $parts[] = "[{$watermarkInput}:v]format=rgba,scale={$watermarkWidth}:-2[wm]";
+            $parts[] = "[{$current}][wm]overlay=W-w-{$margin}:{$margin}:format=auto[vwm]";
             $current = 'vwm';
         }
 
         if ($overlayInput !== null) {
-            $parts[] = "[{$overlayInput}:v]scale={$targetW}:-1[btm]";
-            $parts[] = "[{$current}][btm]overlay=0:H-h[vpre]";
+            $parts[] = "[{$overlayInput}:v]format=rgba,scale={$targetW}:-2[btm]";
+            $parts[] = "[{$current}][btm]overlay=0:H-h:format=auto[vpre]";
             $current = 'vpre';
         }
 
@@ -398,8 +403,10 @@ class SocialMediaVideoPrepareService
         $gammaR = max(0.5, min(2.0, (float) config('social_media_video.gamma_r', 1.05)));
         $gammaG = max(0.5, min(2.0, (float) config('social_media_video.gamma_g', 1.01)));
         $gammaB = max(0.5, min(2.0, (float) config('social_media_video.gamma_b', 0.94)));
+        $targetW = (int) config('social_media_video.target_width', 1080);
+        $targetH = (int) config('social_media_video.target_height', 1920);
 
-        return "[{$inputLabel}]eq=contrast={$contrast}:brightness={$brightness}:saturation={$saturation}:gamma_r={$gammaR}:gamma_g={$gammaG}:gamma_b={$gammaB},setpts=PTS/{$speed}[vout]";
+        return "[{$inputLabel}]eq=contrast={$contrast}:brightness={$brightness}:saturation={$saturation}:gamma_r={$gammaR}:gamma_g={$gammaG}:gamma_b={$gammaB},scale={$targetW}:{$targetH},format=yuv420p,setpts=PTS/{$speed}[vout]";
     }
 
     protected function shouldReplaceAudioWithMusic(): bool
@@ -456,7 +463,26 @@ class SocialMediaVideoPrepareService
         $scale = (string) config('social_media_video.crop_scale', '1134:2016');
         $crop = (string) config('social_media_video.crop_box', '1080:1920:27:48');
 
-        return "scale={$scale},crop={$crop}";
+        return "scale={$scale},crop={$crop},format=yuv420p";
+    }
+
+    protected function summarizeEncoderError(string $raw): string
+    {
+        $lines = array_values(array_filter(array_map('trim', preg_split('/\R/', $raw) ?: [])));
+        $important = array_values(array_filter($lines, function (string $line): bool {
+            $lower = strtolower($line);
+
+            return str_contains($lower, 'error')
+                || str_contains($lower, 'invalid')
+                || str_contains($lower, 'failed')
+                || str_contains($lower, 'nothing was written');
+        }));
+
+        if ($important !== []) {
+            return implode(' | ', array_slice($important, -4));
+        }
+
+        return strlen($raw) > 400 ? substr($raw, 0, 400).'...' : $raw;
     }
 
     protected function resolveWatermarkAbsolutePath(): ?string

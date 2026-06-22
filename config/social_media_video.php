@@ -33,7 +33,9 @@ return [
 
     'crf' => (int) env('SOCIAL_VIDEO_CRF', 21),
 
-    'encode_preset' => env('SOCIAL_VIDEO_ENCODE_PRESET', 'medium'),
+    'encode_preset' => env('SOCIAL_VIDEO_ENCODE_PRESET', 'fast'),
+
+    'encode_threads' => 2,
 
     'audio_bitrate' => env('SOCIAL_VIDEO_AUDIO_BITRATE', '128k'),
 
