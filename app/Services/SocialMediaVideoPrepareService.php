@@ -40,7 +40,7 @@ class SocialMediaVideoPrepareService
         }
 
         if (! $this->encoderAvailable()) {
-            $this->lastError = 'Media encoder chưa sẵn sàng. Trên server chạy: php artisan social:media-encoder-install';
+            $this->lastError = 'Media encoder chưa sẵn sàng. Trên máy local chạy: php artisan social:media-encoder-install --for-linux --force rồi upload thư mục bin/ lên hosting.';
 
             throw new \RuntimeException($this->lastError);
         }

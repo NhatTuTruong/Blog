@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Support\BundledMediaBinary;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Symfony\Component\Process\Process;
+use ZipArchive;
 
 class MediaEncoderInstallService
 {
@@ -21,21 +21,15 @@ class MediaEncoderInstallService
         return app(BundledMediaBinary::class)->isEncoderAvailable();
     }
 
-    public function install(bool $force = false): bool
+    public function install(bool $force = false, bool $forLinuxDeploy = false): bool
     {
         $this->lastError = null;
 
-        if (! $force && $this->isRunnable()) {
+        if (! $force && ! $forLinuxDeploy && $this->isRunnable()) {
             return true;
         }
 
-        if (PHP_OS_FAMILY === 'Windows') {
-            $this->lastError = 'Trên Windows dev, dùng ffmpeg có sẵn trong PATH. Lệnh install chỉ dành cho Linux server.';
-
-            return false;
-        }
-
-        $arch = $this->detectDownloadArch();
+        $arch = $forLinuxDeploy ? 'amd64' : $this->detectDownloadArch();
         if ($arch === null) {
             $this->lastError = 'Không nhận diện được kiến trúc CPU: '.php_uname('m');
 
@@ -43,8 +37,7 @@ class MediaEncoderInstallService
         }
 
         $url = $this->downloadUrlForArch($arch);
-        $tmpRoot = storage_path('app/media-encoder-install');
-        $workDir = $tmpRoot.'/'.uniqid('build_', true);
+        $workDir = storage_path('app/media-encoder-install/'.uniqid('build_', true));
 
         if (! is_dir($workDir) && ! mkdir($workDir, 0755, true) && ! is_dir($workDir)) {
             $this->lastError = 'Không tạo được thư mục tạm.';
@@ -52,14 +45,14 @@ class MediaEncoderInstallService
             return false;
         }
 
-        $archivePath = $workDir.'/ffmpeg-static.tar.xz';
+        $archivePath = $workDir.'/ffmpeg-static.zip';
 
         try {
             if (! $this->downloadArchive($url, $archivePath)) {
                 return false;
             }
 
-            if (! $this->extractArchive($archivePath, $workDir)) {
+            if (! $this->extractZipArchive($archivePath, $workDir)) {
                 return false;
             }
 
@@ -74,13 +67,22 @@ class MediaEncoderInstallService
                 return false;
             }
 
+            if ($forLinuxDeploy && PHP_OS_FAMILY === 'Windows') {
+                Log::info('MediaEncoderInstallService prepared Linux ffmpeg for deploy upload', [
+                    'target' => $this->targetBinaryPath(),
+                    'size' => is_file($this->targetBinaryPath()) ? filesize($this->targetBinaryPath()) : null,
+                ]);
+
+                return is_file($this->targetBinaryPath());
+            }
+
             if (! $this->isRunnable()) {
-                $this->lastError = 'Đã cài bin/ffmpeg nhưng không chạy được trên server (Exec format error hoặc host chặn exec).';
+                $this->lastError = 'Đã đặt bin/ffmpeg nhưng không chạy được trên môi trường hiện tại.';
 
                 return false;
             }
 
-            Log::info('MediaEncoderInstallService installed ffmpeg', [
+            Log::info('MediaEncoderInstallService installed media encoder', [
                 'arch' => $arch,
                 'url' => $url,
                 'target' => $this->targetBinaryPath(),
@@ -113,7 +115,11 @@ class MediaEncoderInstallService
             return $configured;
         }
 
-        return "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-{$arch}-static.tar.xz";
+        return match ($arch) {
+            'arm64' => 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linuxarm64-gpl.zip',
+            'i686' => 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux32-gpl.zip',
+            default => 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.zip',
+        };
     }
 
     protected function downloadArchive(string $url, string $archivePath): bool
@@ -124,47 +130,88 @@ class MediaEncoderInstallService
                 ->get($url);
 
             if (! $response->successful() || ! is_file($archivePath) || filesize($archivePath) < 1_000_000) {
-                $this->lastError = 'Không tải được ffmpeg static build.';
+                $this->lastError = 'Không tải được media encoder static build.';
 
                 return false;
             }
 
             return true;
         } catch (\Throwable $e) {
-            $this->lastError = 'Lỗi tải ffmpeg: '.$e->getMessage();
+            $this->lastError = 'Lỗi tải media encoder: '.$e->getMessage();
 
             return false;
         }
     }
 
-    protected function extractArchive(string $archivePath, string $workDir): bool
+    protected function extractZipArchive(string $archivePath, string $workDir): bool
     {
-        $process = new Process(['tar', '-xJf', $archivePath, '-C', $workDir]);
-        $process->setTimeout(600);
-
-        try {
-            $process->mustRun();
-
-            return true;
-        } catch (\Throwable $e) {
-            $this->lastError = 'Không giải nén được ffmpeg (cần lệnh tar trên server): '.trim($process->getErrorOutput() ?: $e->getMessage());
+        if (! class_exists(ZipArchive::class)) {
+            $this->lastError = 'PHP thiếu ext-zip — bật extension zip trên local.';
 
             return false;
         }
+
+        $zip = new ZipArchive();
+        $opened = $zip->open($archivePath);
+
+        if ($opened !== true) {
+            $this->lastError = 'Không mở được file zip media encoder.';
+
+            return false;
+        }
+
+        if (! $zip->extractTo($workDir)) {
+            $zip->close();
+            $this->lastError = 'Không giải nén được file zip media encoder.';
+
+            return false;
+        }
+
+        $zip->close();
+
+        return true;
     }
 
     protected function findExtractedBinary(string $workDir): ?string
     {
         $patterns = [
-            $workDir.'/ffmpeg-*-static/ffmpeg',
+            $workDir.'/*/bin/ffmpeg',
+            $workDir.'/*/*/bin/ffmpeg',
             $workDir.'/*/ffmpeg',
+            $workDir.'/**/ffmpeg',
         ];
 
         foreach ($patterns as $pattern) {
-            foreach (glob($pattern) ?: [] as $path) {
+            foreach (glob($pattern, GLOB_BRACE) ?: [] as $path) {
                 if (is_file($path) && filesize($path) > 1_000_000) {
                     return $path;
                 }
+            }
+        }
+
+        return $this->findExtractedBinaryRecursive($workDir);
+    }
+
+    protected function findExtractedBinaryRecursive(string $directory): ?string
+    {
+        foreach (scandir($directory) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+
+            $path = $directory.DIRECTORY_SEPARATOR.$entry;
+
+            if (is_dir($path)) {
+                $nested = $this->findExtractedBinaryRecursive($path);
+                if ($nested !== null) {
+                    return $nested;
+                }
+
+                continue;
+            }
+
+            if (basename($path) === 'ffmpeg' && filesize($path) > 1_000_000) {
+                return $path;
             }
         }
 
@@ -187,7 +234,7 @@ class MediaEncoderInstallService
         }
 
         if (! copy($sourceBinary, $target)) {
-            $this->lastError = 'Không copy được ffmpeg vào bin/.';
+            $this->lastError = 'Không copy được media encoder vào bin/.';
 
             return false;
         }

@@ -8,40 +8,56 @@ use Illuminate\Console\Command;
 
 class InstallSocialMediaEncoderCommand extends Command
 {
-    protected $signature = 'social:media-encoder-install {--force : Tải lại ffmpeg kể cả khi đã có} {--if-missing : Chỉ cài khi encoder chưa chạy được}';
+    protected $signature = 'social:media-encoder-install
+                            {--force : Ghi đè bin/ffmpeg hiện tại}
+                            {--for-linux : Chuẩn bị binary Linux amd64 trên máy local để upload lên hosting}';
 
-    protected $description = 'Tải ffmpeg static build đúng kiến trúc CPU của server vào bin/ffmpeg';
+    protected $description = 'Chuẩn bị media encoder trong bin/ffmpeg (chạy trên local, upload lên hosting — không cần cài trên server)';
 
     public function handle(MediaEncoderInstallService $installer, BundledMediaBinary $binaries): int
     {
-        $machine = php_uname('m');
-        $arch = $installer->detectDownloadArch();
+        $forLinux = (bool) $this->option('for-linux');
 
-        $this->line('Machine: '.$machine);
-        $this->line('Download arch: '.($arch ?? 'unknown'));
+        $this->line('Local machine: '.php_uname('m').' ('.PHP_OS_FAMILY.')');
+        $this->line('Target file: '.$installer->targetBinaryPath());
 
-        if ($arch === null) {
-            $this->error('Không nhận diện được kiến trúc CPU: '.$machine);
+        if ($forLinux) {
+            $this->line('Mode: prepare Linux amd64 binary for hosting upload');
+            $this->line('URL: '.$installer->downloadUrlForArch('amd64'));
+        } else {
+            $arch = $installer->detectDownloadArch();
+            if ($arch === null) {
+                $this->error('Không nhận diện được kiến trúc CPU. Dùng --for-linux trên Windows.');
+
+                return self::FAILURE;
+            }
+
+            $this->line('Mode: install for current machine ('.$arch.')');
+            $this->line('URL: '.$installer->downloadUrlForArch($arch));
+        }
+
+        $this->warn('Đang tải media encoder (~50MB)...');
+
+        if (! $installer->install((bool) $this->option('force'), $forLinux)) {
+            $this->error($installer->lastError ?? 'Không chuẩn bị được media encoder.');
 
             return self::FAILURE;
         }
 
-        if ($this->option('if-missing') && $binaries->isEncoderAvailable()) {
-            $this->info('Media encoder đã sẵn sàng: '.$binaries->mediaEncoderPath());
+        $size = is_file($installer->targetBinaryPath()) ? filesize($installer->targetBinaryPath()) : 0;
+        $this->info('Đã tạo: '.$installer->targetBinaryPath().' ('.number_format($size).' bytes)');
+
+        if ($forLinux && PHP_OS_FAMILY === 'Windows') {
+            $this->newLine();
+            $this->line('Upload lên hosting cùng project: thư mục bin/ffmpeg');
+            $this->line('Trên hosting KHÔNG cần chạy composer install script hay tải thêm gì.');
 
             return self::SUCCESS;
         }
 
-        $this->line('URL: '.$installer->downloadUrlForArch((string) $arch));
-        $this->warn('Đang tải ffmpeg static build (~40MB), vui lòng đợi...');
-
-        if (! $installer->install((bool) $this->option('force'))) {
-            $this->error($installer->lastError ?? 'Không cài được media encoder.');
-
-            return self::FAILURE;
+        if ($binaries->isEncoderAvailable()) {
+            $this->info('Media encoder OK: '.$binaries->mediaEncoderPath());
         }
-
-        $this->info('Media encoder: '.$binaries->mediaEncoderPath());
 
         return self::SUCCESS;
     }

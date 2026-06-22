@@ -1,6 +1,10 @@
 /node_modules
 /vendor
 
+!/bin/
+!/bin/ffmpeg
+!/bin/README.txt
+
 .env
 .env.*
 

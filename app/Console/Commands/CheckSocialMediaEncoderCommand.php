@@ -9,7 +9,7 @@ class CheckSocialMediaEncoderCommand extends Command
 {
     protected $signature = 'social:media-encoder-check';
 
-    protected $description = 'Kiểm tra media encoder (ffmpeg) đi kèm Composer có sẵn sàng trên server';
+    protected $description = 'Kiểm tra media encoder (bin/ffmpeg) trên server';
 
     public function handle(BundledMediaBinary $binaries): int
     {
@@ -40,8 +40,8 @@ class CheckSocialMediaEncoderCommand extends Command
 
         if ($selected === null) {
             $this->error('Media encoder: NOT READY');
-            $this->line('Chạy: php artisan social:media-encoder-install');
-            $this->line('Sau đó: php artisan social:media-encoder-check');
+            $this->line('Chạy trên máy local (Windows): php artisan social:media-encoder-install --for-linux --force');
+            $this->line('Sau đó upload bin/ffmpeg lên hosting.');
 
             return self::FAILURE;
         }

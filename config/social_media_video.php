@@ -6,11 +6,11 @@ return [
     /** Để trống = tự tìm encoder đi kèm Composer (bin/ hoặc vendor/). Không cần cài trên server. */
     'media_encoder_binary' => env('SOCIAL_VIDEO_ENCODER_BINARY') ?: env('FFMPEG_BINARY'),
 
-    /** URL tùy chọn theo kiến trúc CPU nếu cần override */
+    /** URL zip theo kiến trúc — mặc định BtbN Linux GPL builds */
     'media_encoder_download_urls' => [
-        'amd64' => null,
-        'arm64' => null,
-        'i686' => null,
+        'amd64' => 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.zip',
+        'arm64' => 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linuxarm64-gpl.zip',
+        'i686' => 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux32-gpl.zip',
     ],
 
     /** @deprecated Dùng media_encoder_binary */
