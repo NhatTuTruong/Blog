@@ -40,7 +40,7 @@ class SocialMediaVideoPrepareService
         }
 
         if (! $this->encoderAvailable()) {
-            $this->lastError = 'Media encoder chưa sẵn sàng. Chạy composer install (mathiasgrimm/laravel-cloud-binaries) hoặc đặt binary vào thư mục bin/.';
+            $this->lastError = 'Media encoder chưa sẵn sàng. Chạy trên server: composer install --no-dev && php scripts/sync-media-binaries.php && php artisan social:media-encoder-check';
 
             throw new \RuntimeException($this->lastError);
         }

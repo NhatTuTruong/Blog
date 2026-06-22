@@ -17,11 +17,15 @@ foreach (['ffmpeg', 'ffprobe'] as $name) {
     $to = $targetDir.'/'.$name;
 
     if (! is_file($from)) {
+        fwrite(STDERR, "Missing bundled binary: {$from}\n");
         continue;
     }
 
     if (! is_file($to) || filesize($to) !== filesize($from)) {
-        copy($from, $to);
+        if (! copy($from, $to)) {
+            fwrite(STDERR, "Failed to copy {$from} -> {$to}\n");
+            continue;
+        }
     }
 
     @chmod($to, 0755);
