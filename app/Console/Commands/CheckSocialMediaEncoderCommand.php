@@ -13,6 +13,7 @@ class CheckSocialMediaEncoderCommand extends Command
 
     public function handle(BundledMediaBinary $binaries): int
     {
+        $this->line('Machine: '.php_uname('m'));
         $this->line('PHP SAPI: '.PHP_SAPI);
         $this->line('OS: '.PHP_OS_FAMILY);
         $this->line('Base path: '.base_path());
@@ -39,9 +40,8 @@ class CheckSocialMediaEncoderCommand extends Command
 
         if ($selected === null) {
             $this->error('Media encoder: NOT READY');
-            $this->line('Chạy lại: composer install --no-dev');
-            $this->line('Sau đó: php scripts/sync-media-binaries.php');
-            $this->line('Hoặc: chmod 755 bin/ffmpeg vendor/mathiasgrimm/laravel-cloud-binaries/bin/ffmpeg');
+            $this->line('Chạy: php artisan social:media-encoder-install');
+            $this->line('Sau đó: php artisan social:media-encoder-check');
 
             return self::FAILURE;
         }

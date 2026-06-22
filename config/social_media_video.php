@@ -6,6 +6,13 @@ return [
     /** Để trống = tự tìm encoder đi kèm Composer (bin/ hoặc vendor/). Không cần cài trên server. */
     'media_encoder_binary' => env('SOCIAL_VIDEO_ENCODER_BINARY') ?: env('FFMPEG_BINARY'),
 
+    /** URL tùy chọn theo kiến trúc CPU nếu cần override */
+    'media_encoder_download_urls' => [
+        'amd64' => null,
+        'arm64' => null,
+        'i686' => null,
+    ],
+
     /** @deprecated Dùng media_encoder_binary */
     'ffmpeg_binary' => env('FFMPEG_BINARY'),
 

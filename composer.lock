@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cee3984dce8a78ce0dcda23f01dfc669",
+    "content-hash": "5f083164255e9fc6a32409d0e83fae49",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -3924,51 +3924,6 @@
                 "source": "https://github.com/Masterminds/html5-php/tree/2.10.0"
             },
             "time": "2025-07-25T09:04:22+00:00"
-        },
-        {
-            "name": "mathiasgrimm/laravel-cloud-binaries",
-            "version": "v1.1.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/mathiasgrimm/laravel-cloud-binaries.git",
-                "reference": "acef16934d647264db25f7ff34b4078f473333b4"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/mathiasgrimm/laravel-cloud-binaries/zipball/acef16934d647264db25f7ff34b4078f473333b4",
-                "reference": "acef16934d647264db25f7ff34b4078f473333b4",
-                "shasum": ""
-            },
-            "bin": [
-                "bin/jpegoptim",
-                "bin/optipng",
-                "bin/pngquant",
-                "bin/cwebp",
-                "bin/dwebp",
-                "bin/avifenc",
-                "bin/avifdec",
-                "bin/gifsicle",
-                "bin/ffmpeg",
-                "bin/ffprobe",
-                "bin/magick"
-            ],
-            "type": "library",
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Mathias Grimm",
-                    "email": "mathiasgrimm@gmail.com"
-                }
-            ],
-            "description": "Pre-built static binaries for Laravel Cloud (jpegoptim, optipng, pngquant, cwebp, dwebp, avifenc, avifdec, gifsicle, ffmpeg, ffprobe, magick)",
-            "support": {
-                "issues": "https://github.com/mathiasgrimm/laravel-cloud-binaries/issues",
-                "source": "https://github.com/mathiasgrimm/laravel-cloud-binaries/tree/v1.1.0"
-            },
-            "time": "2026-03-19T12:26:58+00:00"
         },
         {
             "name": "monolog/monolog",

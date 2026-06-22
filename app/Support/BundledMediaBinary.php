@@ -47,12 +47,7 @@ class BundledMediaBinary
     {
         $candidates = [
             base_path('bin/ffmpeg'),
-            base_path('vendor/mathiasgrimm/laravel-cloud-binaries/bin/ffmpeg'),
         ];
-
-        if (PHP_OS_FAMILY !== 'Windows') {
-            $candidates[] = base_path('vendor/bin/ffmpeg');
-        }
 
         if (PHP_OS_FAMILY === 'Windows') {
             $candidates[] = 'ffmpeg';
