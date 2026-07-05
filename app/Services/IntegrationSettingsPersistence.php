@@ -7,6 +7,7 @@ use App\Models\InstagramAccount;
 use App\Models\PinterestAccount;
 use App\Support\ApifySettings;
 use App\Support\GeminiKeyScope;
+use App\Support\GeminiSettings;
 use App\Support\IntegrationSettingsStore;
 use App\Support\MailSettings;
 use App\Support\PinterestUi;
@@ -28,7 +29,7 @@ class IntegrationSettingsPersistence
             'gemini_api_key_auto_blog' => $this->maskedGeminiKey($store, GeminiKeyScope::AUTO_BLOG),
             'gemini_api_key_instagram' => $this->maskedGeminiKey($store, GeminiKeyScope::INSTAGRAM),
             'gemini_api_key_facebook' => $this->maskedGeminiKey($store, GeminiKeyScope::FACEBOOK),
-            'gemini_model' => (string) $store->get('gemini_model', config('gemini.model', 'gemini-2.5-flash-lite')),
+            'gemini_model' => GeminiSettings::normalizeStoredModel($store->get('gemini_model')),
             'gemini_timeout' => max(60, (int) $store->get('gemini_timeout', config('gemini.timeout', 120))),
             'apify_api_token' => $this->maskedApifyTokens($store),
             'mail_host' => (string) $store->get('mail_host', env('MAIL_HOST', 'smtp.gmail.com')),
@@ -129,7 +130,7 @@ class IntegrationSettingsPersistence
             $this->saveGeminiApiKey(GeminiKeyScope::settingKey(GeminiKeyScope::PINTEREST), $data);
         }
 
-        $store->set('gemini_model', trim((string) ($data['gemini_model'] ?? config('gemini.model', 'gemini-2.5-flash-lite'))));
+        $store->set('gemini_model', GeminiSettings::normalizeStoredModel($data['gemini_model'] ?? null));
         $store->set('gemini_timeout', max(60, min(600, (int) ($data['gemini_timeout'] ?? config('gemini.timeout', 120)))));
         $this->saveApifyApiToken($data);
 

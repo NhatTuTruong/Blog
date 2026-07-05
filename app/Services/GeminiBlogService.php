@@ -20,8 +20,6 @@ class GeminiBlogService
     public function generateBlog(string $category, string $variant): ?array
     {
         $ownerUserId = IntegrationSettingsStore::fallbackAdminUserId();
-        $store = IntegrationSettingsStore::for($ownerUserId);
-        $model = (string) $store->get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest'));
         $timeout = $this->resolveTimeoutSeconds($ownerUserId);
 
         $topicPrompt = match ($variant) {
@@ -45,7 +43,7 @@ Article type: {$variant}
 {$topicPrompt}
 PROMPT;
 
-        return $this->callGeminiWithFallback($model, $prompt, $timeout, [
+        return $this->callGeminiWithFallback($prompt, $timeout, [
             'maxOutputTokens' => 8192,
         ], $ownerUserId, GeminiKeyScope::AUTO_BLOG);
     }
@@ -82,8 +80,6 @@ PROMPT;
         }
 
         $ownerUserId ??= IntegrationSettingsStore::fallbackAdminUserId();
-        $store = IntegrationSettingsStore::for($ownerUserId);
-        $model = (string) $store->get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest'));
         $timeout = max(90, $this->resolveTimeoutSeconds($ownerUserId));
 
         $brandLabel = self::guessBrandNameFromDomain($host);
@@ -151,7 +147,7 @@ Write ONE long-form **affiliate review / buyer's guide** about this brand. Langu
 Do not claim you partnered with the brand unless factual. Do not use "we/us/our" or Vietnamese "Chúng tôi" / store-owner voice anywhere.
 PROMPT;
 
-        $result = $this->callGeminiWithFallback($model, $prompt, $timeout, [
+        $result = $this->callGeminiWithFallback($prompt, $timeout, [
             'maxOutputTokens' => 8192,
             'temperature' => 0.85,
         ], $ownerUserId, GeminiKeyScope::AUTO_BLOG);
@@ -296,11 +292,9 @@ PROMPT;
         ?int $ownerUserId = null,
         string $scope = GeminiKeyScope::INSTAGRAM,
     ): ?string {
-        $store = IntegrationSettingsStore::for($ownerUserId);
-        $model = (string) $store->get('gemini_model', config('gemini.model', 'gemini-1.5-flash-latest'));
         $timeout = max(60, $this->resolveTimeoutSeconds($ownerUserId));
 
-        $result = $this->callGeminiWithFallback($model, $prompt, $timeout, $generationConfigOverrides, $ownerUserId, $scope);
+        $result = $this->callGeminiWithFallback($prompt, $timeout, $generationConfigOverrides, $ownerUserId, $scope);
 
         if (! $result) {
             return null;
@@ -315,7 +309,6 @@ PROMPT;
      * @param  array<string, mixed>  $generationConfigOverrides
      */
     protected function callGeminiWithFallback(
-        string $model,
         string $prompt,
         int $timeout,
         array $generationConfigOverrides = [],
@@ -323,6 +316,7 @@ PROMPT;
         string $scope = GeminiKeyScope::AUTO_BLOG,
     ): ?array {
         $apiKeys = GeminiSettings::getApiKeys($scope, $ownerUserId);
+        $primaryModel = GeminiSettings::primaryModel($ownerUserId);
 
         if ($apiKeys === []) {
             $this->lastError = 'Gemini API key cho '.GeminiKeyScope::label($scope).' chưa được cấu hình.';
@@ -332,7 +326,7 @@ PROMPT;
 
         $errors = [];
 
-        foreach ($this->modelsToTry($model) as $currentModel) {
+        foreach (GeminiSettings::modelsToTry($ownerUserId) as $currentModel) {
             foreach ($apiKeys as $apiKey) {
                 $attempt = $this->attemptGeminiCallWithRetries(
                     $apiKey,
@@ -345,15 +339,21 @@ PROMPT;
                 if ($attempt['success']) {
                     $this->lastError = null;
 
-                    if ($currentModel !== $model) {
+                    if ($currentModel !== $primaryModel) {
                         Log::info('GeminiBlogService: đã chuyển sang model dự phòng', [
-                            'from' => $model,
+                            'from' => $primaryModel,
                             'to' => $currentModel,
                             'scope' => $scope,
                         ]);
                     }
 
                     return $attempt['result'];
+                }
+
+                if (! $this->shouldFallbackToNextModel($attempt['error'], $attempt['retryable'])) {
+                    $this->lastError = $attempt['error'];
+
+                    return null;
                 }
 
                 $errors[] = "{$currentModel} / ".GeminiKeyScope::label($scope).': '.$attempt['error'];
@@ -366,28 +366,26 @@ PROMPT;
         return null;
     }
 
-    /**
-     * @return array<int, string>
-     */
-    protected function modelsToTry(string $primary): array
+    protected function shouldFallbackToNextModel(string $error, bool $retryable): bool
     {
-        $fallbacks = [
-            'gemini-flash-latest' => ['gemini-2.5-flash-lite', 'gemini-2.5-flash'],
-            'gemini-2.5-flash' => ['gemini-2.5-flash-lite', 'gemini-flash-latest'],
-            'gemini-2.5-flash-lite' => ['gemini-2.5-flash', 'gemini-flash-latest'],
-            'gemini-1.5-flash-latest' => ['gemini-2.5-flash-lite', 'gemini-2.5-flash'],
-            'gemini-2.0-flash' => ['gemini-2.5-flash-lite', 'gemini-2.5-flash'],
-        ];
+        if ($retryable) {
+            return true;
+        }
 
-        $models = [$primary];
+        $error = strtolower($error);
 
-        foreach ($fallbacks[$primary] ?? ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-flash-latest'] as $fallback) {
-            if (! in_array($fallback, $models, true)) {
-                $models[] = $fallback;
+        foreach ([
+            'api key not valid',
+            'invalid api key',
+            'permission denied',
+            'unauthenticated',
+        ] as $pattern) {
+            if (str_contains($error, $pattern)) {
+                return false;
             }
         }
 
-        return $models;
+        return true;
     }
 
     /**

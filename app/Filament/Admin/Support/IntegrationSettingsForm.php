@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Support;
 
+use App\Support\GeminiSettings;
 use App\Support\PinterestUi;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -44,11 +45,13 @@ class IntegrationSettingsForm
                 ->maxLength(255);
         }
 
-        $geminiKeyFields[] = TextInput::make('gemini_model')
-            ->label('Gemini model')
+        $geminiKeyFields[] = Select::make('gemini_model')
+            ->label('Gemini model (ưu tiên)')
+            ->options(GeminiSettings::modelSelectOptions())
+            ->searchable()
             ->required()
-            ->helperText('Khuyến nghị: gemini-2.5-flash-lite. Tránh gemini-flash-latest khi bị 503.')
-            ->maxLength(120);
+            ->default(GeminiSettings::defaultModel())
+            ->helperText('Model được chọn dùng trước. Nếu lỗi sẽ thử lần lượt các model còn lại trong danh sách.');
         $geminiKeyFields[] = TextInput::make('gemini_timeout')
             ->label('Timeout (giây)')
             ->numeric()
