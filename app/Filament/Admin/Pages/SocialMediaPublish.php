@@ -1964,7 +1964,6 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
             ->options(SocialMediaMediaType::options())
             ->default(SocialMediaMediaType::IMAGE)
             ->native(false)
-            ->helperText('Khi không upload: ảnh → Google Images, video → TikTok (Apify). Hashtag = tên brand, vd. mayvenn.com → #mayvenn.')
             ->columnSpan(['default' => 6, 'md' => 2]);
     }
 

@@ -63,6 +63,9 @@ return [
     /** Nền + tiêu đề phía dưới video */
     'bottom_title_overlay_enabled' => (bool) env('SOCIAL_VIDEO_BOTTOM_TITLE_ENABLED', true),
 
+    /** Nếu drawtext lỗi, tự encode lại không tiêu đề thay vì fail hẳn */
+    'bottom_title_fallback_without_overlay' => (bool) env('SOCIAL_VIDEO_BOTTOM_TITLE_FALLBACK', true),
+
     /** Chiều cao vùng tiêu đề ≈ % chiều cao output (1080×1920) */
     'bottom_overlay_height_percent' => (int) env('SOCIAL_VIDEO_BOTTOM_OVERLAY_HEIGHT_PERCENT', 18),
 

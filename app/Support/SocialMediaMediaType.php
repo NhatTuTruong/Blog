@@ -10,7 +10,43 @@ class SocialMediaMediaType
 
     public static function normalize(?string $value): string
     {
-        return strtolower(trim((string) $value)) === self::VIDEO ? self::VIDEO : self::IMAGE;
+        return self::normalizeFromApi((string) $value);
+    }
+
+    public static function normalizeFromApi(string $value): string
+    {
+        $raw = strtolower(trim($value));
+
+        if (in_array($raw, [self::VIDEO, 'vid', 'mp4', 'tiktok'], true)) {
+            return self::VIDEO;
+        }
+
+        return self::IMAGE;
+    }
+
+    public static function isValidApiType(mixed $value): bool
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return true;
+        }
+
+        $raw = strtolower(trim((string) $value));
+
+        return in_array($raw, [
+            self::VIDEO,
+            self::IMAGE,
+            'vid',
+            'mp4',
+            'tiktok',
+            'img',
+            'photo',
+            'picture',
+        ], true);
+    }
+
+    public static function invalidApiTypeMessage(): string
+    {
+        return 'Trường type phải là "video" hoặc "image".';
     }
 
     /**

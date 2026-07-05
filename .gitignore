@@ -8,6 +8,8 @@
 .env
 .env.*
 
+/bin/*
+
 /public/storage/*
 /storage/*
 !/storage/app/public

@@ -9,6 +9,12 @@ return [
     | Web coupon gọi POST /api/coupons/sync với header:
     |   Authorization: Bearer {COUPON_SYNC_API_TOKEN}
     |
+    | Body (mảng items hoặc một bản ghi đơn):
+    |   platforms[] — "blog", "instagram", "facebook" (mặc định: theo cấu hình .env)
+    |   items[].domain, items[].aff_link (có thể ""), items[].coupon_codes[] (có thể [])
+    |   items[].type — "video" hoặc "image" (mặc định: image)
+    |   IG/FB luôn dùng tài khoản đầu tiên (sort_order) đã bật và cấu hình hợp lệ.
+    |
     */
     'enabled' => (bool) env('COUPON_SYNC_ENABLED', true),
 

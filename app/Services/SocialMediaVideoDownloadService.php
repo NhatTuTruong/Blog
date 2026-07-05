@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Support\ApifySettings;
-use App\Support\ApifyTikTokSharedVideo;
+use App\Support\ApifyTokenRotator;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -35,6 +35,10 @@ class SocialMediaVideoDownloadService
         $timeout = $this->downloadTimeoutSeconds($videoUrl);
         $retries = max(1, (int) config('apify.video_download_retries', 3));
 
+        if ($this->isApifyKeyValueStoreUrl($videoUrl)) {
+            return $this->downloadApifyKeyValueStore($videoUrl, $destAbsolute, $timeout, $retries, $userId);
+        }
+
         for ($attempt = 1; $attempt <= $retries; $attempt++) {
             if ($this->attemptDownload($videoUrl, $destAbsolute, $timeout)) {
                 return true;
@@ -48,7 +52,55 @@ class SocialMediaVideoDownloadService
         return false;
     }
 
-    protected function attemptDownload(string $videoUrl, string $destAbsolute, int $timeout): bool
+    protected function downloadApifyKeyValueStore(
+        string $videoUrl,
+        string $destAbsolute,
+        int $timeout,
+        int $retries,
+        ?int $userId,
+    ): bool {
+        $baseUrl = preg_replace('/([?&])token=[^&]*/', '', $videoUrl) ?? $videoUrl;
+        $baseUrl = rtrim($baseUrl, '?&');
+
+        $tokenError = null;
+        $downloaded = ApifyTokenRotator::attempt(
+            $userId,
+            function (string $token) use ($baseUrl, $destAbsolute, $timeout, $retries): array {
+                $url = $baseUrl.(str_contains($baseUrl, '?') ? '&' : '?').'token='.rawurlencode($token);
+
+                for ($attempt = 1; $attempt <= $retries; $attempt++) {
+                    [$success, $httpStatus] = $this->attemptDownloadWithStatus($url, $destAbsolute, $timeout);
+
+                    if ($success) {
+                        return ApifyTokenRotator::result(true);
+                    }
+
+                    if ($httpStatus !== null && ApifySettings::shouldRotateToken($httpStatus, (string) $this->lastError)) {
+                        return ApifyTokenRotator::result(false, true, $this->lastError);
+                    }
+
+                    if ($attempt < $retries) {
+                        sleep(min(5, $attempt * 2));
+                    }
+                }
+
+                return ApifyTokenRotator::result(false);
+            },
+            $tokenError,
+            'ApifyVideoDownload',
+        );
+
+        if ($downloaded !== true && $tokenError !== null) {
+            $this->lastError = $tokenError;
+        }
+
+        return $downloaded === true;
+    }
+
+    /**
+     * @return array{0: bool, 1: ?int}
+     */
+    protected function attemptDownloadWithStatus(string $videoUrl, string $destAbsolute, int $timeout): array
     {
         $tempPath = $destAbsolute.'.part';
         $headers = $this->downloadHeaders($videoUrl);
@@ -57,6 +109,8 @@ class SocialMediaVideoDownloadService
             @unlink($tempPath);
         }
 
+        $httpStatus = null;
+
         try {
             $response = Http::timeout($timeout)
                 ->connectTimeout(min(30, $timeout))
@@ -64,23 +118,25 @@ class SocialMediaVideoDownloadService
                 ->withOptions(['sink' => $tempPath])
                 ->get($videoUrl);
 
-            if (! $response->successful()) {
-                $this->lastError = 'Tải video HTTP '.$response->status().'.';
+            $httpStatus = $response->status();
 
-                return false;
+            if (! $response->successful()) {
+                $this->lastError = 'Tải video HTTP '.$httpStatus.'.';
+
+                return [false, $httpStatus];
             }
 
             if (! is_file($tempPath)) {
                 $this->lastError = 'Không ghi được file video tạm.';
 
-                return false;
+                return [false, $httpStatus];
             }
 
             $size = filesize($tempPath);
             if ($size === false || $size < 10_000) {
                 $this->lastError = 'File video tải về quá nhỏ hoặc không hợp lệ.';
 
-                return false;
+                return [false, $httpStatus];
             }
 
             if (is_file($destAbsolute)) {
@@ -91,13 +147,13 @@ class SocialMediaVideoDownloadService
                 if (! @copy($tempPath, $destAbsolute)) {
                     $this->lastError = 'Không lưu được file video.';
 
-                    return false;
+                    return [false, $httpStatus];
                 }
 
                 @unlink($tempPath);
             }
 
-            return true;
+            return [true, $httpStatus];
         } catch (\Throwable $e) {
             $this->lastError = 'Lỗi tải video: '.$e->getMessage();
             Log::warning('SocialMediaVideoDownloadService failed', [
@@ -105,12 +161,24 @@ class SocialMediaVideoDownloadService
                 'error' => $e->getMessage(),
             ]);
 
-            return false;
+            return [false, $httpStatus];
         } finally {
             if (is_file($tempPath)) {
                 @unlink($tempPath);
             }
         }
+    }
+
+    protected function isApifyKeyValueStoreUrl(string $videoUrl): bool
+    {
+        return str_contains(strtolower($videoUrl), 'api.apify.com/v2/key-value-stores');
+    }
+
+    protected function attemptDownload(string $videoUrl, string $destAbsolute, int $timeout): bool
+    {
+        [$success] = $this->attemptDownloadWithStatus($videoUrl, $destAbsolute, $timeout);
+
+        return $success;
     }
 
     protected function downloadTimeoutSeconds(string $videoUrl): int

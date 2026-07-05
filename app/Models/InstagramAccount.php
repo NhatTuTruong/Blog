@@ -126,6 +126,16 @@ class InstagramAccount extends Model
             ->all();
     }
 
+    /**
+     * @return array<int, int>
+     */
+    public static function firstEnabledConfiguredId(?int $ownerUserId = null): ?int
+    {
+        $ids = static::enabledConfiguredIds($ownerUserId);
+
+        return $ids[0] ?? null;
+    }
+
     protected static function resolveOwnerUserId(?int $ownerUserId): int
     {
         if ($ownerUserId !== null) {

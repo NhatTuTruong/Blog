@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\FacebookAccount;
 use App\Models\InstagramAccount;
 use App\Models\PinterestAccount;
+use App\Support\ApifySettings;
 use App\Support\GeminiKeyScope;
 use App\Support\IntegrationSettingsStore;
 use App\Support\MailSettings;
@@ -29,7 +30,7 @@ class IntegrationSettingsPersistence
             'gemini_api_key_facebook' => $this->maskedGeminiKey($store, GeminiKeyScope::FACEBOOK),
             'gemini_model' => (string) $store->get('gemini_model', config('gemini.model', 'gemini-2.5-flash-lite')),
             'gemini_timeout' => max(60, (int) $store->get('gemini_timeout', config('gemini.timeout', 120))),
-            'apify_api_token' => $store->getEncrypted('apify_api_token') ? '********' : '',
+            'apify_api_token' => $this->maskedApifyTokens($store),
             'mail_host' => (string) $store->get('mail_host', env('MAIL_HOST', 'smtp.gmail.com')),
             'mail_port' => (int) $store->get('mail_port', env('MAIL_PORT', 587)),
             'mail_encryption' => (string) $store->get('mail_encryption', env('MAIL_ENCRYPTION', 'tls')),
@@ -210,13 +211,47 @@ class IntegrationSettingsPersistence
 
     protected function saveApifyApiToken(array $data): void
     {
-        $value = trim((string) ($data['apify_api_token'] ?? ''));
+        $value = (string) ($data['apify_api_token'] ?? '');
 
-        if ($value === '********') {
+        if (ApifySettings::inputUnchanged($value)) {
             return;
         }
 
-        $this->store->setEncrypted('apify_api_token', $value !== '' ? $value : null);
+        $lines = preg_split('/\R/', $value) ?: [];
+        $storedTokens = ApifySettings::parseTokenList($this->store->getEncrypted('apify_api_token'));
+        $resolved = [];
+
+        foreach ($lines as $index => $line) {
+            $line = trim((string) $line);
+
+            if ($line === '' || $line === '********') {
+                if (isset($storedTokens[$index])) {
+                    $resolved[] = $storedTokens[$index];
+                }
+
+                continue;
+            }
+
+            $resolved[] = $line;
+        }
+
+        $normalized = $resolved !== []
+            ? implode("\n", array_values(array_unique($resolved)))
+            : ApifySettings::normalizeStoredTokens($value);
+
+        $this->store->setEncrypted('apify_api_token', $normalized);
+    }
+
+    protected function maskedApifyTokens(IntegrationSettingsStore $store): string
+    {
+        $raw = $store->getEncrypted('apify_api_token');
+        $tokens = ApifySettings::parseTokenList(is_string($raw) ? $raw : null);
+
+        if ($tokens === []) {
+            return '';
+        }
+
+        return implode("\n", array_fill(0, count($tokens), '********'));
     }
 
     protected function saveMailPassword(array $data): void

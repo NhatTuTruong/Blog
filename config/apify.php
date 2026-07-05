@@ -3,7 +3,14 @@
 return [
     'api_token' => env('APIFY_API_TOKEN'),
 
-    'google_images_actor_id' => env('APIFY_GOOGLE_IMAGES_ACTOR_ID', 'tnudF2IxzORPhg4r8'),
+    'google_images_actor_id' => env('APIFY_GOOGLE_IMAGES_ACTOR_ID', '1zP0mfnAf2xvIwvJu'),
+
+    'google_images' => [
+        'image_size' => env('APIFY_GOOGLE_IMAGES_SIZE', 'large'),
+        'image_type' => env('APIFY_GOOGLE_IMAGES_TYPE', 'photo'),
+        'language' => env('APIFY_GOOGLE_IMAGES_LANGUAGE', 'en'),
+        'country' => env('APIFY_GOOGLE_IMAGES_COUNTRY', 'us'),
+    ],
 
     'tiktok_actor_id' => env('APIFY_TIKTOK_ACTOR_ID', 'GdWCkxBtKWOsKjdch'),
 

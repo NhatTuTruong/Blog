@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\ApifySettings;
+use App\Support\ApifyTokenRotator;
 use App\Support\ApifyTikTokSharedVideo;
 use App\Support\BrandDomain;
 use App\Support\PublicStorage;
@@ -74,15 +75,19 @@ class ApifyTikTokService
     {
         $this->lastError = null;
 
-        $token = ApifySettings::apiToken($userId);
-        if ($token === null) {
-            $this->lastError = 'Chưa cấu hình Apify API token.';
+        $tokenError = null;
+        $items = ApifyTokenRotator::attempt(
+            $userId,
+            fn (string $token): array => $this->fetchVideoResultsForToken($token, $hashtag, $userId),
+            $tokenError,
+            'ApifyTikTok',
+        );
 
-            return false;
-        }
+        if (! is_array($items) || $items === []) {
+            if ($tokenError !== null && $this->lastError === null) {
+                $this->lastError = $tokenError;
+            }
 
-        $items = $this->fetchVideoResults($token, $hashtag, $userId);
-        if ($items === []) {
             return false;
         }
 
@@ -267,6 +272,36 @@ class ApifyTikTokService
     }
 
     /**
+     * @return array{value: mixed, token_failed: bool, error?: string}
+     */
+    protected function fetchVideoResultsForToken(string $token, string $hashtag, int $userId): array
+    {
+        $items = $this->fetchVideoResults($token, $hashtag, $userId);
+
+        if ($items !== []) {
+            return ApifyTokenRotator::result($items);
+        }
+
+        $error = $this->lastError ?? 'Apify TikTok không trả về video.';
+        $httpStatus = $this->extractHttpStatusFromError($error);
+
+        if (ApifySettings::shouldRotateToken($httpStatus, $error)) {
+            return ApifyTokenRotator::result([], true, $error);
+        }
+
+        return ApifyTokenRotator::result($items);
+    }
+
+    protected function extractHttpStatusFromError(string $error): ?int
+    {
+        if (preg_match('/HTTP\s+(\d{3})/', $error, $matches) === 1) {
+            return (int) $matches[1];
+        }
+
+        return null;
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     protected function fetchVideoResults(string $token, string $hashtag, int $userId): array
@@ -438,21 +473,25 @@ class ApifyTikTokService
             }
         }
 
-        return $this->findVideoUrlRecursive($item);
+        return $this->findVideoUrlRecursive($item, 0);
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    protected function findVideoUrlRecursive(array $data): ?string
+    protected function findVideoUrlRecursive(array $data, int $depth = 0): ?string
     {
+        if ($depth > 32) {
+            return null;
+        }
+
         foreach ($data as $value) {
             if (is_string($value) && $this->isDownloadableVideoUrl($value)) {
                 return trim($value);
             }
 
             if (is_array($value)) {
-                $found = $this->findVideoUrlRecursive($value);
+                $found = $this->findVideoUrlRecursive($value, $depth + 1);
                 if ($found !== null) {
                     return $found;
                 }

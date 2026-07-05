@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 
 class QueueStaleRecoveryService
 {
-    public const STALE_MINUTES = 5;
+    public const STALE_MINUTES = 10;
 
     /**
      * @param  class-string<Model>  $modelClass

@@ -13,7 +13,7 @@ class VerifyCouponSyncToken
         if (! config('coupon_sync.enabled', true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Coupon sync API is disabled.',
+                'message' => 'API đồng bộ coupon đang bị tắt.',
             ], 503);
         }
 
@@ -22,7 +22,7 @@ class VerifyCouponSyncToken
         if ($expected === '') {
             return response()->json([
                 'success' => false,
-                'message' => 'Coupon sync API token is not configured on the blog server.',
+                'message' => 'Chưa cấu hình token API đồng bộ coupon trên server blog.',
             ], 503);
         }
 
@@ -33,7 +33,7 @@ class VerifyCouponSyncToken
         if (! is_string($provided) || ! hash_equals($expected, trim($provided))) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized.',
+                'message' => 'Token không hợp lệ hoặc thiếu quyền truy cập.',
             ], 401);
         }
 

@@ -71,7 +71,7 @@ class SocialMediaImageSourceService
 
     public function buildSearchQuery(?string $brandDomain): ?string
     {
-        return BrandDomain::brandName($brandDomain);
+        return BrandDomain::searchUrl($brandDomain);
     }
 
     public function downloadRemoteImageAsJpeg(string $imageUrl, string $destAbsolute): bool

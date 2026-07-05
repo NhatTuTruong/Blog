@@ -14,6 +14,8 @@ class SocialMediaVideoPrepareService
 {
     public ?string $lastError = null;
 
+    protected bool $lastEncodeSkippedTitleOverlay = false;
+
     public function isEnabled(): bool
     {
         return (bool) config('social_media_video.enabled', true);
@@ -54,12 +56,12 @@ class SocialMediaVideoPrepareService
         $title = null;
         if ($this->bottomTitleOverlayEnabled()) {
             if (SocialMediaVideoTitleFont::resolvePath() === null) {
-                $this->lastError = 'Không tìm thấy font tiêu đề video. Upload DejaVuSans.ttf vào public/fonts/social/ hoặc cấu hình SOCIAL_VIDEO_TITLE_FONT_PATH.';
-
-                throw new \RuntimeException($this->lastError);
+                Log::warning('SocialMediaVideoPrepareService title font missing — encoding without bottom overlay', [
+                    'queue_item_id' => $item->id ?? null,
+                ]);
+            } else {
+                $title = app(SocialMediaVideoTitleService::class)->resolveForQueueItem($item);
             }
-
-            $title = app(SocialMediaVideoTitleService::class)->resolveForQueueItem($item);
         }
 
         if ($this->prepareFile($sourceAbsolute, $readyAbsolute, $title)) {
@@ -70,6 +72,7 @@ class SocialMediaVideoPrepareService
                 'source' => $sourcePath,
                 'output' => $readyRelative,
                 'overlay_title' => $title,
+                'overlay_skipped' => $this->lastEncodeSkippedTitleOverlay,
                 'source_bytes' => is_file($sourceAbsolute) ? filesize($sourceAbsolute) : null,
                 'output_bytes' => filesize($readyAbsolute),
             ]);
@@ -113,34 +116,16 @@ class SocialMediaVideoPrepareService
             @unlink($outputAbsolute);
         }
 
-        $targetW = (int) config('social_media_video.target_width', 1080);
-        $targetH = (int) config('social_media_video.target_height', 1920);
+        $this->lastEncodeSkippedTitleOverlay = false;
+        SocialMediaVideoDrawtext::cleanupTempFiles();
 
         $titleForOverlay = null;
-        if ($this->bottomTitleOverlayEnabled()) {
-            if (SocialMediaVideoTitleFont::resolvePath() === null) {
-                $this->lastError = 'Không tìm thấy font tiêu đề video. Upload DejaVuSans.ttf vào public/fonts/social/ hoặc cấu hình SOCIAL_VIDEO_TITLE_FONT_PATH.';
-
-                return false;
-            }
-
+        if ($this->bottomTitleOverlayEnabled() && SocialMediaVideoTitleFont::resolvePath() !== null) {
             $titleForOverlay = filled($overlayTitle)
                 ? $overlayTitle
                 : app(SocialMediaVideoTitleService::class)->randomFallbackTitle();
-
-            $titleFilters = SocialMediaVideoDrawtext::buildBottomTitleFilters(
-                'vid',
-                'vpre',
-                $targetW,
-                $targetH,
-                $titleForOverlay,
-            );
-
-            if ($titleFilters === null) {
-                $this->lastError = 'Không tạo được tiêu đề dưới video.';
-
-                return false;
-            }
+        } elseif ($this->bottomTitleOverlayEnabled()) {
+            Log::warning('SocialMediaVideoPrepareService title font missing — encoding without bottom overlay');
         }
 
         $watermarkAbsolute = $this->resolveWatermarkAbsolutePath();
@@ -158,15 +143,84 @@ class SocialMediaVideoPrepareService
             ]);
         }
 
-        $command = $this->buildMediaEncoderCommand(
-            $inputAbsolute,
-            $outputAbsolute,
-            $useCropPreset,
-            $watermarkAbsolute,
-            $titleForOverlay,
-            $musicAbsolute,
-        );
+        try {
+            if ($this->encodeWithOptionalTitleFallback(
+                $inputAbsolute,
+                $outputAbsolute,
+                $useCropPreset,
+                $watermarkAbsolute,
+                $titleForOverlay,
+                $musicAbsolute,
+            )) {
+                return true;
+            }
+        } finally {
+            SocialMediaVideoDrawtext::cleanupTempFiles();
+        }
 
+        return false;
+    }
+
+    protected function encodeWithOptionalTitleFallback(
+        string $inputAbsolute,
+        string $outputAbsolute,
+        bool $useCropPreset,
+        ?string $watermarkAbsolute,
+        ?string $titleForOverlay,
+        ?string $musicAbsolute,
+    ): bool {
+        if ($this->runMediaEncoderCommand(
+            $this->buildMediaEncoderCommand(
+                $inputAbsolute,
+                $outputAbsolute,
+                $useCropPreset,
+                $watermarkAbsolute,
+                $titleForOverlay,
+                $musicAbsolute,
+            ),
+            $outputAbsolute,
+        )) {
+            return true;
+        }
+
+        if (! filled($titleForOverlay)) {
+            return false;
+        }
+
+        if (! config('social_media_video.bottom_title_fallback_without_overlay', true)) {
+            return false;
+        }
+
+        SocialMediaVideoDrawtext::cleanupTempFiles();
+        $this->lastEncodeSkippedTitleOverlay = true;
+
+        Log::warning('SocialMediaVideoPrepareService retrying encode without bottom title overlay', [
+            'title' => $titleForOverlay,
+            'previous_error' => $this->lastError,
+        ]);
+
+        if (is_file($outputAbsolute)) {
+            @unlink($outputAbsolute);
+        }
+
+        return $this->runMediaEncoderCommand(
+            $this->buildMediaEncoderCommand(
+                $inputAbsolute,
+                $outputAbsolute,
+                $useCropPreset,
+                $watermarkAbsolute,
+                null,
+                $musicAbsolute,
+            ),
+            $outputAbsolute,
+        );
+    }
+
+    /**
+     * @param  array<int, string>  $command
+     */
+    protected function runMediaEncoderCommand(array $command, string $outputAbsolute): bool
+    {
         $process = new Process($command);
         $process->setTimeout(max(60, (int) config('social_media_video.timeout_seconds', 900)));
 
@@ -184,6 +238,8 @@ class SocialMediaVideoPrepareService
             }
 
             return false;
+        } finally {
+            SocialMediaVideoDrawtext::cleanupTempFiles();
         }
 
         if (! is_file($outputAbsolute) || filesize($outputAbsolute) < 10_000) {
@@ -392,6 +448,10 @@ class SocialMediaVideoPrepareService
             if ($titleFilters !== null) {
                 [$titleFilterChain, $current] = $titleFilters;
                 $parts[] = $titleFilterChain;
+            } else {
+                Log::warning('SocialMediaVideoPrepareService bottom title filters unavailable', [
+                    'title' => $overlayTitle,
+                ]);
             }
         }
 

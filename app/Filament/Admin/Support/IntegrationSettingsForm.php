@@ -8,6 +8,7 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Get;
@@ -63,13 +64,12 @@ class IntegrationSettingsForm
                 ->schema($geminiKeyFields)
                 ->columns(3),
             Section::make('Apify — Google Images & TikTok')
-                ->description('Token dùng chung. Ảnh: Google Images (tên brand). Video: TikTok actor — bật tải video Apify (shouldDownloadVideos) để lấy file MP4.')
+                ->description('Token dùng chung. Ảnh: Google Images actor (query = http://domain/) — lấy 3 ảnh, chọn ảnh phù hợp nhất. Video: TikTok actor.')
                 ->schema([
-                    TextInput::make('apify_api_token')
+                    Textarea::make('apify_api_token')
                         ->label('Apify API token')
-                        ->password()
-                        ->revealable()
-                        ->maxLength(255)
+                        ->helperText('Một token mỗi dòng. Khi token lỗi/hết quota sẽ tự thử token tiếp theo. Giữ «********» trên từng dòng để không đổi token đó.')
+                        ->rows(4)
                         ->columnSpanFull(),
                 ]),
             Section::make('Instagram (Meta Graph API)')

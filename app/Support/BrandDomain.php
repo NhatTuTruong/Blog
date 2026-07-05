@@ -41,6 +41,28 @@ class BrandDomain
         return self::sanitize($parts[count($parts) - 2]);
     }
 
+    /**
+     * earpeace.com → http://earpeace.com/
+     */
+    public static function searchUrl(?string $input): ?string
+    {
+        $input = trim((string) $input);
+        if ($input === '') {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $input)) {
+            $host = strtolower((string) parse_url($input, PHP_URL_HOST));
+        } else {
+            $host = strtolower(explode('/', preg_replace('#^https?://#i', '', $input) ?? $input)[0] ?? $input);
+        }
+
+        $host = preg_replace('#^www\.#', '', $host) ?? $host;
+        $host = trim($host, '.');
+
+        return $host !== '' ? 'http://'.$host.'/' : null;
+    }
+
     protected static function sanitize(string $name): ?string
     {
         $name = preg_replace('/[^a-zA-Z0-9_-]/', '', $name) ?? '';

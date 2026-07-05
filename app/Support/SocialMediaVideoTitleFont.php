@@ -105,15 +105,23 @@ class SocialMediaVideoTitleFont
         $lineCount = count($lines);
 
         if ($lineCount > 2) {
-            $fontSize = max(26, $fontSize - 8);
+            $nextFontSize = max(26, $fontSize - 8);
 
-            return self::wrapTitleWithFontMetrics($title, $fontPath, $fontSize, $maxWidth);
+            if ($nextFontSize >= $fontSize) {
+                return array_slice($lines, 0, 3);
+            }
+
+            return self::wrapTitleWithFontMetrics($title, $fontPath, $nextFontSize, $maxWidth);
         }
 
         if ($lineCount > 1) {
-            $fontSize = max(30, $fontSize - 4);
+            $nextFontSize = max(30, $fontSize - 4);
 
-            return self::wrapTitleWithFontMetrics($title, $fontPath, $fontSize, $maxWidth);
+            if ($nextFontSize >= $fontSize) {
+                return array_slice($lines, 0, 2);
+            }
+
+            return self::wrapTitleWithFontMetrics($title, $fontPath, $nextFontSize, $maxWidth);
         }
 
         return array_slice($lines, 0, 3);
