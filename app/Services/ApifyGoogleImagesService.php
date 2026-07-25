@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\ApifyImageOrientation;
 use App\Support\ApifySettings;
 use App\Support\ApifyTokenRotator;
 use Illuminate\Support\Facades\Http;
@@ -11,13 +12,49 @@ class ApifyGoogleImagesService
 {
     public ?string $lastError = null;
 
-    public function downloadLargestImageForQuery(?string $query, ?int $userId, string $destAbsolute): bool
-    {
-        return $this->downloadBestImageForQuery($query, $userId, $destAbsolute);
+    public function downloadLargestImageForQuery(
+        ?string $query,
+        ?int $userId,
+        string $destAbsolute,
+        string $orientation = ApifyImageOrientation::LANDSCAPE,
+    ): bool {
+        return $this->downloadBestImageForQuery($query, $userId, $destAbsolute, $orientation);
     }
 
-    public function downloadBestImageForQuery(?string $query, ?int $userId, string $destAbsolute): bool
-    {
+    public function downloadBestImageForQuery(
+        ?string $query,
+        ?int $userId,
+        string $destAbsolute,
+        string $orientation = ApifyImageOrientation::LANDSCAPE,
+    ): bool {
+        return $this->downloadFromCandidates($query, $userId, $destAbsolute, $orientation, 'best');
+    }
+
+    /**
+     * Download a random high-quality image from Apify results.
+     * Picks from top candidates to ensure quality while providing variety.
+     */
+    public function downloadRandomQualityImageForQuery(
+        ?string $query,
+        ?int $userId,
+        string $destAbsolute,
+        string $orientation = ApifyImageOrientation::LANDSCAPE,
+        int $topCandidates = 5,
+    ): bool {
+        return $this->downloadFromCandidates($query, $userId, $destAbsolute, $orientation, 'random', $topCandidates);
+    }
+
+    /**
+     * Internal method to download image(s) from Apify candidates.
+     */
+    protected function downloadFromCandidates(
+        ?string $query,
+        ?int $userId,
+        string $destAbsolute,
+        string $orientation,
+        string $mode = 'best',
+        int $topCandidates = 5,
+    ): bool {
         $this->lastError = null;
         $query = trim((string) $query);
 
@@ -43,11 +80,23 @@ class ApifyGoogleImagesService
             return false;
         }
 
-        $imageUrls = $this->pickBestImageUrls($items);
+        $imageUrls = $this->pickBestImageUrls($items, $orientation, strict: true);
+        if ($imageUrls === []) {
+            $imageUrls = $this->pickBestImageUrls($items, $orientation, strict: false);
+        }
+
         if ($imageUrls === []) {
             $this->lastError = 'Apify không trả về URL ảnh hợp lệ.';
 
             return false;
+        }
+
+        // For random mode: pick from top N candidates, shuffled
+        if ($mode === 'random' && count($imageUrls) > 1) {
+            $shuffled = collect($imageUrls)->shuffle()->values()->all();
+            $imageUrls = array_slice($shuffled, 0, min($topCandidates, count($shuffled)));
+            // Re-shuffle so we pick a random one from top candidates
+            $imageUrls = collect($imageUrls)->shuffle()->values()->all();
         }
 
         $downloader = app(SocialMediaImageSourceService::class);
@@ -56,7 +105,10 @@ class ApifyGoogleImagesService
             if ($downloader->downloadRemoteImageAsJpeg($imageUrl, $destAbsolute)) {
                 Log::info('ApifyGoogleImagesService selected image', [
                     'query' => $query,
+                    'orientation' => $orientation,
+                    'mode' => $mode,
                     'candidate' => $index + 1,
+                    'total_candidates' => count($imageUrls),
                     'url' => $imageUrl,
                 ]);
 
@@ -104,7 +156,7 @@ class ApifyGoogleImagesService
      */
     protected function fetchImageResults(string $token, string $query): array
     {
-        $actorId = (string) config('apify.google_images_actor_id', '1zP0mfnAf2xvIwvJu');
+        $actorId = (string) config('apify.google_images_actor_id', 'MrbqFgdpNTQcRW0Vt');
         $waitSeconds = max(30, (int) config('apify.run_wait_seconds', 180));
 
         $url = sprintf(
@@ -115,8 +167,8 @@ class ApifyGoogleImagesService
         );
 
         try {
-            $response = Http::timeout($waitSeconds + 30)
-                ->acceptJson()
+            $response = Http::asJson()
+                ->timeout($waitSeconds + 30)
                 ->post($url, $this->buildRunInput($query));
         } catch (\Throwable $e) {
             $this->lastError = 'Apify timeout/lỗi mạng: '.$e->getMessage();
@@ -163,22 +215,13 @@ class ApifyGoogleImagesService
      */
     protected function buildRunInput(string $query): array
     {
-        $maxResults = max(1, min(10, (int) config('apify.max_results_per_query', 3)));
-
         return [
-            'queries' => [$query],
-            'searchUrls' => [],
-            'maxResultsPerQuery' => $maxResults,
-            'imageSize' => (string) config('apify.google_images.image_size', 'large'),
-            'imageColor' => 'any',
-            'imageType' => (string) config('apify.google_images.image_type', 'photo'),
-            'aspectRatio' => 'any',
-            'timePeriod' => 'anytime',
-            'usageRights' => 'any',
-            'safeSearch' => 'off',
-            'language' => (string) config('apify.google_images.language', 'en'),
-            'country' => (string) config('apify.google_images.country', 'us'),
-            'includeRelatedQueries' => false,
+            'query' => $query,
+            'country' => config('apify.google_images.country', 'us'),
+            'language' => config('apify.google_images.language', 'en'),
+            'num' => '10',  // actor chỉ chấp nhận "10" hoặc "100"
+            'max_pages' => 1,
+            'date_range' => 'anytime',
         ];
     }
 
@@ -186,7 +229,7 @@ class ApifyGoogleImagesService
      * @param  array<int, array<string, mixed>>  $items
      * @return array<int, string>
      */
-    protected function pickBestImageUrls(array $items): array
+    public function pickBestImageUrls(array $items, string $orientation, bool $strict = true): array
     {
         $scored = [];
 
@@ -196,7 +239,12 @@ class ApifyGoogleImagesService
                 continue;
             }
 
-            $score = $this->scoreImageCandidate($meta['width'], $meta['height']);
+            $score = $this->scoreImageCandidate(
+                $meta['width'],
+                $meta['height'],
+                $orientation,
+                $strict,
+            );
             if ($score <= 0) {
                 continue;
             }
@@ -228,15 +276,18 @@ class ApifyGoogleImagesService
      */
     protected function extractImageMeta(array $item): ?array
     {
+        // New actor (IOrPh0bOfzJiGxsvk) output format: imageUrl, thumbnailUrl, title, link, googleUrl
+        // Old actor (MrbqFgdpNTQcRW0Vt) output format: original, image_url, width, height
         $url = trim((string) (
-            $item['imageUrl']
+            $item['imageUrl']      // new actor
+            ?? $item['url']        // generic
             ?? $item['image_url']
+            ?? $item['imageUrl']
             ?? $item['originalUrl']
             ?? $item['original_url']
-            ?? $item['url']
+            ?? $item['original']
             ?? $item['contentUrl']
             ?? $item['content_url']
-            ?? $item['link']
             ?? ''
         ));
 
@@ -244,18 +295,26 @@ class ApifyGoogleImagesService
             return null;
         }
 
+        if ($this->isThumbnailUrl($url)) {
+            return null;
+        }
+
+        // Try to extract width/height from URL query params (e.g., &width=1440&quality=75)
+        $urlWidth = 0;
+        $urlHeight = 0;
+        if (preg_match('/[?&]width=(\d+)/i', $url, $wm)) {
+            $urlWidth = (int) $wm[1];
+        }
+        if (preg_match('/[?&]height=(\d+)/i', $url, $hm)) {
+            $urlHeight = (int) $hm[1];
+        }
+
         $width = (int) (
-            $item['imageWidth']
-            ?? $item['image_width']
-            ?? $item['width']
-            ?? ($item['image']['width'] ?? 0)
-        );
+            $item['width'] ?? 0
+        ) ?: $urlWidth;
         $height = (int) (
-            $item['imageHeight']
-            ?? $item['image_height']
-            ?? $item['height']
-            ?? ($item['image']['height'] ?? 0)
-        );
+            $item['height'] ?? 0
+        ) ?: $urlHeight;
 
         return [
             'url' => $url,
@@ -264,41 +323,98 @@ class ApifyGoogleImagesService
         ];
     }
 
-    protected function scoreImageCandidate(int $width, int $height): float
+    protected function isThumbnailUrl(string $url): bool
     {
+        $lower = strtolower($url);
+
+        return str_contains($lower, 'encrypted-tbn0.gstatic.com')
+            || str_contains($lower, 'gstatic.com/images?q=tbn');
+    }
+
+    protected function scoreImageCandidate(
+        int $width,
+        int $height,
+        string $orientation,
+        bool $strict = true,
+    ): float {
         if ($width > 0 && $height > 0) {
             if ($width < 320 || $height < 320) {
                 return 0.0;
             }
 
-            $area = $width * $height;
             $ratio = $width / $height;
-            $ratioScore = $this->aspectRatioScore($ratio);
+
+            if ($orientation === ApifyImageOrientation::PORTRAIT_SQUARE) {
+                if ($strict && $ratio > 1.05) {
+                    return 0.0;
+                }
+
+                $area = $width * $height;
+                $ratioScore = $this->portraitSquareAspectRatioScore($ratio);
+
+                return ($area / 1_000_000) * 100 * $ratioScore;
+            }
+
+            if ($strict && $ratio < 1.05) {
+                return 0.0;
+            }
+
+            $area = $width * $height;
+            $ratioScore = $this->landscapeAspectRatioScore($ratio);
 
             return ($area / 1_000_000) * 100 * $ratioScore;
         }
 
-        return 1.0;
+        return $strict ? 0.0 : 0.5;
     }
 
-    protected function aspectRatioScore(float $ratio): float
+    protected function portraitSquareAspectRatioScore(float $ratio): float
     {
         if ($ratio <= 0) {
             return 0.1;
         }
 
-        if ($ratio >= 0.75 && $ratio <= 1.91) {
+        if ($ratio >= 0.85 && $ratio <= 1.05) {
             return 1.0;
         }
 
-        if ($ratio >= 0.55 && $ratio <= 2.2) {
+        if ($ratio >= 0.65 && $ratio <= 1.15) {
+            return 0.9;
+        }
+
+        if ($ratio >= 0.5 && $ratio <= 1.25) {
+            return 0.75;
+        }
+
+        if ($ratio > 1.05) {
+            return 0.25;
+        }
+
+        return 0.5;
+    }
+
+    protected function landscapeAspectRatioScore(float $ratio): float
+    {
+        if ($ratio <= 0) {
+            return 0.1;
+        }
+
+        if ($ratio >= 1.4 && $ratio <= 2.0) {
+            return 1.0;
+        }
+
+        if ($ratio >= 1.15 && $ratio <= 2.5) {
             return 0.85;
         }
 
-        if ($ratio >= 0.4 && $ratio <= 3.0) {
-            return 0.6;
+        if ($ratio >= 1.05 && $ratio <= 3.0) {
+            return 0.65;
         }
 
-        return 0.25;
+        if ($ratio < 1.05) {
+            return 0.35;
+        }
+
+        return 0.4;
     }
 }

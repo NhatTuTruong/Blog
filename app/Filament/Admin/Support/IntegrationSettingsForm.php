@@ -67,11 +67,11 @@ class IntegrationSettingsForm
                 ->schema($geminiKeyFields)
                 ->columns(3),
             Section::make('Apify — Google Images & TikTok')
-                ->description('Token dùng chung. Ảnh: Google Images actor (query = http://domain/) — lấy 3 ảnh, chọn ảnh phù hợp nhất. Video: TikTok actor.')
+                ->description('Token dùng chung. Ảnh: Google Images actor (q = https://www.domain/) — chọn ảnh ngang chất lượng cao nhất. Video: TikTok actor.')
                 ->schema([
                     Textarea::make('apify_api_token')
                         ->label('Apify API token')
-                        ->helperText('Một token mỗi dòng. Khi token lỗi/hết quota sẽ tự thử token tiếp theo. Giữ «********» trên từng dòng để không đổi token đó.')
+                        ->helperText('Một token mỗi dòng. Khi token lỗi/hết quota sẽ tự thử token tiếp theo.')
                         ->rows(4)
                         ->columnSpanFull(),
                 ]),

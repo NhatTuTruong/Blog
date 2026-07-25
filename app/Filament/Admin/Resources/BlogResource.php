@@ -150,7 +150,7 @@ class BlogResource extends Resource
                 Tables\Columns\ImageColumn::make('featured_image')
                     ->label('Ảnh')
                     ->disk('public')
-                    ->size(60)
+                    ->size(40)
                     ->state(fn (Blog $record): ?string => $record->hasStoredFeaturedImage() ? $record->featured_image : null)
                     ->defaultImageUrl(fn (Blog $record): string => $record->featured_image_url)
                     ->circular(false),
@@ -199,7 +199,7 @@ class BlogResource extends Resource
                     ->tooltip('Xem trước')
                     ->url(fn (Blog $record) => route('blog.show', $record->slug))
                     ->openUrlInNewTab(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()->label(''),
                 Tables\Actions\ReplicateAction::make()
                     ->label('')
                     ->icon('heroicon-o-document-duplicate')
@@ -223,15 +223,15 @@ class BlogResource extends Resource
                         $data['is_published'] = false; // Mặc định là bản nháp khi sao chép
                         return $data;
                     }),
-                Tables\Actions\DeleteAction::make(),
-                Tables\Actions\RestoreAction::make(),
-                Tables\Actions\ForceDeleteAction::make(),
+                Tables\Actions\DeleteAction::make()->label(''),
+                Tables\Actions\RestoreAction::make()->label(''),
+                Tables\Actions\ForceDeleteAction::make()->label(''),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\RestoreBulkAction::make(),
-                    Tables\Actions\ForceDeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()->label(''),
+                    Tables\Actions\RestoreBulkAction::make()->label(''),
+                    Tables\Actions\ForceDeleteBulkAction::make()->label(''),
                 ]),
             ]);
     }

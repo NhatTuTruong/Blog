@@ -19,8 +19,9 @@ class EditUser extends EditRecord
                 ->label('Lưu')
                 ->formId('form'),
             Actions\Action::make('resetPassword')
-                ->label('Reset Password')
+                ->label('')
                 ->icon('heroicon-o-key')
+                ->tooltip('Reset mật khẩu')
                 ->color('warning')
                 ->requiresConfirmation()
                 ->modalHeading('Reset mật khẩu')
@@ -44,7 +45,7 @@ class EditUser extends EditRecord
                         ->persistent()
                         ->send();
                 }),
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()->label(''),
         ];
     }
 

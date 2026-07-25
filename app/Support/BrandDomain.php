@@ -42,7 +42,7 @@ class BrandDomain
     }
 
     /**
-     * earpeace.com → http://earpeace.com/
+     * earpeace.com → https://www.earpeace.com/
      */
     public static function searchUrl(?string $input): ?string
     {
@@ -60,7 +60,7 @@ class BrandDomain
         $host = preg_replace('#^www\.#', '', $host) ?? $host;
         $host = trim($host, '.');
 
-        return $host !== '' ? 'http://'.$host.'/' : null;
+        return $host !== '' ? 'https://www.'.$host.'/' : null;
     }
 
     protected static function sanitize(string $name): ?string

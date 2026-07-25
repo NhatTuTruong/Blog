@@ -28,6 +28,7 @@ class SocialMediaQueueTable
     {
         return ViewColumn::make('image_path')
             ->label('Media')
+            ->alignCenter()
             ->view('filament.admin.components.social-media-queue-media-thumb');
     }
 
@@ -82,7 +83,7 @@ class SocialMediaQueueTable
     public static function republishAction(): Action
     {
         return Action::make('republish')
-            ->label('Đăng lại')
+            ->label('')
             ->icon('heroicon-o-arrow-path')
             ->color('primary')
             ->tooltip('Đăng lại với cùng nội dung, ưu tiên chạy trước')

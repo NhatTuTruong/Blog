@@ -350,7 +350,7 @@ class ApifyTikTokService
     protected function fetchVideoResultsFromApi(string $token, string $hashtag): array
     {
         $actorId = (string) config('apify.tiktok_actor_id', 'GdWCkxBtKWOsKjdch');
-        $waitSeconds = max(30, (int) config('apify.run_wait_seconds', 180));
+        $waitSeconds = max(30, (int) config('apify.run_wait_seconds', 120));
 
         $url = sprintf(
             'https://api.apify.com/v2/acts/%s/run-sync-get-dataset-items?token=%s&waitForFinish=%d',

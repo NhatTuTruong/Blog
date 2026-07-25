@@ -42,6 +42,28 @@ class SocialMediaVideoPrepareService
             return $sourcePath;
         }
 
+        $sourceAbsolute = PublicStorage::absolutePath($sourcePath);
+
+        // Validate video trước khi encode
+        $validation = $this->validateVideoForEncoding($sourceAbsolute);
+        if (! $validation['valid']) {
+            $this->lastError = implode('; ', $validation['errors']);
+            Log::warning('SocialMediaVideoPrepareService video validation failed', [
+                'queue_item_id' => $item->id ?? null,
+                'source' => $sourcePath,
+                'errors' => $validation['errors'],
+            ]);
+            throw new \RuntimeException($this->lastError);
+        }
+
+        if (! empty($validation['warnings'])) {
+            Log::info('SocialMediaVideoPrepareService video validation passed with warnings', [
+                'queue_item_id' => $item->id ?? null,
+                'source' => $sourcePath,
+                'warnings' => $validation['warnings'],
+            ]);
+        }
+
         if (! $this->encoderAvailable()) {
             $this->lastError = 'Media encoder chưa sẵn sàng. Trên máy local chạy: php artisan social:media-encoder-install --for-linux --force rồi upload thư mục bin/ lên hosting.';
 
@@ -51,7 +73,6 @@ class SocialMediaVideoPrepareService
         PublicStorage::ensureDirectory($platformDirectory);
         $readyRelative = "{$platformDirectory}/item-{$item->id}-ready.mp4";
         $readyAbsolute = PublicStorage::absolutePath($readyRelative);
-        $sourceAbsolute = PublicStorage::absolutePath($sourcePath);
 
         $title = null;
         if ($this->bottomTitleOverlayEnabled()) {
@@ -262,6 +283,16 @@ class SocialMediaVideoPrepareService
         return $this->encoderAvailable();
     }
 
+    /**
+     * Validate video trước khi encode.
+     */
+    public function validateVideoForEncoding(string $sourceAbsolute): array
+    {
+        $probe = $this->videoProbe();
+
+        return $probe->isValidForEncoding($sourceAbsolute);
+    }
+
     protected function mediaEncoderPath(): string
     {
         $path = app(BundledMediaBinary::class)->mediaEncoderPath();
@@ -307,16 +338,24 @@ class SocialMediaVideoPrepareService
     protected function resolveInputDurationLimit(string $inputAbsolute, int $skipStartSeconds): ?float
     {
         $trimEnd = max(0, (int) config('social_media_video.trim_end_seconds', 3));
-        if ($trimEnd <= 0) {
-            return null;
-        }
+        $maxDuration = (int) config('social_media_video.max_source_duration_seconds', 90);
 
+        // Luôn giới hạn max duration cho Instagram/Facebook Reels (tối đa 90s)
         $duration = $this->probeDuration($inputAbsolute);
         if ($duration === null) {
             return null;
         }
 
+        // Tính duration khả dụng sau khi bỏ đầu + cuối
         $usable = $duration - $skipStartSeconds - $trimEnd;
+
+        // Giới hạn bởi max_duration config
+        $usable = min($usable, $maxDuration);
+
+        // Nếu video ngắn hơn max, dùng duration bình thường (đã trừ skip/trim)
+        if ($duration <= $maxDuration) {
+            $usable = max(1.0, $duration - $skipStartSeconds - $trimEnd);
+        }
 
         return max(1.0, $usable);
     }

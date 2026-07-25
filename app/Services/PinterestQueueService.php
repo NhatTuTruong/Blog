@@ -251,10 +251,6 @@ class PinterestQueueService
 
         $this->recoverStaleProcessingItems();
 
-        if (PinterestQueueItem::query()->where('status', PinterestQueueItem::STATUS_PROCESSING)->exists()) {
-            return ['processed' => false, 'item' => null, 'media_id' => null];
-        }
-
         $hasManualActive = PinterestQueueItem::query()
             ->where(function ($query): void {
                 $query->where('queue_source', SocialMediaQueueSource::MANUAL)
@@ -287,7 +283,21 @@ class PinterestQueueService
             return ['processed' => false, 'item' => null, 'media_id' => null];
         }
 
-        $item->update(['status' => PinterestQueueItem::STATUS_PROCESSING]);
+        // Atomic: chỉ update nếu status vẫn là PENDING (tránh race condition)
+        $updated = PinterestQueueItem::query()
+            ->where('id', $item->id)
+            ->where('status', PinterestQueueItem::STATUS_PENDING)
+            ->update([
+                'status' => PinterestQueueItem::STATUS_PROCESSING,
+                'updated_at' => now(),
+            ]);
+
+        if ($updated === 0) {
+            // Item đã bị process bởi process khác, thử lấy item tiếp theo
+            return $this->processNextDue();
+        }
+
+        $item->refresh();
 
         try {
             @set_time_limit(300);

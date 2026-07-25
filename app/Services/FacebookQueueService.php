@@ -221,10 +221,6 @@ class FacebookQueueService
 
         $this->recoverStaleProcessingItems();
 
-        if (FacebookQueueItem::query()->where('status', FacebookQueueItem::STATUS_PROCESSING)->exists()) {
-            return ['processed' => false, 'item' => null, 'media_id' => null];
-        }
-
         $hasManualActive = FacebookQueueItem::query()
             ->where(function ($query): void {
                 $query->where('queue_source', SocialMediaQueueSource::MANUAL)
@@ -257,7 +253,21 @@ class FacebookQueueService
             return ['processed' => false, 'item' => null, 'media_id' => null];
         }
 
-        $item->update(['status' => FacebookQueueItem::STATUS_PROCESSING]);
+        // Atomic: chỉ update nếu status vẫn là PENDING (tránh race condition)
+        $updated = FacebookQueueItem::query()
+            ->where('id', $item->id)
+            ->where('status', FacebookQueueItem::STATUS_PENDING)
+            ->update([
+                'status' => FacebookQueueItem::STATUS_PROCESSING,
+                'updated_at' => now(),
+            ]);
+
+        if ($updated === 0) {
+            // Item đã bị process bởi process khác, thử lấy item tiếp theo
+            return $this->processNextDue();
+        }
+
+        $item->refresh();
 
         try {
             @set_time_limit(300);

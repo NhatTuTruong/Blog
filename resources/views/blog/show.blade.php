@@ -22,7 +22,7 @@
     .blog-shell {
         max-width: 1440px;
         margin: 0 auto 3.5rem;
-        padding: 1.75rem 1.25rem 3rem;
+        padding: 1.75rem 0.2rem 3rem;
     }
 
     @media (min-width: 1024px) {
@@ -505,7 +505,7 @@
                     @foreach($relatedBlogs as $related)
                         <a href="{{ route('blog.show', $related->slug) }}" class="related-blog-card" style="display:block;margin-bottom:0.75rem;">
                             <img src="{{ $related->featured_image_url }}" alt="{{ $related->title }}" class="related-blog-card-thumb" loading="lazy" style="width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px;">
-                            <div class="related-blog-card-body" style="padding:0.5rem 0 0;">
+                            <div class="related-blog-card-body" style="padding:0.5rem 0.5rem 0;">
                                 <h3 class="related-blog-card-title">{{ $related->title }}</h3>
                                 <p class="related-blog-card-meta">{{ $related->created_at?->format('d/m/Y') }}</p>
                             </div>

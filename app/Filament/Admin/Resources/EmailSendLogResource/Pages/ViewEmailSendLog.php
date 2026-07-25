@@ -17,8 +17,9 @@ class ViewEmailSendLog extends ViewRecord
     {
         return [
             Actions\Action::make('stopRecurring')
-                ->label('Dừng gửi lại')
+                ->label('')
                 ->icon('heroicon-o-stop-circle')
+                ->tooltip('Dừng gửi lại')
                 ->color('danger')
                 ->requiresConfirmation()
                 ->modalHeading('Dừng gửi lại email')
@@ -41,8 +42,9 @@ class ViewEmailSendLog extends ViewRecord
                         ->send();
                 }),
             Actions\Action::make('resend')
-                ->label('Gửi lại')
+                ->label('')
                 ->icon('heroicon-o-paper-airplane')
+                ->tooltip('Gửi lại email')
                 ->color('success')
                 ->url(fn (): string => SendTemplatedEmail::urlWithResend($this->record->getKey())),
         ];

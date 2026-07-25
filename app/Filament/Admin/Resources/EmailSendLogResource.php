@@ -198,8 +198,9 @@ class EmailSendLogResource extends Resource
             ])
             ->actions([
                 Tables\Actions\Action::make('stopRecurring')
-                    ->label('Dừng gửi lại')
+                    ->label('')
                     ->icon('heroicon-o-stop-circle')
+                    ->tooltip('Dừng gửi lại')
                     ->color('danger')
                     ->requiresConfirmation()
                     ->modalHeading('Dừng gửi lại email')
@@ -229,8 +230,9 @@ class EmailSendLogResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkAction::make('stopRecurringBulk')
-                    ->label('Dừng gửi lại')
+                    ->label('')
                     ->icon('heroicon-o-stop-circle')
+                    ->tooltip('Dừng gửi lại đã chọn')
                     ->color('danger')
                     ->requiresConfirmation()
                     ->modalHeading('Dừng gửi lại các email đã chọn')

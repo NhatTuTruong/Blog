@@ -55,33 +55,11 @@ class AutoBlogImportService
         $categoryByName = array_flip($categoryOptions);
 
         foreach ($rows as $index => $row) {
-            $domain = $this->cellValue($row, $columnMap['brand_domain'] ?? null);
-
-            if ($domain === '') {
+            $parsed = $this->parseRow($row, $columnMap, $categoryByName);
+            if ($parsed === []) {
                 continue;
             }
-
-            $categoryInput = $this->cellValue($row, $columnMap['blog_category_id'] ?? null);
-            $blogCategoryId = null;
-
-            if ($categoryInput !== '') {
-                if (is_numeric($categoryInput)) {
-                    $blogCategoryId = (int) $categoryInput;
-                } else {
-                    $blogCategoryId = $categoryByName[$categoryInput] ?? null;
-                }
-            }
-
-            $couponRaw = $this->cellValue($row, $columnMap['coupon_codes'] ?? null);
-            $couponCodes = $this->parseCouponCodes($couponRaw);
-
-            $items[] = [
-                'brand_domain' => $domain,
-                'blog_category_id' => $blogCategoryId,
-                'content_idea' => $this->cellValue($row, $columnMap['content_idea'] ?? null) ?: null,
-                'aff_link' => $this->cellValue($row, $columnMap['aff_link'] ?? null) ?: null,
-                'coupon_codes' => $couponCodes,
-            ];
+            $items[] = $parsed;
         }
 
         if ($items === []) {
@@ -112,6 +90,12 @@ class AutoBlogImportService
                 in_array($normalized, ['noi dung y tuong', 'nội dung ý tưởng', 'nội dung / ý tưởng', 'content idea', 'content_idea', 'content', 'idea'], true) => 'content_idea',
                 in_array($normalized, ['Link Affiliate', 'aff link', 'aff_link', 'affiliate', 'aff'], true) => 'aff_link',
                 in_array($normalized, ['coupon code', 'coupon codes', 'coupon_code', 'coupon_codes', 'coupon', 'coupons'], true) => 'coupon_codes',
+                str_ends_with(mb_strtolower($normalized), 'dai dien')
+                || str_ends_with(mb_strtolower($normalized), 'dai diện')
+                || str_ends_with($normalized, 'ảnh')
+                || (str_contains($normalized, 'ả') && str_ends_with($normalized, 'h'))
+                || (str_contains($normalized, 'ả') && str_contains($normalized, 'nh') && substr_count($normalized, 'ả') === 1)
+                => 'featured_image',
                 default => null,
             };
 
@@ -121,6 +105,44 @@ class AutoBlogImportService
         }
 
         return $map;
+    }
+
+    /**
+     * @param  array<int, mixed>  $row
+     * @return array<string, mixed>
+     */
+    protected function parseRow(array $row, array $columnMap, array $categoryByName): array
+    {
+        $domain = $this->cellValue($row, $columnMap['brand_domain'] ?? null);
+
+        if ($domain === '') {
+            return [];
+        }
+
+        $categoryInput = $this->cellValue($row, $columnMap['blog_category_id'] ?? null);
+        $blogCategoryId = null;
+
+        if ($categoryInput !== '') {
+            if (is_numeric($categoryInput)) {
+                $blogCategoryId = (int) $categoryInput;
+            } else {
+                $blogCategoryId = $categoryByName[$categoryInput] ?? null;
+            }
+        }
+
+        $couponRaw = $this->cellValue($row, $columnMap['coupon_codes'] ?? null);
+        $couponCodes = $this->parseCouponCodes($couponRaw);
+
+        $featuredImageRaw = $this->cellValue($row, $columnMap['featured_image'] ?? null);
+
+        return [
+            'brand_domain' => $domain,
+            'blog_category_id' => $blogCategoryId,
+            'featured_image' => $featuredImageRaw !== '' ? $featuredImageRaw : null,
+            'content_idea' => $this->cellValue($row, $columnMap['content_idea'] ?? null) ?: null,
+            'aff_link' => $this->cellValue($row, $columnMap['aff_link'] ?? null) ?: null,
+            'coupon_codes' => $couponCodes,
+        ];
     }
 
     protected function normalizeHeader(string $header): string
@@ -196,9 +218,9 @@ class AutoBlogImportService
     public static function templateCsvContent(): string
     {
         $lines = [
-            'Domain brand,Danh mục bài viết,Nội dung / ý tưởng,Link Affiliate,Coupon code',
-            'nike.com,Shoes,Review giày chạy bộ mới,https://example.com/aff,SAVE10',
-            'amazon.com,Tech,Top laptop 2026,,DEAL20;EXTRA5',
+            'Domain brand,Danh mục bài viết,Nội dung / ý tưởng,Link Affiliate,Coupon code,Ảnh đại diện (URL hoặc path)',
+            'nike.com,Shoes,Review giày chạy bộ mới,https://example.com/aff,SAVE10,https://example.com/nike-shoe.jpg',
+            'amazon.com,Tech,Top laptop 2026,,DEAL20;EXTRA5,',
         ];
 
         return "\xEF\xBB\xBF".implode("\r\n", $lines);

@@ -16,8 +16,9 @@ class ViewReceivedEmail extends ViewRecord
     {
         return [
             Actions\Action::make('fetchAttachments')
-                ->label('Tải đính kèm')
+                ->label('')
                 ->icon('heroicon-o-arrow-down-tray')
+                ->tooltip('Tải đính kèm')
                 ->color('gray')
                 ->visible(fn (): bool => $this->record->attachments_count > 0 && ! $this->record->hasStoredAttachments())
                 ->action(function (): void {
@@ -42,7 +43,7 @@ class ViewReceivedEmail extends ViewRecord
                         ->success()
                         ->send();
                 }),
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()->label(''),
         ];
     }
 }

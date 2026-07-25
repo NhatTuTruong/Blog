@@ -19,11 +19,12 @@ class EditEmailTemplate extends EditRecord
         return [
             $this->getFormDraftDiscardAction(),
             Actions\Action::make('send')
-                ->label('Gửi email')
+                ->label('')
                 ->icon('heroicon-o-paper-airplane')
+                ->tooltip('Gửi email')
                 ->color('success')
                 ->url(SendTemplatedEmail::urlWithTemplate($this->record->getKey())),
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()->label(''),
         ];
     }
 }

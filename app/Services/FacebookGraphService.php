@@ -356,15 +356,18 @@ class FacebookGraphService
                 .'Hoặc nhập User token hợp lệ — hệ thống sẽ tự đổi sang Page token khi Test kết nối.';
         }
 
-        $parts = ["HTTP {$status}: {$message}"];
+        $parts = ["HTTP {$status}"];
+        if (! empty($message) && $message !== 'Unknown error') {
+            $parts[] = $message;
+        }
         if ($code !== null) {
-            $parts[] = "code={$code}";
+            $parts[] = "error_code={$code}";
         }
         if ($subcode !== null) {
             $parts[] = "subcode={$subcode}";
         }
 
-        return implode(' ', $parts);
+        return implode(' | ', $parts);
     }
 
     protected function isPublishActionsDeprecatedError(string $message, mixed $code): bool

@@ -33,6 +33,8 @@ use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Tables;
+use Filament\Tables\Columns\ImageColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
@@ -229,16 +231,26 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                     ->latest('id')
             )
             ->columns([
+                ViewColumn::make('image_path')
+                    ->label('Media')
+                    ->view('filament.admin.components.auto-blog-queue-media-thumb')
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('brand_domain')
                     ->label('Domain')
                     ->searchable()
+                    ->limit(30)
                     ->description(fn (AutoBlogQueueItem $record): string => $record->category_name
                         ?? $record->blogCategory?->name
                         ?? 'General'),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Trạng thái')
                     ->badge()
-                    ->formatStateUsing(fn (string $state, AutoBlogQueueItem $record): string => $record->statusLabel())
+                    ->width('8rem')
+                    ->wrap(false)
+                    ->formatStateUsing(fn (string $state, AutoBlogQueueItem $record): string => \Illuminate\Support\Str::limit(
+                        $record->statusLabel(),
+                        30,
+                    ))
                     ->color(fn (string $state): string => match ($state) {
                         AutoBlogQueueItem::STATUS_PENDING => 'warning',
                         AutoBlogQueueItem::STATUS_PROCESSING => 'info',
@@ -247,10 +259,23 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                         default => 'gray',
                     })
                     ->description(fn (AutoBlogQueueItem $record): ?string =>
-                        $record->status === AutoBlogQueueItem::STATUS_FAILED
-                            ? \Illuminate\Support\Str::limit($record->error_message, 60)
+                        $record->status === AutoBlogQueueItem::STATUS_FAILED && filled($record->error_message)
+                            ? \Illuminate\Support\Str::limit($record->error_message, 30)
                             : null
-                    ),
+                    )
+                    ->tooltip(function (AutoBlogQueueItem $record): ?string {
+                        $label = $record->statusLabel();
+                        $error = $record->error_message;
+
+                        if ($record->status === AutoBlogQueueItem::STATUS_FAILED && filled($error)) {
+                            return $label."\n".$error;
+                        }
+
+                        return \Illuminate\Support\Str::length($label) > 30 ? $label : null;
+                    })
+                    ->extraCellAttributes([
+                        'class' => 'max-w-[8rem] [&_.fi-ta-text-item-description]:truncate',
+                    ]),
                 Tables\Columns\TextColumn::make('scheduled_at')
                     ->label('Lên lịch')
                     ->dateTime('d/m/Y H:i')
@@ -270,9 +295,125 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
             ])
             ->defaultSort('id', 'desc')
             ->paginated([10, 25, 50])
-            ->poll('30s')
+            ->actions([
+                $this->republishBlogAction(),
+                $this->queueDetailAction(),
+            ])
+            ->bulkActions($this->bulkActions())
             ->emptyStateHeading('Chưa có bài trong hàng đợi')
             ->emptyStateDescription('Đăng danh sách bài viết để bắt đầu xếp hàng tự động.');
+    }
+
+    protected function republishBlogAction(): \Filament\Tables\Actions\Action
+    {
+        return \Filament\Tables\Actions\Action::make('republish')
+            ->label('')
+            ->icon('heroicon-o-arrow-path')
+            ->color('primary')
+            ->tooltip('Đăng lại với cùng nội dung')
+            ->action(function (AutoBlogQueueItem $record): void {
+                $service = app(AutoBlogQueueService::class);
+                $startAt = now();
+
+                $records = [[
+                    'brand_domain' => $record->brand_domain,
+                    'blog_category_id' => $record->blog_category_id,
+                    'content_idea' => $record->content_idea,
+                    'aff_link' => $record->aff_link,
+                    'coupon_codes' => $record->coupon_codes ?? [],
+                    'featured_image' => $record->image_path,
+                ]];
+
+                $batchId = $service->enqueue($records, $record->user, $startAt);
+
+                if ($batchId !== null) {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Đã xếp hàng đăng lại')
+                        ->body('Bài #'.$record->id.' sẽ được xử lý ngay.')
+                        ->success()
+                        ->send();
+                } else {
+                    \Filament\Notifications\Notification::make()
+                        ->title('Không thể đăng lại')
+                        ->body($service->lastError ?? 'Lỗi không xác định.')
+                        ->danger()
+                        ->send();
+                }
+            });
+    }
+
+    protected function queueDetailAction(): \Filament\Tables\Actions\Action
+    {
+        return \Filament\Tables\Actions\Action::make('queueDetail')
+            ->label('')
+            ->icon('heroicon-o-eye')
+            ->tooltip('Chi tiết')
+            ->color('gray')
+            ->modalHeading(fn (AutoBlogQueueItem $record): string => 'Chi tiết hàng đợi #'.$record->id)
+            ->modalWidth(\Filament\Support\Enums\MaxWidth::TwoExtraLarge)
+            ->modalContent(fn (AutoBlogQueueItem $record) => view(
+                'filament.admin.components.auto-blog-queue-item-detail',
+                ['record' => $record],
+            ))
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Đóng');
+    }
+
+    /**
+     * @return array<int, \Filament\Tables\Actions\BulkActionGroup>
+     */
+    protected function bulkActions(): array
+    {
+        return [
+            \Filament\Tables\Actions\BulkActionGroup::make([
+                \Filament\Tables\Actions\BulkAction::make('republishBulk')
+                    ->label('Đăng lại đã chọn')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('primary')
+                    ->action(function (\Illuminate\Support\Collection $records): void {
+                        $service = app(AutoBlogQueueService::class);
+                        $startAt = now();
+                        $success = 0;
+                        $errors = [];
+
+                        foreach ($records as $record) {
+                            $recordsToEnqueue = [[
+                                'brand_domain' => $record->brand_domain,
+                                'blog_category_id' => $record->blog_category_id,
+                                'content_idea' => $record->content_idea,
+                                'aff_link' => $record->aff_link,
+                                'coupon_codes' => $record->coupon_codes ?? [],
+                                'featured_image' => $record->image_path,
+                            ]];
+
+                            $batchId = $service->enqueue($recordsToEnqueue, $record->user, $startAt);
+                            if ($batchId !== null) {
+                                $success++;
+                            } else {
+                                $errors[] = $record->brand_domain.': '.($service->lastError ?? 'Lỗi');
+                            }
+                        }
+
+                        if ($success > 0) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Đã xếp hàng đăng lại')
+                                ->body("Thành công: {$success}".($errors !== [] ? '. Lỗi: '.count($errors) : '.'))
+                                ->success()
+                                ->send();
+                        }
+
+                        if ($errors !== []) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Một số bài không đăng lại được')
+                                ->body(implode("\n", array_slice($errors, 0, 5)))
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+                \Filament\Tables\Actions\DeleteBulkAction::make()
+                    ->label('Xóa đã chọn'),
+            ]),
+        ];
     }
 
     protected function getHeaderActions(): array
@@ -437,6 +578,12 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
         $this->resetFormAfterPublish();
         $this->refreshQueue();
         $this->activeTab = 'queue';
+
+        $this->dispatch(
+            'abp-queue-stats-synced',
+            stats: $this->queueStats,
+            interval: $this->queueIntervalMinutes,
+        );
     }
 
     public function saveCurrentList(array $data): void
@@ -570,6 +717,31 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
         }
     }
 
+    public function pollQueueDisplay(): void
+    {
+        $service = app(AutoBlogQueueService::class);
+        $service->recoverStaleProcessingItems();
+        $newStats = $service->queueStats();
+        $newInterval = $service->intervalMinutes();
+
+        $changed = $newStats !== $this->queueStats || $newInterval !== $this->queueIntervalMinutes;
+
+        $this->queueStats = $newStats;
+        $this->queueIntervalMinutes = $newInterval;
+
+        if ($changed) {
+            $this->dispatch(
+                'abp-queue-stats-synced',
+                stats: $this->queueStats,
+                interval: $this->queueIntervalMinutes,
+            );
+
+            if ($this->activeTab === 'queue') {
+                $this->resetTable();
+            }
+        }
+    }
+
     public function cancelPendingQueue(): void
     {
         $service = app(AutoBlogQueueService::class);
@@ -592,11 +764,52 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
             ->send();
 
         $this->refreshQueue();
+
+        $this->dispatch(
+            'abp-queue-stats-synced',
+            stats: $this->queueStats,
+            interval: $this->queueIntervalMinutes,
+        );
+    }
+
+    public function releaseStuckProcessing(): void
+    {
+        $service = app(AutoBlogQueueService::class);
+        $released = $service->releaseStuckProcessingItems();
+
+        if ($released === 0) {
+            Notification::make()
+                ->title('Không có bài đang kẹt')
+                ->body('Không có bài nào ở trạng thái «Đang tạo».')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
+        Notification::make()
+            ->title('Đã gỡ kẹt hàng đợi')
+            ->body("Đã chuyển {$released} bài «Đang tạo» sang Lỗi. Cron sẽ tiếp tục bài kế tiếp.")
+            ->success()
+            ->send();
+
+        $this->refreshQueue();
+
+        $this->dispatch(
+            'abp-queue-stats-synced',
+            stats: $this->queueStats,
+            interval: $this->queueIntervalMinutes,
+        );
     }
 
     public function canCancelPendingQueue(): bool
     {
         return app(AutoBlogQueueService::class)->hasPendingQueue();
+    }
+
+    public function canReleaseStuckProcessing(): bool
+    {
+        return app(AutoBlogQueueService::class)->queueStats()['processing'] > 0;
     }
 
     protected function prepareRecordsFromForm(): bool

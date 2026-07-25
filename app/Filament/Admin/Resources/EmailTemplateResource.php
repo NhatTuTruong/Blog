@@ -193,16 +193,17 @@ class EmailTemplateResource extends Resource
             ])
             ->actions([
                 Tables\Actions\Action::make('send')
-                    ->label('Gửi')
+                    ->label('')
                     ->icon('heroicon-o-paper-airplane')
+                    ->tooltip('Gửi email')
                     ->color('success')
                     ->url(fn (EmailTemplate $record): string => SendTemplatedEmailPage::urlWithTemplate($record->id)),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()->label(''),
+                Tables\Actions\DeleteAction::make()->label(''),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()->label(''),
                 ]),
             ]);
     }

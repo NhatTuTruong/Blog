@@ -19,6 +19,12 @@ return [
     /** @deprecated Metadata đọc bằng getID3 (james-heinrich/getid3) */
     'ffprobe_binary' => env('FFPROBE_BINARY'),
 
+    /** Giới hạn kích thước video nguồn (bytes) - mặc định 500MB */
+    'max_source_size_bytes' => (int) env('SOCIAL_VIDEO_MAX_SOURCE_SIZE_BYTES', 500 * 1024 * 1024),
+
+    /** Giới hạn thời lượng video nguồn (giây) - mặc định 90s cho Reels */
+    'max_source_duration_seconds' => (int) env('SOCIAL_VIDEO_MAX_SOURCE_DURATION_SECONDS', 90),
+
     'skip_start_seconds' => (int) env('SOCIAL_VIDEO_SKIP_START_SECONDS', 1),
 
     /** Bỏ N giây cuối video gốc (trước khi tăng tốc) */

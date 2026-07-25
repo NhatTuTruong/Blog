@@ -12,10 +12,15 @@ class QueueStaleRecoveryService
     /**
      * @param  class-string<Model>  $modelClass
      */
-    public function failStaleItems(string $modelClass): int
-    {
-        $threshold = now()->subMinutes(self::STALE_MINUTES);
-        $message = 'Quá '.self::STALE_MINUTES.' phút ở trạng thái «Chờ đăng» hoặc «Đang đăng» — chuyển sang bài tiếp theo.';
+    public function failStaleItems(
+        string $modelClass,
+        ?int $staleMinutes = null,
+        ?string $message = null,
+        bool $failStalePending = true,
+    ): int {
+        $staleMinutes = max(1, $staleMinutes ?? self::STALE_MINUTES);
+        $threshold = now()->subMinutes($staleMinutes);
+        $message ??= 'Quá '.$staleMinutes.' phút ở trạng thái «Chờ đăng» hoặc «Đang đăng» — chuyển sang bài tiếp theo.';
 
         $count = 0;
 
@@ -33,25 +38,28 @@ class QueueStaleRecoveryService
             $count++;
         }
 
-        $pending = $modelClass::query()
-            ->where('status', $modelClass::STATUS_PENDING)
-            ->where('scheduled_at', '<=', $threshold)
-            ->get();
+        if ($failStalePending) {
+            $pending = $modelClass::query()
+                ->where('status', $modelClass::STATUS_PENDING)
+                ->where('scheduled_at', '<=', $threshold)
+                ->get();
 
-        foreach ($pending as $item) {
-            $item->update([
-                'status' => $modelClass::STATUS_FAILED,
-                'processed_at' => now(),
-                'error_message' => $message,
-            ]);
-            $count++;
+            foreach ($pending as $item) {
+                $item->update([
+                    'status' => $modelClass::STATUS_FAILED,
+                    'processed_at' => now(),
+                    'error_message' => $message,
+                ]);
+                $count++;
+            }
         }
 
         if ($count > 0) {
             Log::warning('QueueStaleRecoveryService marked stale queue items as failed', [
                 'model' => $modelClass,
                 'count' => $count,
-                'stale_minutes' => self::STALE_MINUTES,
+                'stale_minutes' => $staleMinutes,
+                'fail_stale_pending' => $failStalePending,
             ]);
         }
 

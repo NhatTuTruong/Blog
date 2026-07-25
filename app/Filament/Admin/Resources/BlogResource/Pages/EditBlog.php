@@ -17,7 +17,7 @@ class EditBlog extends EditRecord
     {
         return [
             $this->getFormDraftDiscardAction(),
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()->label(''),
         ];
     }
 }

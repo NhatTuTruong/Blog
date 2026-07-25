@@ -218,6 +218,9 @@ class PinterestPostMediaService
             $item->brand_domain,
             $item->user_id,
             "pinterest-generated/item-{$item->id}.jpg",
+            ApifyImageOrientation::LANDSCAPE,
+            randomImage: true,
+            topCandidates: 5,
         );
     }
 

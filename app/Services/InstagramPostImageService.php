@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\InstagramQueueItem;
+use App\Support\ApifyImageOrientation;
 use App\Support\InstagramSettings;
 use App\Support\PublicStorage;
 use Illuminate\Support\Facades\Http;
@@ -242,6 +243,9 @@ class InstagramPostImageService
             $item->brand_domain,
             $item->user_id,
             "instagram-generated/item-{$item->id}.jpg",
+            ApifyImageOrientation::PORTRAIT_SQUARE,
+            randomImage: true,
+            topCandidates: 5,
         );
     }
 

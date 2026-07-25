@@ -163,13 +163,13 @@ class ReceivedEmailResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->label('Xóa đã chọn'),
                 ]),
             ])
             ->headerActions([
                 Tables\Actions\Action::make('sync')
-                    ->label('Đồng bộ hộp thư')
+                    ->label('')
                     ->icon('heroicon-o-arrow-path')
+                    ->tooltip('Đồng bộ hộp thư')
                     ->action(function (): void {
                         $service = app(IncomingMailService::class);
                         cache()->forget('imap_inbox_sync_global');

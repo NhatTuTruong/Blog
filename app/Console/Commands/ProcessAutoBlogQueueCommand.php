@@ -27,7 +27,7 @@ class ProcessAutoBlogQueueCommand extends Command
             $this->info("Đã tạo bài #{$result['blog']->id}: {$result['blog']->title} (queue #{$item?->id})");
         } else {
             $this->error("Thất bại queue #{$item?->id}: ".($service->lastError ?? $item?->error_message ?? 'unknown'));
-            $this->warn('Hàng đợi đã dừng — các bài đang chờ đã bị hủy để tránh kẹt.');
+            $this->warn('Bài lỗi đã được đánh dấu — hàng đợi tiếp tục với bài kế tiếp.');
         }
 
         return self::SUCCESS;

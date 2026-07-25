@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\FacebookQueueItem;
+use App\Support\ApifyImageOrientation;
 use App\Support\FacebookSettings;
 use App\Support\PublicStorage;
 use Illuminate\Support\Facades\Http;
@@ -225,6 +226,9 @@ class FacebookPostMediaService
             $item->brand_domain,
             $item->user_id,
             "facebook-generated/item-{$item->id}.jpg",
+            ApifyImageOrientation::PORTRAIT_SQUARE,
+            randomImage: true,
+            topCandidates: 5,
         );
     }
 

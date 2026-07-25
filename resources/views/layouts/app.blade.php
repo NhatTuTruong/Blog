@@ -232,5 +232,71 @@
     </script>
 
     @stack('scripts')
+
+    <button id="back-to-top" class="back-to-top" aria-label="Back to top" hidden>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+    </button>
+    <style>
+        .back-to-top {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--bh-accent, #059669);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px) scale(0.8);
+            transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
+            z-index: 999;
+        }
+        .back-to-top:not([hidden]) {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+        }
+        .back-to-top:hover {
+            background: var(--bh-ink, #1a1a2e);
+            transform: scale(1.1);
+        }
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 0;
+        }
+    </style>
+    <script>
+        (function() {
+            var btn = document.getElementById('back-to-top');
+            if (!btn) return;
+            function toggle() {
+                btn.hidden = window.scrollY <= 400;
+            }
+            window.addEventListener('scroll', toggle, { passive: true });
+            toggle();
+            btn.addEventListener('click', function() {
+                var start = window.scrollY;
+                var duration = 600;
+                var startTime = performance.now();
+                function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+                function animate(currentTime) {
+                    var elapsed = currentTime - startTime;
+                    var progress = Math.min(elapsed / duration, 1);
+                    window.scrollTo(0, start * (1 - easeOutCubic(progress)));
+                    if (progress < 1) requestAnimationFrame(animate);
+                }
+                requestAnimationFrame(animate);
+            });
+        })();
+    </script>
 </body>
 </html>

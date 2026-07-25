@@ -63,6 +63,15 @@ class HomeController extends Controller
 
         $excludeIds = $featuredPost ? [$featuredPost->id] : [];
 
+        $heroRotationPosts = (clone $baseQuery)
+            ->when($excludeIds !== [], fn ($q) => $q->whereNotIn('id', $excludeIds))
+            ->orderByDesc('views_count')
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get();
+
+        $excludeIds = array_merge($excludeIds, $heroRotationPosts->pluck('id')->all());
+
         $trendingPosts = (clone $baseQuery)
             ->when($excludeIds !== [], fn ($q) => $q->whereNotIn('id', $excludeIds))
             ->orderByDesc('views_count')
@@ -78,14 +87,18 @@ class HomeController extends Controller
             ->limit(9)
             ->get();
 
+        $categoryPosts = $this->buildCategoryPosts($featuredCategories, $excludeIds);
+
         return view('home', [
             'isFiltered' => false,
             'searchQuery' => '',
             'selectedCategory' => '',
             'filteredPosts' => collect(),
             'featuredCategories' => $featuredCategories,
+            'categoryPosts' => $categoryPosts,
             'stats' => $stats,
             'featuredPost' => $featuredPost,
+            'heroRotationPosts' => $heroRotationPosts,
             'trendingPosts' => $trendingPosts,
             'latestPosts' => $latestPosts,
         ]);
@@ -111,6 +124,7 @@ class HomeController extends Controller
             ->get()
             ->map(function (BlogCategory $cat) use ($postCounts) {
                 return [
+                    'id' => $cat->id,
                     'name' => $cat->name,
                     'slug' => $cat->slug,
                     'count' => (int) ($postCounts[$cat->id] ?? 0),
@@ -119,5 +133,32 @@ class HomeController extends Controller
                     'color' => Blog::categoryColor($cat->name),
                 ];
             });
+    }
+
+    /**
+     * @param  Collection<int, array{name: string, slug: string, count: int, url: string, icon: string, color: string}>  $categories
+     * @param  array<int>  $excludeIds
+     * @return Collection<int, array{name: string, slug: string, count: int, url: string, icon: string, color: string, posts: Collection}>
+     */
+    protected function buildCategoryPosts(Collection $categories, array $excludeIds): Collection
+    {
+        $baseQuery = Blog::query()->published()->with('blogCategory');
+
+        return $categories->take(4)->map(function ($cat) use ($baseQuery, $excludeIds) {
+            $query = (clone $baseQuery)
+                ->whereNotIn('id', $excludeIds)
+                ->orderByDesc('created_at')
+                ->limit(4);
+
+            if (! empty($cat['id'])) {
+                $query->where('blog_category_id', $cat['id']);
+            } else {
+                $query->where('category', $cat['name']);
+            }
+
+            $posts = $query->get();
+
+            return array_merge($cat, ['posts' => $posts]);
+        })->filter(fn ($cat) => $cat['posts']->isNotEmpty())->values();
     }
 }

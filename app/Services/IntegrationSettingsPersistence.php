@@ -188,12 +188,12 @@ class IntegrationSettingsPersistence
     protected function maskedGeminiKey(IntegrationSettingsStore $store, string $scope): string
     {
         $field = GeminiKeyScope::settingKey($scope);
-        if ($store->getEncrypted($field)) {
-            return '********';
+        if ($key = $store->getEncrypted($field)) {
+            return $key;
         }
 
-        if ($scope === GeminiKeyScope::AUTO_BLOG && $store->getEncrypted('gemini_api_key')) {
-            return '********';
+        if ($scope === GeminiKeyScope::AUTO_BLOG && ($key = $store->getEncrypted('gemini_api_key'))) {
+            return $key;
         }
 
         return '';
@@ -202,8 +202,9 @@ class IntegrationSettingsPersistence
     protected function saveGeminiApiKey(string $field, array $data): void
     {
         $value = trim((string) ($data[$field] ?? ''));
+        $stored = $this->store->getEncrypted($field);
 
-        if ($value === '********') {
+        if ($value === $stored) {
             return;
         }
 
@@ -213,13 +214,14 @@ class IntegrationSettingsPersistence
     protected function saveApifyApiToken(array $data): void
     {
         $value = (string) ($data['apify_api_token'] ?? '');
+        $stored = $this->store->getEncrypted('apify_api_token');
 
-        if (ApifySettings::inputUnchanged($value)) {
+        if (ApifySettings::inputUnchanged($value, $stored)) {
             return;
         }
 
         $lines = preg_split('/\R/', $value) ?: [];
-        $storedTokens = ApifySettings::parseTokenList($this->store->getEncrypted('apify_api_token'));
+        $storedTokens = ApifySettings::parseTokenList(is_string($stored) ? $stored : null);
         $resolved = [];
 
         foreach ($lines as $index => $line) {
@@ -252,7 +254,7 @@ class IntegrationSettingsPersistence
             return '';
         }
 
-        return implode("\n", array_fill(0, count($tokens), '********'));
+        return implode("\n", $tokens);
     }
 
     protected function saveMailPassword(array $data): void

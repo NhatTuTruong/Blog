@@ -21,7 +21,7 @@ class Kernel extends ConsoleKernel
 
         $schedule->command('blogs:process-queue')
             ->everyMinute()
-            ->withoutOverlapping()
+            ->withoutOverlapping(30)
             ->runInBackground();
 
         $schedule->command('social:auto-queue')

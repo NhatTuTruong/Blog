@@ -53,13 +53,51 @@ class AutoBlogQueueService
     protected function staleProcessingMinutes(): int
     {
         $geminiTimeout = max(60, (int) AdminSettings::get('gemini_timeout', 120));
+        $modelCount = max(1, count(GeminiSettings::availableModels()));
+        $apifyWait = max(30, (int) config('apify.run_wait_seconds', 180));
 
-        return max(15, (int) ceil($geminiTimeout / 60) + 5);
+        // Gemini (fallback nhiều model) + Apify sync + buffer tải ảnh + start overhead
+        $seconds = ($geminiTimeout * $modelCount) + $apifyWait + 600;
+
+        return max(20, min(90, (int) ceil($seconds / 60)));
     }
 
     public function recoverStaleProcessingItems(): int
     {
-        return app(QueueStaleRecoveryService::class)->failStaleItems(AutoBlogQueueItem::class);
+        $minutes = $this->staleProcessingMinutes();
+
+        return app(QueueStaleRecoveryService::class)->failStaleItems(
+            AutoBlogQueueItem::class,
+            $minutes,
+            'Quá '.$minutes.' phút ở trạng thái «Đang tạo» — có thể timeout Gemini/Apify. Bài đã chuyển sang Lỗi; hàng đợi tiếp tục.',
+            failStalePending: false,
+        );
+    }
+
+    public function releaseStuckProcessingItems(): int
+    {
+        $message = 'Đã gỡ kẹt thủ công — tiến trình tạo bài có thể bị timeout hoặc dừng giữa chừng.';
+
+        $items = AutoBlogQueueItem::query()
+            ->where('status', AutoBlogQueueItem::STATUS_PROCESSING)
+            ->get();
+
+        foreach ($items as $item) {
+            $item->update([
+                'status' => AutoBlogQueueItem::STATUS_FAILED,
+                'processed_at' => now(),
+                'error_message' => $message,
+            ]);
+        }
+
+        if ($items->isNotEmpty()) {
+            Log::warning('AutoBlogQueueService manually released stuck processing items', [
+                'count' => $items->count(),
+                'queue_item_ids' => $items->pluck('id')->all(),
+            ]);
+        }
+
+        return $items->count();
     }
 
     public function abortQueueOnError(string $reason): int
@@ -167,7 +205,9 @@ class AutoBlogQueueService
         $item->update(['status' => AutoBlogQueueItem::STATUS_PROCESSING]);
 
         try {
-            @set_time_limit(600);
+            @set_time_limit(900);
+
+            $item->touch();
 
             $blog = $this->generateBlogFromQueueItem($item);
 
@@ -221,12 +261,20 @@ class AutoBlogQueueService
         $author = User::where('is_admin', true)->first() ?? User::first();
         $featuredImage = app(AutoBlogFeaturedImageService::class)->resolveForQueueItem($item);
 
+        // Insert inline images into content (uses best images, different from featured)
+        $contentWithImages = app(AutoBlogContentImageService::class)->insertImagesIntoContent(
+            $result['content'],
+            $item->brand_domain,
+            $item->user_id,
+            $item->id,
+        );
+
         return Blog::create([
             'user_id' => $item->user_id ?? $author?->id,
             'blog_category_id' => $item->blog_category_id,
             'title' => $result['title'],
             'category' => $categoryLabel,
-            'content' => $result['content'],
+            'content' => $contentWithImages,
             'featured_image' => $featuredImage,
             'is_published' => true,
             'views_count' => 0,

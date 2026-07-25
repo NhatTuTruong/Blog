@@ -99,7 +99,7 @@ class BlogCategoryResource extends Resource
                 Tables\Columns\ImageColumn::make('image')
                     ->label('Ảnh')
                     ->disk('public')
-                    ->size(50)
+                    ->size(40)
                     ->defaultImageUrl(fn () => \App\Models\Blog::defaultImageUrl()),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Tên')
@@ -131,12 +131,12 @@ class BlogCategoryResource extends Resource
                     ->label('Hiển thị'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()->label(''),
+                Tables\Actions\DeleteAction::make()->label(''),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()->label(''),
                 ]),
             ]);
     }

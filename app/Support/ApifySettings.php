@@ -87,7 +87,7 @@ class ApifySettings
         return $tokens !== [] ? implode("\n", $tokens) : null;
     }
 
-    public static function inputUnchanged(string $input): bool
+    public static function inputUnchanged(string $input, ?string $stored = null): bool
     {
         $trimmed = trim($input);
 
@@ -95,11 +95,9 @@ class ApifySettings
             return true;
         }
 
-        $lines = preg_split('/\R/', $trimmed) ?: [];
+        $inputTokens = static::parseTokenList($trimmed);
+        $storedTokens = $stored !== null ? static::parseTokenList($stored) : [];
 
-        return collect($lines)
-            ->map(fn (mixed $line): string => trim((string) $line))
-            ->filter()
-            ->every(fn (string $line): bool => $line === '********');
+        return $inputTokens === $storedTokens;
     }
 }

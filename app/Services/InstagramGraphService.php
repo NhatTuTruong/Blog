@@ -428,9 +428,12 @@ class InstagramGraphService
         $code = data_get($body, 'error.code');
         $subcode = data_get($body, 'error.error_subcode');
 
-        $parts = ["HTTP {$status}: {$message}"];
+        $parts = ["HTTP {$status}"];
+        if (! empty($message) && $message !== 'Unknown error') {
+            $parts[] = $message;
+        }
         if ($code !== null) {
-            $parts[] = "code={$code}";
+            $parts[] = "error_code={$code}";
         }
         if ($subcode !== null) {
             $parts[] = "subcode={$subcode}";
@@ -443,7 +446,7 @@ class InstagramGraphService
             $parts[] = '(Meta không tải được ảnh — cần URL HTTPS công khai trả về file JPEG hợp lệ)';
         }
 
-        return implode(' ', $parts);
+        return implode(' | ', $parts);
     }
 }
 

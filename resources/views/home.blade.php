@@ -381,7 +381,7 @@
         align-items: center;
         gap: 0.35rem;
     }
-    .bh-link:hover { text-decoration: underline; }
+    .bh-link:hover { opacity: 0.8; }
 
     /* —— Categories bento —— */
     .bh-bento {
@@ -540,6 +540,159 @@
         background: #fff;
         color: var(--bh-ink);
         border-radius: 0.6rem;
+    }
+
+    /* —— Featured Grid (carousel + cover) —— */
+    .bh-featured-grid {
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        gap: 1.5rem;
+        align-items: stretch;
+    }
+    @media (max-width: 900px) {
+        .bh-featured-grid { grid-template-columns: 1fr; }
+    }
+    .bh-featured-grid__main {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+    }
+    .bh-featured-grid__main .bh-cover__content {
+        padding: 1.5rem;
+    }
+    .bh-featured-grid__main .bh-cover__title {
+        font-size: clamp(1.25rem, 3vw, 1.75rem);
+    }
+
+    /* Side carousel */
+    .bh-featured-carousel {
+        position: relative;
+        border-radius: calc(var(--bh-radius) + 0.25rem);
+        overflow: hidden;
+        border: 1px solid var(--bh-line);
+        box-shadow: var(--bh-shadow);
+        min-height: 28rem;
+        touch-action: pan-y;
+    }
+    .bh-featured-carousel__track {
+        position: relative;
+        overflow: hidden;
+        height: 100%;
+        min-height: 28rem;
+    }
+    .bh-featured-carousel__slide {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        text-decoration: none;
+        color: #fff;
+        opacity: 0;
+        transition: opacity 0.6s ease;
+        pointer-events: none;
+    }
+    .bh-featured-carousel__slide.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .bh-featured-carousel__img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .bh-featured-carousel__shade {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(0deg, rgba(12,10,9,0.92) 0%, rgba(12,10,9,0.2) 60%, transparent 100%);
+    }
+    .bh-featured-carousel__body {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 1.5rem;
+    }
+    .bh-featured-carousel__badge {
+        display: inline-block;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        background: var(--bh-accent);
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.3rem;
+        margin-bottom: 0.5rem;
+    }
+    .bh-featured-carousel__cat {
+        display: block;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        opacity: 0.85;
+        margin-bottom: 0.4rem;
+    }
+    .bh-featured-carousel__title {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 1.15rem;
+        font-weight: 700;
+        line-height: 1.3;
+        margin: 0 0 0.6rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .bh-featured-carousel__meta {
+        font-size: 0.75rem;
+        opacity: 0.7;
+    }
+    .bh-featured-carousel__dots {
+        position: absolute;
+        bottom: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 0.6rem;
+        z-index: 10;
+    }
+    .bh-featured-carousel__dot {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255,255,255,0.4);
+        cursor: pointer;
+        transition: background 0.3s, transform 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .bh-featured-carousel__dot::after {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #fff;
+        opacity: 0.8;
+    }
+    .bh-featured-carousel__dot.active {
+        background: rgba(255,255,255,0.9);
+        transform: scale(1.1);
+    }
+    .bh-featured-carousel__dot.active::after {
+        opacity: 1;
+    }
+    @media (max-width: 768px) {
+        .bh-featured-carousel__dot {
+            width: 32px;
+            height: 32px;
+        }
+        .bh-featured-carousel__dot::after {
+            width: 8px;
+            height: 8px;
+        }
     }
 
     /* —— Trending list —— */
@@ -788,6 +941,188 @@
         .bh-section { padding: 2.5rem 0; }
         .bh-stats { margin: 1.25rem 0 1rem; }
     }
+
+    /* —— Category Featured Layout (Layout 1: Green) —— */
+    .bh-cat-featured { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 768px) { .bh-cat-featured { grid-template-columns: 1fr; } }
+    .bh-cat-hero { position: relative; border-radius: var(--bh-radius); overflow: hidden; aspect-ratio: 4/3; display: block; }
+    .bh-cat-hero img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+    .bh-cat-hero:hover img { transform: scale(1.04); }
+    .bh-cat-hero__shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 60%); }
+    .bh-cat-hero__body { position: absolute; bottom: 0; left: 0; right: 0; padding: 1.5rem; color: #fff; }
+    .bh-cat-hero__tag { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #fff; margin-bottom: 0.75rem; }
+    .bh-cat-hero__body h3 { font-size: 1.35rem; font-weight: 700; line-height: 1.3; margin-bottom: 0.5rem; }
+    .bh-cat-hero__body p { font-size: 0.8rem; opacity: 0.85; }
+    .bh-cat-grid { display: flex; flex-direction: column; gap: 1rem; }
+    .bh-cat-card { display: flex; gap: 1rem; border-radius: var(--bh-radius); overflow: hidden; background: var(--bh-card); box-shadow: var(--bh-shadow); transition: transform 0.2s, box-shadow 0.2s; }
+    .bh-cat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+    .bh-cat-card img { width: 100px; height: 80px; object-fit: cover; flex-shrink: 0; }
+    .bh-cat-card__body { padding: 0.75rem 0.75rem 0.75rem 0; display: flex; flex-direction: column; justify-content: center; }
+    .bh-cat-card__body h4 { font-size: 0.9rem; font-weight: 600; line-height: 1.4; margin-bottom: 0.25rem; color: var(--bh-ink); }
+    .bh-cat-card__body span { font-size: 0.75rem; color: var(--bh-muted); }
+
+    /* —— Category Horizontal Layout (Layout 2: Red) —— */
+    .bh-cat-horizontal { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1.5rem; }
+    @media (max-width: 768px) { .bh-cat-horizontal { grid-template-columns: 1fr; } }
+    .bh-cat-h-card { display: flex; flex-direction: column; border-radius: var(--bh-radius); overflow: hidden; background: var(--bh-card); box-shadow: var(--bh-shadow); transition: transform 0.2s; }
+    .bh-cat-h-card:hover { transform: translateY(-3px); }
+    .bh-cat-h-card img { width: 100%; height: 200px; object-fit: cover; }
+    .bh-cat-h-card__body { padding: 1.25rem; }
+    .bh-cat-h-card__body h3 { font-size: 1.1rem; font-weight: 700; line-height: 1.4; margin-bottom: 0.5rem; color: var(--bh-ink); }
+    .bh-cat-h-card__body p { font-size: 0.85rem; color: var(--bh-muted); line-height: 1.6; margin-bottom: 0.75rem; }
+    .bh-cat-h-card__meta { font-size: 0.75rem; color: var(--bh-muted); }
+    .bh-cat-h-list { display: flex; flex-direction: column; gap: 1rem; }
+    .bh-cat-h-item { display: flex; gap: 1rem; padding: 0.75rem; border-radius: var(--bh-radius); background: var(--bh-card); box-shadow: var(--bh-shadow); transition: background 0.2s; }
+    .bh-cat-h-item:hover { background: #fef2f2; }
+    .bh-cat-h-item img { width: 80px; height: 70px; object-fit: cover; border-radius: 0.5rem; flex-shrink: 0; }
+    .bh-cat-h-item div { display: flex; flex-direction: column; justify-content: center; }
+    .bh-cat-h-item h4 { font-size: 0.85rem; font-weight: 600; line-height: 1.4; margin-bottom: 0.25rem; color: var(--bh-ink); }
+    .bh-cat-h-item span { font-size: 0.7rem; color: var(--bh-muted); }
+
+    /* —— Category Masonry Layout (Layout 3: Blue) —— */
+    .bh-cat-masonry { display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 200px; gap: 1rem; }
+    @media (max-width: 900px) { .bh-cat-masonry { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .bh-cat-masonry { grid-template-columns: 1fr; } }
+    .bh-cat-m-card { position: relative; border-radius: var(--bh-radius); overflow: hidden; display: block; }
+    .bh-cat-m-card img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+    .bh-cat-m-card:hover img { transform: scale(1.06); }
+    .bh-cat-m-card--tall { grid-row: span 2; }
+    .bh-cat-m-card__body { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 50%); padding: 1rem; display: flex; flex-direction: column; justify-content: flex-end; color: #fff; }
+    .bh-cat-m-card__cat { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+    .bh-cat-m-card__body h4 { font-size: 0.9rem; font-weight: 600; line-height: 1.3; margin-bottom: 0.25rem; }
+    .bh-cat-m-card__body span { font-size: 0.7rem; opacity: 0.75; }
+
+    /* Remove underlines from all links in category sections */
+    .bh-cat-featured a, .bh-cat-grid a, .bh-cat-horizontal a, .bh-cat-masonry a,
+    .bh-cat-h-list a { text-decoration: none; }
+    .bh-cat-title { color: inherit; }
+
+    /* —— Carousel for Mobile —— */
+    .bh-carousel {
+        overflow: hidden;
+        position: relative;
+    }
+    .bh-carousel__track {
+        display: flex;
+        gap: 1rem;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 0.5rem;
+    }
+    .bh-carousel__track::-webkit-scrollbar { display: none; }
+    .bh-carousel__slide {
+        flex: 0 0 calc(85% - 1rem);
+        scroll-snap-align: start;
+    }
+    @media (min-width: 640px) {
+        .bh-carousel__track {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            overflow-x: visible;
+            scroll-snap-type: none;
+        }
+        .bh-carousel__slide { flex: none; width: 100%; }
+    }
+    @media (min-width: 900px) {
+        .bh-carousel.bh-carousel--trending .bh-carousel__track {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    .bh-carousel__slide .bh-trend__card,
+    .bh-carousel__slide .bh-card {
+        width: 100%;
+    }
+
+    /* —— Hero Carousel (rotating featured posts) —— */
+    .bh-hero-carousel {
+        position: relative;
+        max-width: 26rem;
+        border-radius: 1.35rem;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow:
+            0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+            0 24px 60px rgba(0, 0, 0, 0.45);
+        transform: perspective(800px) rotateY(-4deg) rotateX(2deg);
+        transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+    .bh-hero-carousel:hover {
+        transform: perspective(800px) rotateY(0) rotateX(0) translateY(-6px);
+        box-shadow: 0 32px 70px rgba(0, 0, 0, 0.5), 0 0 40px rgba(16, 185, 129, 0.15);
+    }
+    @media (max-width: 960px) {
+        .bh-hero-carousel { transform: none; }
+        .bh-hero-carousel:hover { transform: translateY(-4px); }
+    }
+    .bh-hero-carousel__track {
+        position: relative;
+        overflow: hidden;
+        border-radius: 0;
+    }
+    .bh-hero-carousel__slide {
+        display: block;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        text-decoration: none;
+        color: #fff;
+        opacity: 0;
+        transform: scale(1.05);
+        transition: opacity 0.8s ease, transform 0.8s ease;
+        pointer-events: none;
+    }
+    .bh-hero-carousel__slide.active {
+        opacity: 1;
+        transform: scale(1);
+        pointer-events: auto;
+        position: relative;
+    }
+    .bh-hero-carousel__slide .bh-hero__spotlight-img {
+        aspect-ratio: 4/5;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .bh-hero-carousel__slide .bh-hero__spotlight-shade {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(0deg, rgba(6, 10, 9, 0.95) 0%, rgba(6, 10, 9, 0.2) 55%, transparent 100%);
+    }
+    .bh-hero-carousel__slide .bh-hero__spotlight-body {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 1.35rem 1.4rem 1.5rem;
+    }
+    .bh-hero-carousel__dots {
+        position: absolute;
+        bottom: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 0.5rem;
+        z-index: 10;
+    }
+    .bh-hero-carousel__dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255,255,255,0.4);
+        cursor: pointer;
+        transition: background 0.3s, transform 0.3s;
+    }
+    .bh-hero-carousel__dot.active {
+        background: #fff;
+        transform: scale(1.2);
+    }
 </style>
 @endpush
 
@@ -849,29 +1184,45 @@
                     @endif
                 </div>
 
-                @if(!$isFiltered && $featuredPost)
-                    <a href="{{ route('blog.show', $featuredPost->slug) }}" class="bh-hero__spotlight">
-                        <img
-                            src="{{ $featuredPost->featured_image_url }}"
-                            alt="{{ $featuredPost->title }}"
-                            class="bh-hero__spotlight-img"
-                            loading="eager"
-                        >
-                        <div class="bh-hero__spotlight-shade"></div>
-                        <div class="bh-hero__spotlight-body">
-                            <span class="bh-hero__spotlight-badge">Featured</span>
-                            @if($featuredPost->category)
-                                <span class="bh-hero__spotlight-cat">{{ $featuredPost->category }}</span>
-                            @endif
-                            <h2 class="bh-hero__spotlight-title">{{ $featuredPost->title }}</h2>
-                            <p class="bh-hero__spotlight-meta">
-                                {{ $featuredPost->reading_minutes }} min read
-                                @if($featuredPost->views_count > 0)
-                                    · {{ number_format($featuredPost->views_count) }} views
-                                @endif
-                            </p>
+                @if(!$isFiltered && ($featuredPost || (isset($heroRotationPosts) && $heroRotationPosts->isNotEmpty())))
+                    <div class="bh-hero-carousel" id="hero-carousel">
+                        @php
+                            $carouselPosts = collect([$featuredPost])->merge($heroRotationPosts ?? collect())->filter();
+                        @endphp
+                        <div class="bh-hero-carousel__track">
+                            @foreach($carouselPosts as $index => $post)
+                                <a href="{{ route('blog.show', $post->slug) }}" class="bh-hero-carousel__slide {{ $index === 0 ? 'active' : '' }}" data-index="{{ $index }}">
+                                    <img
+                                        src="{{ $post->featured_image_url }}"
+                                        alt="{{ $post->title }}"
+                                        class="bh-hero__spotlight-img"
+                                        loading="{{ $index === 0 ? 'eager' : 'lazy' }}"
+                                    >
+                                    <div class="bh-hero__spotlight-shade"></div>
+                                    <div class="bh-hero__spotlight-body">
+                                        <span class="bh-hero__spotlight-badge">{{ $index === 0 ? 'Featured' : 'Trending' }}</span>
+                                        @if($post->category)
+                                            <span class="bh-hero__spotlight-cat">{{ $post->category }}</span>
+                                        @endif
+                                        <h2 class="bh-hero__spotlight-title">{{ $post->title }}</h2>
+                                        <p class="bh-hero__spotlight-meta">
+                                            {{ $post->reading_minutes }} min read
+                                            @if($post->views_count > 0)
+                                                · {{ number_format($post->views_count) }} views
+                                            @endif
+                                        </p>
+                                    </div>
+                                </a>
+                            @endforeach
                         </div>
-                    </a>
+                        @if($carouselPosts->count() > 1)
+                            <div class="bh-hero-carousel__dots">
+                                @foreach($carouselPosts as $index => $post)
+                                    <button class="bh-hero-carousel__dot {{ $index === 0 ? 'active' : '' }}" data-index="{{ $index }}" aria-label="Go to slide {{ $index + 1 }}"></button>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
                 @endif
             </div>
 
@@ -885,6 +1236,45 @@
             @endif
         </div>
     </section>
+
+    <script>
+        (function() {
+            var carousel = document.getElementById('hero-carousel');
+            if (!carousel) return;
+            var slides = carousel.querySelectorAll('.bh-hero-carousel__slide');
+            var dots = carousel.querySelectorAll('.bh-hero-carousel__dot');
+            if (slides.length <= 1) return;
+
+            var current = 0;
+            var timer;
+
+            function goTo(index) {
+                slides[current].classList.remove('active');
+                dots[current].classList.remove('active');
+                current = index;
+                slides[current].classList.add('active');
+                dots[current].classList.add('active');
+            }
+
+            function next() {
+                goTo((current + 1) % slides.length);
+            }
+
+            function startTimer() {
+                timer = setInterval(next, 5000);
+            }
+
+            dots.forEach(function(dot, i) {
+                dot.addEventListener('click', function() {
+                    clearInterval(timer);
+                    goTo(i);
+                    startTimer();
+                });
+            });
+
+            startTimer();
+        })();
+    </script>
 
     @if($isFiltered)
         <section class="bh-section">
@@ -928,28 +1318,134 @@
                         <p>Most read — hand-picked for you</p>
                     </div>
                 </div>
-                <a href="{{ route('blog.show', $featuredPost->slug) }}" class="bh-cover">
-                    <img src="{{ $featuredPost->featured_image_url }}" alt="{{ $featuredPost->title }}" class="bh-cover__img" loading="eager">
-                    <div class="bh-cover__shade"></div>
-                    <div class="bh-cover__content">
-                        <span class="bh-cover__tag">Editor's Pick</span>
-                        @if($featuredPost->category)
-                            <span class="bh-cover__cat">{{ $featuredPost->category }}</span>
-                        @endif
-                        <h3 class="bh-cover__title">{{ $featuredPost->title }}</h3>
-                        @if($featuredPost->excerpt)
-                            <p class="bh-cover__excerpt">{{ $featuredPost->excerpt }}</p>
-                        @endif
-                        <div class="bh-cover__meta">
-                            <span>{{ $featuredPost->created_at?->format('F j, Y') }}</span>
-                            <span>{{ $featuredPost->reading_minutes }} min read</span>
-                            @if($featuredPost->views_count > 0)
-                                <span>{{ number_format($featuredPost->views_count) }} views</span>
-                            @endif
+                <div class="bh-featured-grid">
+                    <div class="bh-featured-carousel" id="featured-carousel">
+                        <div class="bh-featured-carousel__track">
+                            @php
+                                $featuredSubPosts = $heroRotationPosts->take(4);
+                            @endphp
+                            @foreach($featuredSubPosts as $index => $post)
+                                <a href="{{ route('blog.show', $post->slug) }}" class="bh-featured-carousel__slide {{ $index === 0 ? 'active' : '' }}" data-index="{{ $index }}">
+                                    <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-featured-carousel__img" loading="lazy">
+                                    <div class="bh-featured-carousel__shade"></div>
+                                    <div class="bh-featured-carousel__body">
+                                        <span class="bh-featured-carousel__badge">Trending</span>
+                                        @if($post->category)
+                                            <span class="bh-featured-carousel__cat">{{ $post->category }}</span>
+                                        @endif
+                                        <h4 class="bh-featured-carousel__title">{{ $post->title }}</h4>
+                                        <span class="bh-featured-carousel__meta">{{ $post->reading_minutes }} min · {{ number_format($post->views_count) }} views</span>
+                                    </div>
+                                </a>
+                            @endforeach
                         </div>
-                        <span class="bh-cover__cta">Read article →</span>
+                        @if($featuredSubPosts->count() > 1)
+                            <div class="bh-featured-carousel__dots">
+                                @foreach($featuredSubPosts as $index => $post)
+                                    <button class="bh-featured-carousel__dot {{ $index === 0 ? 'active' : '' }}" data-index="{{ $index }}"></button>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
-                </a>
+                    <a href="{{ route('blog.show', $featuredPost->slug) }}" class="bh-cover bh-featured-grid__main">
+                        <img src="{{ $featuredPost->featured_image_url }}" alt="{{ $featuredPost->title }}" class="bh-cover__img" loading="eager">
+                        <div class="bh-cover__shade"></div>
+                        <div class="bh-cover__content">
+                            <span class="bh-cover__tag">Editor's Pick</span>
+                            @if($featuredPost->category)
+                                <span class="bh-cover__cat">{{ $featuredPost->category }}</span>
+                            @endif
+                            <h3 class="bh-cover__title">{{ $featuredPost->title }}</h3>
+                            @if($featuredPost->excerpt)
+                                <p class="bh-cover__excerpt">{{ $featuredPost->excerpt }}</p>
+                            @endif
+                            <div class="bh-cover__meta">
+                                <span>{{ $featuredPost->created_at?->format('F j, Y') }}</span>
+                                <span>{{ $featuredPost->reading_minutes }} min read</span>
+                                @if($featuredPost->views_count > 0)
+                                    <span>{{ number_format($featuredPost->views_count) }} views</span>
+                                @endif
+                            </div>
+                            <span class="bh-cover__cta">Read article →</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </section>
+        @endif
+
+        <script>
+            (function() {
+                var carousel = document.getElementById('featured-carousel');
+                if (!carousel) return;
+                var slides = carousel.querySelectorAll('.bh-featured-carousel__slide');
+                var dots = carousel.querySelectorAll('.bh-featured-carousel__dot');
+                if (slides.length <= 1) return;
+
+                var current = 0;
+                var timer;
+                var touchStartX = 0;
+                var touchEndX = 0;
+
+                function goTo(index) {
+                    slides[current].classList.remove('active');
+                    dots[current].classList.remove('active');
+                    current = index;
+                    slides[current].classList.add('active');
+                    dots[current].classList.add('active');
+                }
+
+                function next() { goTo((current + 1) % slides.length); }
+                function prev() { goTo((current - 1 + slides.length) % slides.length); }
+
+                function startTimer() { timer = setInterval(next, 5000); }
+
+                dots.forEach(function(dot, i) {
+                    dot.addEventListener('click', function() {
+                        clearInterval(timer);
+                        goTo(i);
+                        startTimer();
+                    });
+                });
+
+                carousel.addEventListener('touchstart', function(e) {
+                    touchStartX = e.changedTouches[0].screenX;
+                    clearInterval(timer);
+                }, { passive: true });
+
+                carousel.addEventListener('touchend', function(e) {
+                    touchEndX = e.changedTouches[0].screenX;
+                    var diff = touchStartX - touchEndX;
+                    if (Math.abs(diff) > 50) {
+                        if (diff > 0) next();
+                        else prev();
+                    }
+                    startTimer();
+                }, { passive: true });
+
+                startTimer();
+            })();
+        </script>
+
+        @if($latestPosts->isNotEmpty())
+        <section class="bh-section">
+            <div class="bh-wrap">
+                <div class="bh-head">
+                    <div>
+                        <h2 class="font-heading">Latest Articles</h2>
+                        <p>Fresh stories from the blog</p>
+                    </div>
+                    <a href="{{ route('blog.index') }}" class="bh-link">See all →</a>
+                </div>
+                <div class="bh-carousel">
+                    <div class="bh-carousel__track">
+                        @foreach($latestPosts as $post)
+                            <div class="bh-carousel__slide">
+                                @include('partials.home-post-card', ['post' => $post])
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
             </div>
         </section>
         @endif
@@ -982,6 +1478,111 @@
         </section>
         @endif
 
+        {{-- Category Posts: Each category with different UI layout --}}
+        @if(isset($categoryPosts) && $categoryPosts->isNotEmpty())
+            @php
+                $uiStyles = [
+                    ['bg' => '#f0fdf4', 'accent' => '#059669', 'layout' => 'grid'],
+                    ['bg' => '#fef2f2', 'accent' => '#dc2626', 'layout' => 'horizontal'],
+                    ['bg' => '#eff6ff', 'accent' => '#2563eb', 'layout' => 'masonry'],
+                    ['bg' => '#fff7ed', 'accent' => '#ea580c', 'layout' => 'cards'],
+                ];
+            @endphp
+            @foreach($categoryPosts as $catIndex => $cat)
+                @php
+                    $style = $uiStyles[$catIndex % count($uiStyles)];
+                    $firstPost = $cat['posts']->first();
+                    $otherPosts = $cat['posts']->skip(1);
+                @endphp
+
+                <section class="bh-section bh-section--line">
+                    <div class="bh-wrap">
+                        <div class="bh-head">
+                            <div>
+                                <h2 class="font-heading bh-cat-title">{{ $cat['name'] }}</h2>
+                                <p>{{ $cat['posts']->count() }} {{ Str::plural('article', $cat['posts']->count()) }}</p>
+                            </div>
+                            <a href="{{ $cat['url'] }}" class="bh-link">View all →</a>
+                        </div>
+
+                        @if($style['layout'] === 'grid' && $firstPost)
+                            {{-- Layout 1: Featured + Grid --}}
+                            <div class="bh-cat-featured">
+                                <a href="{{ route('blog.show', $firstPost->slug) }}" class="bh-cat-hero">
+                                    <img src="{{ $firstPost->featured_image_url }}" alt="{{ $firstPost->title }}" loading="lazy">
+                                    <div class="bh-cat-hero__shade"></div>
+                                    <div class="bh-cat-hero__body">
+                                        <span class="bh-cat-hero__tag" style="background: {{ $style['accent'] }};">Latest</span>
+                                        <h3>{{ $firstPost->title }}</h3>
+                                        <p>{{ $firstPost->created_at?->format('M j, Y') }} · {{ $firstPost->reading_minutes }} min</p>
+                                    </div>
+                                </a>
+                                <div class="bh-cat-grid">
+                                    @foreach($otherPosts->take(3) as $post)
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-card">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">
+                                            <div class="bh-cat-card__body">
+                                                <h4>{{ $post->title }}</h4>
+                                                <span>{{ $post->created_at?->format('M j') }}</span>
+                                            </div>
+                                        </a>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @elseif($style['layout'] === 'horizontal' && $firstPost)
+                            {{-- Layout 2: Horizontal Cards --}}
+                            <div class="bh-cat-horizontal">
+                                <a href="{{ route('blog.show', $firstPost->slug) }}" class="bh-cat-h-card bh-cat-h-card--large">
+                                    <img src="{{ $firstPost->featured_image_url }}" alt="{{ $firstPost->title }}" loading="lazy">
+                                    <div class="bh-cat-h-card__body">
+                                        <h3>{{ $firstPost->title }}</h3>
+                                        <p>{{ Str::limit(strip_tags($firstPost->excerpt ?? $firstPost->content ?? ''), 120) }}</p>
+                                        <span class="bh-cat-h-card__meta">{{ $firstPost->created_at?->format('M j, Y') }} · {{ $firstPost->reading_minutes }} min</span>
+                                    </div>
+                                </a>
+                                @if($otherPosts->isNotEmpty())
+                                <div class="bh-cat-h-list">
+                                    @foreach($otherPosts->take(3) as $post)
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-h-item">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">
+                                            <div>
+                                                <h4>{{ $post->title }}</h4>
+                                                <span>{{ $post->created_at?->format('M j, Y') }}</span>
+                                            </div>
+                                        </a>
+                                    @endforeach
+                                </div>
+                                @endif
+                            </div>
+                        @elseif($style['layout'] === 'masonry')
+                            {{-- Layout 3: Masonry-style --}}
+                            <div class="bh-cat-masonry">
+                                @foreach($cat['posts']->take(4) as $index => $post)
+                                    <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-m-card {{ $index === 0 ? 'bh-cat-m-card--tall' : '' }}">
+                                        <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">
+                                        <div class="bh-cat-m-card__body">
+                                            @if($post->category)
+                                                <span class="bh-cat-m-card__cat" style="color: {{ $style['accent'] }};">{{ $post->category }}</span>
+                                            @endif
+                                            <h4>{{ $post->title }}</h4>
+                                            <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
+                                        </div>
+                                    </a>
+                                @endforeach
+                            </div>
+                        @else
+                            {{-- Layout 4: Clean Cards --}}
+                            <div class="bh-grid">
+                                @foreach($cat['posts']->take(4) as $post)
+                                    @include('partials.home-post-card', ['post' => $post])
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                </section>
+            @endforeach
+        @endif
+
         @if($trendingPosts->isNotEmpty())
         <section class="bh-section bh-section--line">
             <div class="bh-wrap">
@@ -992,45 +1593,30 @@
                     </div>
                     <a href="{{ route('blog.index') }}" class="bh-link">View blog →</a>
                 </div>
-                <div class="bh-trend">
-                    @foreach($trendingPosts as $index => $post)
-                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-trend__card">
-                            <span class="bh-trend__num">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</span>
-                            <img src="{{ $post->featured_image_url }}" alt="" class="bh-trend__thumb" loading="lazy">
-                            <div>
-                                @if($post->category)
-                                    <div class="bh-trend__cat">{{ $post->category }}</div>
-                                @endif
-                                <h3 class="bh-trend__title">{{ $post->title }}</h3>
-                                <div class="bh-trend__meta">
-                                    <span>{{ $post->created_at?->format('M j, Y') }}</span>
-                                    @if($post->views_count > 0)
-                                        <span>{{ number_format($post->views_count) }} views</span>
-                                    @endif
-                                    <span>{{ $post->reading_minutes }} min</span>
-                                </div>
+                <div class="bh-carousel">
+                    <div class="bh-carousel__track">
+                        @foreach($trendingPosts as $index => $post)
+                            <div class="bh-carousel__slide">
+                                <a href="{{ route('blog.show', $post->slug) }}" class="bh-trend__card">
+                                    <span class="bh-trend__num">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</span>
+                                    <img src="{{ $post->featured_image_url }}" alt="" class="bh-trend__thumb" loading="lazy">
+                                    <div>
+                                        @if($post->category)
+                                            <div class="bh-trend__cat">{{ $post->category }}</div>
+                                        @endif
+                                        <h3 class="bh-trend__title">{{ $post->title }}</h3>
+                                        <div class="bh-trend__meta">
+                                            <span>{{ $post->created_at?->format('M j, Y') }}</span>
+                                            @if($post->views_count > 0)
+                                                <span>{{ number_format($post->views_count) }} views</span>
+                                            @endif
+                                            <span>{{ $post->reading_minutes }} min</span>
+                                        </div>
+                                    </div>
+                                </a>
                             </div>
-                        </a>
-                    @endforeach
-                </div>
-            </div>
-        </section>
-        @endif
-
-        @if($latestPosts->isNotEmpty())
-        <section class="bh-section">
-            <div class="bh-wrap">
-                <div class="bh-head">
-                    <div>
-                        <h2 class="font-heading">Latest Articles</h2>
-                        <p>Fresh stories from the blog</p>
+                        @endforeach
                     </div>
-                    <a href="{{ route('blog.index') }}" class="bh-link">See all →</a>
-                </div>
-                <div class="bh-grid">
-                    @foreach($latestPosts as $post)
-                        @include('partials.home-post-card', ['post' => $post])
-                    @endforeach
                 </div>
             </div>
         </section>

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\ApifyImageOrientation;
 use App\Support\BrandDomain;
 use App\Support\PublicStorage;
 use Illuminate\Support\Facades\Http;
@@ -9,16 +10,31 @@ use Illuminate\Support\Facades\Log;
 
 class SocialMediaImageSourceService
 {
-    public function generatePlaceholderJpeg(?string $brandDomain, ?int $userId, string $destStoragePath): string
-    {
+    /**
+     * @param string $orientation ApifyImageOrientation::LANDSCAPE, PORTRAIT_SQUARE, etc.
+     * @param bool $randomImage If true, pick a random image from top candidates instead of best.
+     * @param int $topCandidates Number of top candidates to consider when random=true.
+     */
+    public function generatePlaceholderJpeg(
+        ?string $brandDomain,
+        ?int $userId,
+        string $destStoragePath,
+        string $orientation = ApifyImageOrientation::LANDSCAPE,
+        bool $randomImage = false,
+        int $topCandidates = 5,
+    ): string {
         PublicStorage::ensureDirectory(dirname(str_replace('\\', '/', $destStoragePath)));
         $destAbsolute = PublicStorage::absolutePath($destStoragePath);
 
         $query = $this->buildSearchQuery($brandDomain);
         if ($query !== null) {
             $apify = app(ApifyGoogleImagesService::class);
-            if ($apify->downloadLargestImageForQuery($query, $userId, $destAbsolute)
-                && ! $this->isBlockedPlaceholderImage($destAbsolute)) {
+
+            $success = $randomImage
+                ? $apify->downloadRandomQualityImageForQuery($query, $userId, $destAbsolute, $orientation, $topCandidates)
+                : $apify->downloadLargestImageForQuery($query, $userId, $destAbsolute, $orientation);
+
+            if ($success && ! $this->isBlockedPlaceholderImage($destAbsolute)) {
                 return $destStoragePath;
             }
 
@@ -29,6 +45,7 @@ class SocialMediaImageSourceService
             Log::info('SocialMediaImageSource: Apify image unavailable — using default1', [
                 'query' => $query,
                 'error' => $apify->lastError,
+                'random' => $randomImage,
             ]);
         }
 

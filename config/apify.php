@@ -3,7 +3,7 @@
 return [
     'api_token' => env('APIFY_API_TOKEN'),
 
-    'google_images_actor_id' => env('APIFY_GOOGLE_IMAGES_ACTOR_ID', '1zP0mfnAf2xvIwvJu'),
+    'google_images_actor_id' => env('APIFY_GOOGLE_IMAGES_ACTOR_ID', 'IOrPh0bOfzJiGxsvk'),
 
     'google_images' => [
         'image_size' => env('APIFY_GOOGLE_IMAGES_SIZE', 'large'),
@@ -22,7 +22,7 @@ return [
 
     'max_results_per_query' => (int) env('APIFY_MAX_RESULTS_PER_QUERY', 3),
 
-    'run_wait_seconds' => (int) env('APIFY_RUN_WAIT_SECONDS', 180),
+    'run_wait_seconds' => (int) env('APIFY_RUN_WAIT_SECONDS', 120),
 
     'tiktok_results_cache_seconds' => (int) env('APIFY_TIKTOK_RESULTS_CACHE_SECONDS', 3600),
 

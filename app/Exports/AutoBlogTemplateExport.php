@@ -15,14 +15,15 @@ class AutoBlogTemplateExport implements FromArray, WithHeadings
             'Nội dung / ý tưởng',
             'Link Affiliate',
             'Coupon code',
+            'Ảnh đại diện (URL hoặc path)',
         ];
     }
 
     public function array(): array
     {
         return [
-            ['nike.com', 'Shoes', 'Review giày chạy bộ mới', 'https://example.com/aff', 'SAVE10'],
-            ['amazon.com', 'Tech', 'Top laptop 2026', '', 'DEAL20;EXTRA5'],
+            ['nike.com', 'Shoes', 'Review giày chạy bộ mới', 'https://example.com/aff', 'SAVE10', 'https://example.com/nike-shoe.jpg'],
+            ['amazon.com', 'Tech', 'Top laptop 2026', '', 'DEAL20;EXTRA5', ''],
         ];
     }
 }

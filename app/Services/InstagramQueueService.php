@@ -223,10 +223,6 @@ class InstagramQueueService
 
         $this->recoverStaleProcessingItems();
 
-        if (InstagramQueueItem::query()->where('status', InstagramQueueItem::STATUS_PROCESSING)->exists()) {
-            return ['processed' => false, 'item' => null, 'media_id' => null];
-        }
-
         $hasManualActive = InstagramQueueItem::query()
             ->where(function ($query): void {
                 $query->where('queue_source', SocialMediaQueueSource::MANUAL)
@@ -259,7 +255,21 @@ class InstagramQueueService
             return ['processed' => false, 'item' => null, 'media_id' => null];
         }
 
-        $item->update(['status' => InstagramQueueItem::STATUS_PROCESSING]);
+        // Atomic: chỉ update nếu status vẫn là PENDING (tránh race condition)
+        $updated = InstagramQueueItem::query()
+            ->where('id', $item->id)
+            ->where('status', InstagramQueueItem::STATUS_PENDING)
+            ->update([
+                'status' => InstagramQueueItem::STATUS_PROCESSING,
+                'updated_at' => now(),
+            ]);
+
+        if ($updated === 0) {
+            // Item đã bị process bởi process khác, thử lấy item tiếp theo
+            return $this->processNextDue();
+        }
+
+        $item->refresh();
 
         try {
             @set_time_limit(300);
