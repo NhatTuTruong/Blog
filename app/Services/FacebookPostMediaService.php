@@ -6,7 +6,8 @@ use App\Models\FacebookQueueItem;
 use App\Support\ApifyImageOrientation;
 use App\Support\FacebookSettings;
 use App\Support\PublicStorage;
-use Illuminate\Support\Facades\Http;
+use App\Support\SocialMediaPublicUrl;
+use App\Support\SocialMediaPublicUrlValidator;
 
 class FacebookPostMediaService
 {
@@ -42,13 +43,17 @@ class FacebookPostMediaService
 
     public function signedPublicUrl(FacebookQueueItem $item): ?string
     {
-        if (filled($item->video_path)) {
-            PublicStorage::syncUploadedPath((string) $item->video_path);
-        } else {
-            $this->ensureStoredJpegForItem($item);
+        $storagePath = filled($item->video_path)
+            ? $this->normalizeStoragePath($item->video_path)
+            : $this->ensureStoredJpegForItem($item);
+
+        if ($storagePath === null) {
+            $this->lastError = 'Không tìm thấy file media trên máy chủ.';
+
+            return null;
         }
 
-        $base = FacebookSettings::publicBaseUrl();
+        $base = FacebookSettings::publicBaseUrl($item->user_id);
         if ($base === null) {
             $this->lastError = 'APP_URL đang là localhost — Meta không tải được ảnh. '
                 .'Vào Cài đặt hệ thống → Facebook → nhập «URL công khai» (domain HTTPS hoặc ngrok).';
@@ -56,9 +61,7 @@ class FacebookPostMediaService
             return null;
         }
 
-        $token = $this->mediaAccessToken($item);
-
-        return rtrim($base, '/').'/facebook/media/'.$item->id.'?t='.$token;
+        return SocialMediaPublicUrl::build($base, $storagePath);
     }
 
     public function mediaAccessToken(FacebookQueueItem $item): string
@@ -75,59 +78,16 @@ class FacebookPostMediaService
 
     public function validatePublicImageUrl(string $url): ?string
     {
-        try {
-            $response = Http::timeout(15)
-                ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; InstagramBot/1.0)'])
-                ->head($url);
+        [$error] = SocialMediaPublicUrlValidator::validateImageUrl($url);
 
-            if (! $response->successful()) {
-                $response = Http::timeout(20)
-                    ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; InstagramBot/1.0)'])
-                    ->get($url);
-            }
-
-            if (! $response->successful()) {
-                return 'Meta không truy cập được URL ảnh (HTTP '.$response->status().'). Kiểm tra URL công khai HTTPS.';
-            }
-
-            $contentType = strtolower((string) $response->header('Content-Type', ''));
-            if ($contentType !== '' && ! str_contains($contentType, 'image/jpeg') && ! str_contains($contentType, 'image/jpg')) {
-                return 'URL ảnh trả về Content-Type không phải JPEG ('.$contentType.'). Instagram yêu cầu ảnh JPG/PNG hợp lệ.';
-            }
-        } catch (\Throwable $e) {
-            return 'Không kiểm tra được URL ảnh: '.$e->getMessage();
-        }
-
-        return null;
+        return $error;
     }
 
     public function validatePublicVideoUrl(string $url): ?string
     {
-        try {
-            $response = Http::timeout(20)
-                ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; InstagramBot/1.0)'])
-                ->head($url);
+        [$error] = SocialMediaPublicUrlValidator::validateVideoUrl($url);
 
-            if (! $response->successful()) {
-                $response = Http::timeout(30)
-                    ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; InstagramBot/1.0)'])
-                    ->withOptions(['stream' => true])
-                    ->get($url);
-            }
-
-            if (! $response->successful()) {
-                return 'Meta không truy cập được URL video (HTTP '.$response->status().'). Kiểm tra URL công khai HTTPS.';
-            }
-
-            $contentType = strtolower((string) $response->header('Content-Type', ''));
-            if ($contentType !== '' && ! str_contains($contentType, 'video/')) {
-                return 'URL video trả về Content-Type không phải video ('.$contentType.').';
-            }
-        } catch (\Throwable $e) {
-            return 'Không kiểm tra được URL video: '.$e->getMessage();
-        }
-
-        return null;
+        return $error;
     }
 
     public function resolveMediaAbsolutePath(FacebookQueueItem $item): string

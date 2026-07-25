@@ -273,6 +273,66 @@ class FacebookGraphService
         return $postId !== '' ? $postId : null;
     }
 
+    public function publishPhotoFromPath(string $absolutePath, string $message): ?string
+    {
+        $this->lastError = null;
+
+        $pageId = $this->pageId();
+        if ($pageId === null || $this->activeAccount() === null || ! $this->activeAccount()->isConfigured()) {
+            $this->lastError = 'Facebook Page chưa được cấu hình đầy đủ.';
+
+            return null;
+        }
+
+        if (! is_file($absolutePath)) {
+            $this->lastError = 'File ảnh không tồn tại trên máy chủ.';
+
+            return null;
+        }
+
+        $this->persistResolvedPageTokenIfChanged();
+
+        $token = $this->pageAccessToken();
+        $handle = fopen($absolutePath, 'r');
+        if ($handle === false) {
+            $this->lastError = 'Không đọc được file ảnh trên máy chủ.';
+
+            return null;
+        }
+
+        try {
+            $response = Http::acceptJson()
+                ->connectTimeout(30)
+                ->timeout(300)
+                ->attach('source', $handle, basename($absolutePath))
+                ->post($this->baseUrl().'/'.$pageId.'/photos', [
+                    'caption' => $message,
+                    'published' => true,
+                    'access_token' => $token,
+                ]);
+        } finally {
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
+        }
+
+        if (! $response->successful()) {
+            $this->lastError = $this->formatGraphError($response->json(), $response->status());
+            Log::warning('FacebookGraphService photo upload failed', [
+                'status' => $response->status(),
+                'body' => $response->json(),
+                'path' => $absolutePath,
+                'page_id' => $pageId,
+            ]);
+
+            return null;
+        }
+
+        $postId = (string) ($response->json('post_id') ?? $response->json('id') ?? '');
+
+        return $postId !== '' ? $postId : null;
+    }
+
     public function publishVideo(string $videoUrl, string $message): ?string
     {
         $this->lastError = null;
@@ -298,6 +358,66 @@ class FacebookGraphService
                 'status' => $response->status(),
                 'body' => $response->json(),
                 'video_url' => $videoUrl,
+                'page_id' => $pageId,
+            ]);
+
+            return null;
+        }
+
+        $postId = (string) ($response->json('id') ?? '');
+
+        return $postId !== '' ? $postId : null;
+    }
+
+    public function publishVideoFromPath(string $absolutePath, string $message): ?string
+    {
+        $this->lastError = null;
+
+        $pageId = $this->pageId();
+        if ($pageId === null || $this->activeAccount() === null || ! $this->activeAccount()->isConfigured()) {
+            $this->lastError = 'Facebook Page chưa được cấu hình đầy đủ.';
+
+            return null;
+        }
+
+        if (! is_file($absolutePath)) {
+            $this->lastError = 'File video không tồn tại trên máy chủ.';
+
+            return null;
+        }
+
+        $this->persistResolvedPageTokenIfChanged();
+
+        $token = $this->pageAccessToken();
+        $handle = fopen($absolutePath, 'r');
+        if ($handle === false) {
+            $this->lastError = 'Không đọc được file video trên máy chủ.';
+
+            return null;
+        }
+
+        try {
+            $response = Http::acceptJson()
+                ->connectTimeout(30)
+                ->timeout(600)
+                ->attach('source', $handle, basename($absolutePath))
+                ->post($this->baseUrl().'/'.$pageId.'/videos', [
+                    'description' => $message,
+                    'published' => true,
+                    'access_token' => $token,
+                ]);
+        } finally {
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
+        }
+
+        if (! $response->successful()) {
+            $this->lastError = $this->formatGraphError($response->json(), $response->status());
+            Log::warning('FacebookGraphService video upload failed', [
+                'status' => $response->status(),
+                'body' => $response->json(),
+                'path' => $absolutePath,
                 'page_id' => $pageId,
             ]);
 

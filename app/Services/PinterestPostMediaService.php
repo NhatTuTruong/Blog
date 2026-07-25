@@ -5,7 +5,8 @@ namespace App\Services;
 use App\Models\PinterestQueueItem;
 use App\Support\PinterestSettings;
 use App\Support\PublicStorage;
-use Illuminate\Support\Facades\Http;
+use App\Support\SocialMediaPublicUrl;
+use App\Support\SocialMediaPublicUrlValidator;
 
 class PinterestPostMediaService
 {
@@ -38,9 +39,17 @@ class PinterestPostMediaService
 
     public function signedPublicImageUrl(PinterestQueueItem $item): ?string
     {
-        $this->ensureStoredJpegForItem($item);
+        $storagePath = filled($item->video_path)
+            ? $this->normalizeStoragePath($item->image_path) ?? $this->ensureStoredJpegForItem($item)
+            : $this->ensureStoredJpegForItem($item);
 
-        $base = PinterestSettings::publicBaseUrl();
+        if ($storagePath === null) {
+            $this->lastError = 'Không tìm thấy file ảnh trên máy chủ.';
+
+            return null;
+        }
+
+        $base = PinterestSettings::publicBaseUrl($item->user_id);
         if ($base === null) {
             $this->lastError = 'APP_URL đang là localhost — Pinterest không tải được ảnh. '
                 .'Vào Cài đặt hệ thống → Pinterest → nhập «URL công khai» (domain HTTPS hoặc ngrok).';
@@ -48,9 +57,7 @@ class PinterestPostMediaService
             return null;
         }
 
-        $token = $this->mediaAccessToken($item);
-
-        return rtrim($base, '/').'/pinterest/media/'.$item->id.'?t='.$token;
+        return SocialMediaPublicUrl::build($base, $storagePath);
     }
 
     public function mediaAccessToken(PinterestQueueItem $item): string
@@ -67,59 +74,16 @@ class PinterestPostMediaService
 
     public function validatePublicImageUrl(string $url): ?string
     {
-        try {
-            $response = Http::timeout(15)
-                ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; InstagramBot/1.0)'])
-                ->head($url);
+        [$error] = SocialMediaPublicUrlValidator::validateImageUrl($url);
 
-            if (! $response->successful()) {
-                $response = Http::timeout(20)
-                    ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; InstagramBot/1.0)'])
-                    ->get($url);
-            }
-
-            if (! $response->successful()) {
-                return 'Pinterest không truy cập được URL ảnh (HTTP '.$response->status().'). Kiểm tra URL công khai HTTPS.';
-            }
-
-            $contentType = strtolower((string) $response->header('Content-Type', ''));
-            if ($contentType !== '' && ! str_contains($contentType, 'image/')) {
-                return 'URL ảnh trả về Content-Type không phải ảnh ('.$contentType.').';
-            }
-        } catch (\Throwable $e) {
-            return 'Không kiểm tra được URL ảnh: '.$e->getMessage();
-        }
-
-        return null;
+        return $error;
     }
 
     public function validatePublicVideoUrl(string $url): ?string
     {
-        try {
-            $response = Http::timeout(20)
-                ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; InstagramBot/1.0)'])
-                ->head($url);
+        [$error] = SocialMediaPublicUrlValidator::validateVideoUrl($url);
 
-            if (! $response->successful()) {
-                $response = Http::timeout(30)
-                    ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; InstagramBot/1.0)'])
-                    ->withOptions(['stream' => true])
-                    ->get($url);
-            }
-
-            if (! $response->successful()) {
-                return 'Meta không truy cập được URL video (HTTP '.$response->status().'). Kiểm tra URL công khai HTTPS.';
-            }
-
-            $contentType = strtolower((string) $response->header('Content-Type', ''));
-            if ($contentType !== '' && ! str_contains($contentType, 'video/')) {
-                return 'URL video trả về Content-Type không phải video ('.$contentType.').';
-            }
-        } catch (\Throwable $e) {
-            return 'Không kiểm tra được URL video: '.$e->getMessage();
-        }
-
-        return null;
+        return $error;
     }
 
     public function resolveMediaAbsolutePath(PinterestQueueItem $item): string

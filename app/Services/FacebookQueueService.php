@@ -351,31 +351,12 @@ class FacebookQueueService
 
         $media = app(FacebookPostMediaService::class);
         $graph = app(FacebookGraphService::class)->forAccount($account);
+        $absolutePath = $media->resolveMediaAbsolutePath($item);
 
         if (filled($item->video_path)) {
-            $mediaUrl = $media->signedPublicUrl($item);
-            if ($mediaUrl === null) {
-                throw new \RuntimeException($media->lastError ?? 'Không tạo được URL media công khai.');
-            }
-
-            $urlError = $media->validatePublicVideoUrl($mediaUrl);
-            if ($urlError !== null) {
-                throw new \RuntimeException($urlError);
-            }
-
-            $mediaId = $graph->publishVideo($mediaUrl, (string) $caption);
+            $mediaId = $graph->publishVideoFromPath($absolutePath, (string) $caption);
         } else {
-            $mediaUrl = $media->signedPublicUrl($item);
-            if ($mediaUrl === null) {
-                throw new \RuntimeException($media->lastError ?? 'Không tạo được URL media công khai.');
-            }
-
-            $urlError = $media->validatePublicImageUrl($mediaUrl);
-            if ($urlError !== null) {
-                throw new \RuntimeException($urlError);
-            }
-
-            $mediaId = $graph->publishPhoto($mediaUrl, (string) $caption);
+            $mediaId = $graph->publishPhotoFromPath($absolutePath, (string) $caption);
         }
 
         if ($mediaId === null) {
