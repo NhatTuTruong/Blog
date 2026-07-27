@@ -11,6 +11,10 @@ class SocialMediaPublicUrlValidator
      */
     public static function validateImageUrl(string $url): array
     {
+        if ((bool) config('social_media_video.skip_url_validation', false)) {
+            return [null, 'image/jpeg'];
+        }
+
         return static::validateMediaUrl($url, 'image');
     }
 
@@ -19,6 +23,10 @@ class SocialMediaPublicUrlValidator
      */
     public static function validateVideoUrl(string $url): array
     {
+        if ((bool) config('social_media_video.skip_url_validation', false)) {
+            return [null, 'video/mp4'];
+        }
+
         return static::validateMediaUrl($url, 'video');
     }
 

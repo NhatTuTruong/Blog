@@ -3,6 +3,8 @@
 return [
     'enabled' => (bool) env('SOCIAL_VIDEO_PREPARE_ENABLED', true),
 
+    'skip_url_validation' => (bool) env('SOCIAL_MEDIA_SKIP_URL_VALIDATION', false),
+
     /** Để trống = tự tìm encoder đi kèm Composer (bin/ hoặc vendor/). Không cần cài trên server. */
     'media_encoder_binary' => env('SOCIAL_VIDEO_ENCODER_BINARY') ?: env('FFMPEG_BINARY'),
 
