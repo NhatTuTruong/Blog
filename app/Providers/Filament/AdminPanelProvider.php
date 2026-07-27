@@ -103,6 +103,10 @@ class AdminPanelProvider extends PanelProvider
             )
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
+                fn () => view('components.admin-favicon')
+            )
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
                 fn () => view('components.filament-file-upload-fouc-fix')
             )
             ->renderHook(

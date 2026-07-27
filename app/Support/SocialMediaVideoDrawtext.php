@@ -106,8 +106,9 @@ class SocialMediaVideoDrawtext
     {
         $title = trim(preg_replace('/\s+/u', ' ', $title) ?? '');
         $title = str_replace(["\r", "\n", "\t"], ' ', $title);
-        $title = str_replace(['‘', '’', '‛', '`'], "'", $title);
-        $title = str_replace(['"', '“', '”'], '', $title);
+        $title = str_replace(['&'], 'and', $title);
+        $title = str_replace(["'", "'", "'", "`"], "'", $title);
+        $title = str_replace(['"', '"', '"'], '', $title);
 
         return trim($title);
     }

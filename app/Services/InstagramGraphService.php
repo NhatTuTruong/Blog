@@ -87,6 +87,84 @@ class InstagramGraphService
     }
 
     /**
+     * Kiểm tra quyền đăng bài (instagram_content_publish).
+     * Chỉ áp dụng cho token Facebook Login (EAA...). Token Instagram Login API
+     * có quyền đăng bài ngầm, không cần kiểm tra.
+     *
+     * @return array{has_basic: bool, has_publish: bool, permissions: array<string, string>}
+     */
+    public function testPermissions(?InstagramAccount $account = null): array
+    {
+        if ($account !== null) {
+            $this->account = $account;
+            $this->lastError = null;
+        }
+
+        // Token Instagram Login API không hiện quyền đăng bài trong /me/permissions
+        // — quyền là ngầm, luôn coi như có publish permission.
+        if (! $this->usesInstagramLoginApi()) {
+            $userId = $this->resolvePermissionCheckUserId();
+            if ($userId === null) {
+                return [
+                    'has_basic' => false,
+                    'has_publish' => false,
+                    'permissions' => [],
+                ];
+            }
+
+            $response = $this->http()->get($this->baseUrl().'/'.$userId.'/permissions');
+
+            $permissions = [];
+            $hasBasic = false;
+            $hasPublish = false;
+
+            if ($response->successful()) {
+                $data = $response->json();
+                foreach (data_get($data, 'data', []) as $item) {
+                    $name = (string) ($item['permission'] ?? '');
+                    $status = (string) ($item['status'] ?? '');
+                    $permissions[$name] = $status;
+
+                    if ($name === 'instagram_basic' && $status === 'granted') {
+                        $hasBasic = true;
+                    }
+                    if ($name === 'instagram_content_publish' && $status === 'granted') {
+                        $hasPublish = true;
+                    }
+                }
+            }
+
+            return [
+                'has_basic' => $hasBasic,
+                'has_publish' => $hasPublish,
+                'permissions' => $permissions,
+            ];
+        }
+
+        return [
+            'has_basic' => true,
+            'has_publish' => true,
+            'permissions' => [],
+        ];
+    }
+
+    protected function resolvePermissionCheckUserId(): ?string
+    {
+        if ($this->usesInstagramLoginApi()) {
+            $configured = $this->configuredUserId();
+            if ($configured !== null) {
+                return $configured;
+            }
+
+            $profile = $this->testInstagramLoginConnection();
+
+            return $profile['id'] ?? null;
+        }
+
+        return $this->configuredUserId();
+    }
+
+    /**
      * @return array{id: string, username?: string, name?: string}|null
      */
     protected function testInstagramLoginConnection(): ?array

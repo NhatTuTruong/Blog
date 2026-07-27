@@ -1036,6 +1036,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
 
         foreach ($accounts as $account) {
             $result = $graph->forAccount($account)->testConnection($account);
+            $permissions = $graph->forAccount($account)->testPermissions($account);
 
             if ($result === null) {
                 $failed[] = $account->displayLabel().': '.($graph->lastError ?? 'lỗi');
@@ -1047,7 +1048,13 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
                 $label .= ' ('.$result['name'].')';
             }
 
-            $ok[] = $account->displayLabel().' → '.$label;
+            $publishStatus = $permissions['has_publish']
+                ? ' ✅ quyền đăng bài OK'
+                : ($account->usesInstagramLoginApi()
+                    ? ' ✅ quyền đăng bài ngầm'
+                    : ' ⚠️ thiếu quyền đăng bài (instagram_content_publish)');
+
+            $ok[] = $account->displayLabel().' → '.$label.$publishStatus;
         }
 
         if ($ok !== []) {
@@ -1055,9 +1062,13 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
         }
 
         if ($failed === []) {
+            $body = implode("\n", $ok);
+            if (count($accounts) !== count($ok)) {
+                $body .= "\n⚠️ ".count($accounts).' tài khoản kiểm tra.';
+            }
             Notification::make()
                 ->title('Kết nối Instagram thành công')
-                ->body(implode("\n", $ok))
+                ->body($body)
                 ->success()
                 ->send();
 
