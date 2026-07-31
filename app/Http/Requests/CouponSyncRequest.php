@@ -41,7 +41,7 @@ class CouponSyncRequest extends FormRequest
             'platforms.*' => ['string', 'max:32', function (string $attribute, mixed $value, \Closure $fail): void {
                 $this->validatePlatform($value, $fail);
             }],
-            'items' => ['nullable', 'array', 'max:50'],
+            'items' => ['nullable', 'array'],
             'items.*.domain' => ['nullable', 'string', 'max:255'],
             'items.*.brand_domain' => ['nullable', 'string', 'max:255'],
             'items.*.aff_link' => ['nullable', 'string', 'max:2048', function (string $attribute, mixed $value, \Closure $fail): void {
@@ -81,7 +81,6 @@ class CouponSyncRequest extends FormRequest
             'platforms.min' => 'Cần chọn ít nhất một nền tảng trong platforms.',
             'platforms.max' => 'Tối đa 3 nền tảng: blog, instagram, facebook.',
             'items.array' => 'Trường items phải là mảng.',
-            'items.max' => 'Tối đa 50 bản ghi trong một lần gọi API.',
             'items.*.domain.string' => 'Domain trong items phải là chuỗi ký tự.',
             'items.*.aff_link.url' => 'aff_link trong items phải là URL hợp lệ (hoặc để trống).',
             'items.*.affiliate_link.url' => 'Link affiliate trong items phải là URL hợp lệ (hoặc để trống).',
