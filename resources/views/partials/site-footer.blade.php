@@ -9,9 +9,14 @@
         if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
             return $url;
         }
-
         return url(ltrim($url, '/'));
     };
+    $featuredPosts = \App\Models\Blog::query()
+        ->published()
+        ->whereNotNull('featured_image')
+        ->orderBy('created_at', 'desc')
+        ->take(3)
+        ->get();
 @endphp
 <footer class="site-footer">
     <div class="footer-inner">
@@ -35,6 +40,25 @@
                     </ul>
                 </div>
             @endforeach
+
+            @if($featuredPosts->count() > 0)
+            <div class="footer-stories">
+                <h4>Featured Stories</h4>
+                @foreach($featuredPosts as $post)
+                <a href="{{ route('blog.show', $post->slug) }}" class="footer-story-item">
+                    <img src="{{ $post->featuredImageUrl }}"
+                         alt="{{ $post->title }}"
+                         class="footer-story-thumb">
+                    <div class="footer-story-info">
+                        @if($post->category)
+                        <span class="footer-story-cat">{{ $post->category }}</span>
+                        @endif
+                        <span class="footer-story-title">{{ $post->title }}</span>
+                    </div>
+                </a>
+                @endforeach
+            </div>
+            @endif
         </div>
         <div class="footer-bottom">
             <p>{!! nl2br(e($copyright)) !!}</p>

@@ -11,8 +11,8 @@
         --blog-border: rgba(15, 23, 42, 0.12);
         --blog-text: #0f172a;
         --blog-muted: #64748b;
-        --blog-accent: #16a34a;
-        --blog-accent-soft: rgba(22, 163, 74, 0.10);
+        --blog-accent: #2563eb;
+        --blog-accent-soft: rgba(37, 99, 235, 0.10);
     }
 
     body {
@@ -53,8 +53,8 @@
         border-radius: 1.5rem;
         overflow: hidden;
         border: 1px solid var(--blog-border);
-        background: radial-gradient(circle at top left, rgba(34, 197, 94, 0.10), transparent 55%),
-                    radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.08), transparent 60%),
+        background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 55%),
+                    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.08), transparent 60%),
                     #ffffff;
         display: grid;
         grid-template-columns: minmax(0, 3fr) minmax(0, 2.5fr);
@@ -117,7 +117,7 @@
     .blog-hero-media {
         position: relative;
         min-height: 200px;
-        background: radial-gradient(circle at center, rgba(2, 132, 199, 0.08), rgba(22, 163, 74, 0.06));
+        background: radial-gradient(circle at center, rgba(37, 99, 235, 0.1), rgba(59, 130, 246, 0.06));
         overflow: hidden;
     }
 

@@ -78,10 +78,10 @@
             --text: #111827;
             --text-dark: #111827;
             --text-muted: #6b7280;
-            --primary: #22c55e;
-            --primary-dark: #16a34a;
-            --accent: var(--primary);
-            --accent-hover: var(--primary-dark);
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
             --border: #e5e7eb;
             --radius: 12px;
             --radius-sm: 8px;
@@ -246,14 +246,14 @@
             width: 48px;
             height: 48px;
             border-radius: 50%;
-            background: var(--bh-accent, #059669);
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
             color: #fff;
             border: none;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
             opacity: 0;
             visibility: hidden;
             transform: translateY(20px) scale(0.8);
@@ -266,12 +266,12 @@
             transform: translateY(0) scale(1);
         }
         .back-to-top:hover {
-            background: var(--bh-ink, #1a1a2e);
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
             transform: scale(1.1);
         }
         html {
             scroll-behavior: smooth;
-            scroll-padding-top: 0;
+            scroll-padding-top: 80px;
         }
     </style>
     <script>

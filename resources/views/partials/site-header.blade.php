@@ -1,5 +1,6 @@
 @php
     $navLinks = \App\Models\SiteContent::get('header_nav', \App\Models\SiteContent::defaultHeaderNav());
+    $socialLinks = collect(\App\Models\SiteContent::get('social_media_links', []))->filter(fn($s) => !empty($s['url']) && !empty($s['enabled']));
     $normalizeUrl = function ($url) {
         if (empty($url)) {
             return url('/');
@@ -15,6 +16,15 @@
     <div class="header-inner">
         <a href="{{ url('/') }}" class="logo font-heading">{{ config('app.name') }}<span>.</span></a>
         <div class="site-header__actions">
+            @if($socialLinks->isNotEmpty())
+            <div class="site-header__social">
+                @foreach($socialLinks as $social)
+                <a href="{{ $social['url'] }}" target="_blank" rel="noopener noreferrer" class="social-icon social-icon--{{ $social['platform'] }}" aria-label="{{ ucfirst($social['platform']) }}">
+                    {!! \App\Models\SiteContent::socialPlatformIcon($social['platform']) !!}
+                </a>
+                @endforeach
+            </div>
+            @endif
             <button type="button"
                 class="site-header__toggle"
                 id="site-header-toggle"

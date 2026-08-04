@@ -12,6 +12,7 @@ use Filament\Forms\Components\Tabs;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
@@ -52,6 +53,7 @@ class SiteContentPage extends Page implements HasForms
         $this->form->fill([
             'maintenance_enabled' => SiteContent::get('maintenance_enabled', false),
             'header_nav' => SiteContent::get('header_nav', SiteContent::defaultHeaderNav()),
+            'social_media_links' => SiteContent::get('social_media_links', SiteContent::defaultSocialLinks()),
             'footer_brand_description' => SiteContent::get('footer_brand_description', 'Articles, guides and stories — updated regularly.'),
             'footer_columns' => SiteContent::get('footer_columns', SiteContent::defaultFooterColumns()),
             'footer_copyright' => SiteContent::get('footer_copyright', '© ' . date('Y') . ' ' . config('app.name') . '. All rights reserved.'),
@@ -106,6 +108,36 @@ class SiteContentPage extends Page implements HasForms
                                                 TextInput::make('label')->label('Nhãn')->required()->maxLength(100),
                                                 TextInput::make('url')->label('URL')->required()->maxLength(500)->placeholder('/blog hoặc https://...'),
                                             ]),
+                                    ]),
+                                Section::make('Mạng xã hội')
+                                    ->description('Các icon mạng xã hội hiển thị trên header. Bật và nhập link để hiển thị.')
+                                    ->schema([
+                                        Repeater::make('social_media_links')
+                                            ->label('')
+                                            ->itemLabel(fn (array $state): ?string => ucfirst($state['platform'] ?? 'Mạng xã hội'))
+                                            ->addActionLabel('Thêm mạng xã hội')
+                                            ->schema([
+                                                Select::make('platform')
+                                                    ->label('Nền tảng')
+                                                    ->options([
+                                                        'facebook' => 'Facebook',
+                                                        'instagram' => 'Instagram',
+                                                        'twitter' => 'Twitter / X',
+                                                        'youtube' => 'YouTube',
+                                                        'tiktok' => 'TikTok',
+                                                        'pinterest' => 'Pinterest',
+                                                        'linkedin' => 'LinkedIn',
+                                                    ])
+                                                    ->required(),
+                                                TextInput::make('url')
+                                                    ->label('Link')
+                                                    ->url()
+                                                    ->placeholder('https://...'),
+                                                Toggle::make('enabled')
+                                                    ->label('Hiển thị')
+                                                    ->default(false),
+                                            ])
+                                            ->columns(3),
                                     ]),
                             ]),
                         Tabs\Tab::make('Footer')
@@ -229,6 +261,7 @@ class SiteContentPage extends Page implements HasForms
         $data = $this->form->getState();
         SiteContent::set('maintenance_enabled', $data['maintenance_enabled'] ?? false);
         SiteContent::set('header_nav', $data['header_nav'] ?? []);
+        SiteContent::set('social_media_links', $data['social_media_links'] ?? []);
         SiteContent::set('footer_brand_description', $data['footer_brand_description'] ?? '');
         SiteContent::set('footer_columns', $data['footer_columns'] ?? []);
         SiteContent::set('footer_copyright', $data['footer_copyright'] ?? '');
