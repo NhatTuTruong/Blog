@@ -74,6 +74,26 @@ class AutoBlogQueueService
         );
     }
 
+    protected function hasActiveProcessing(): bool
+    {
+        return AutoBlogQueueItem::query()
+            ->where('status', AutoBlogQueueItem::STATUS_PROCESSING)
+            ->exists();
+    }
+
+    protected function claimQueueItem(AutoBlogQueueItem $item): bool
+    {
+        $now = now();
+
+        return AutoBlogQueueItem::query()
+            ->where('id', $item->id)
+            ->where('status', AutoBlogQueueItem::STATUS_PENDING)
+            ->update([
+                'status' => AutoBlogQueueItem::STATUS_PROCESSING,
+                'updated_at' => $now,
+            ]) === 1;
+    }
+
     public function releaseStuckProcessingItems(): int
     {
         $message = 'Đã gỡ kẹt thủ công — tiến trình tạo bài có thể bị timeout hoặc dừng giữa chừng.';
@@ -186,7 +206,7 @@ class AutoBlogQueueService
 
         $this->recoverStaleProcessingItems();
 
-        if (AutoBlogQueueItem::query()->where('status', AutoBlogQueueItem::STATUS_PROCESSING)->exists()) {
+        if ($this->hasActiveProcessing()) {
             return ['processed' => false, 'item' => null, 'blog' => null];
         }
 
@@ -202,7 +222,11 @@ class AutoBlogQueueService
             return ['processed' => false, 'item' => null, 'blog' => null];
         }
 
-        $item->update(['status' => AutoBlogQueueItem::STATUS_PROCESSING]);
+        if (! $this->claimQueueItem($item)) {
+            return $this->processNextDue();
+        }
+
+        $item->refresh();
 
         try {
             @set_time_limit(900);

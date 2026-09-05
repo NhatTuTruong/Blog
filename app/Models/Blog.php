@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Support\BlogCategorySelection;
 use App\Support\BlogContentSanitizer;
 use App\Support\PublicStorage;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class Blog extends Model
@@ -70,15 +71,39 @@ class Blog extends Model
 
         $this->blogCategories()->sync($categoryIds);
 
-        if ($categoryIds !== []) {
-            $primaryId = $categoryIds[0];
-            $labels = BlogCategorySelection::labelForIds($categoryIds);
-
+        if ($categoryIds === []) {
             $this->forceFill([
-                'blog_category_id' => $primaryId,
-                'category' => $labels ?? $this->category,
+                'blog_category_id' => null,
+                'category' => null,
             ])->saveQuietly();
+
+            return;
         }
+
+        $primaryId = $categoryIds[0];
+        $labels = BlogCategorySelection::labelForIds($categoryIds);
+
+        $this->forceFill([
+            'blog_category_id' => $primaryId,
+            'category' => $labels ?? $this->category,
+        ])->saveQuietly();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function resolvedCategoryIds(): array
+    {
+        if ($this->relationLoaded('blogCategories') && $this->blogCategories->isNotEmpty()) {
+            return $this->blogCategories->pluck('id')->map(fn (mixed $id): int => (int) $id)->all();
+        }
+
+        $ids = $this->blogCategories()->pluck('blog_categories.id')->all();
+        if ($ids !== []) {
+            return array_map(intval(...), $ids);
+        }
+
+        return filled($this->blog_category_id) ? [(int) $this->blog_category_id] : [];
     }
 
     public function getCategoryLabelsAttribute(): string
@@ -97,7 +122,7 @@ class Blog extends Model
             return $this->blogCategories->pluck('name')->values()->all();
         }
 
-        $ids = $this->blogCategories()->pluck('blog_categories.id')->all();
+        $ids = $this->resolvedCategoryIds();
         if ($ids !== []) {
             return BlogCategorySelection::namesForIds($ids);
         }
@@ -129,6 +154,24 @@ class Blog extends Model
                 ->orWhere('category', 'like', '%, '.$categoryName)
                 ->orWhere('category', 'like', '%, '.$categoryName.',%')
                 ->orWhereHas('blogCategories', fn ($relation) => $relation->where('blog_categories.name', $categoryName));
+        });
+    }
+
+    /**
+     * @param  array<int, int>  $categoryIds
+     */
+    public function scopeSharingAnyCategory($query, array $categoryIds)
+    {
+        $categoryIds = array_values(array_filter(array_map(intval(...), $categoryIds)));
+
+        if ($categoryIds === []) {
+            return $query;
+        }
+
+        return $query->where(function ($inner) use ($categoryIds): void {
+            foreach ($categoryIds as $categoryId) {
+                $inner->orWhere(fn ($query) => $query->inBlogCategory($categoryId));
+            }
         });
     }
 
@@ -351,5 +394,13 @@ class Blog extends Model
                 $blog->slug = $slug;
             }
         });
+
+        $forgetPublicCaches = function (): void {
+            Cache::forget('site.sitemap.xml');
+            Cache::forget('site.footer.featured_posts');
+        };
+
+        static::saved($forgetPublicCaches);
+        static::deleted($forgetPublicCaches);
     }
 }

@@ -2,6 +2,27 @@
 
 @section('title', \App\Support\SiteSeo::pageTitle('home'))
 @section('description', \App\Support\SiteSeo::pageDescription('home'))
+@section('canonical', route('home'))
+
+@push('head')
+    @php
+        $websiteSchema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'WebSite',
+            'name' => config('app.name'),
+            'url' => config('app.url'),
+            'potentialAction' => [
+                '@type' => 'SearchAction',
+                'target' => route('home').'?q={search_term_string}',
+                'query-input' => 'required name=search_term_string',
+            ],
+        ];
+    @endphp
+    <script type="application/ld+json">{!! json_encode($websiteSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+    @if(isset($featuredPost) && $featuredPost?->featured_image_url)
+        <link rel="preload" as="image" href="{{ $featuredPost->featured_image_url }}" fetchpriority="high">
+    @endif
+@endpush
 
 @push('styles')
 @include('partials.blog-category-tags-styles')
@@ -1593,7 +1614,7 @@
                         @foreach($filteredPosts as $post)
                         <article class="bh-card">
                             <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
-                                <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
                                 @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                             </a>
                             <div class="bh-card__body">
@@ -1640,7 +1661,7 @@
                             @foreach($carouselPosts as $index => $post)
                             <div class="bh-featured__carousel-slide {{ $index === 0 ? 'active' : '' }}" data-index="{{ $index }}">
                                 <a href="{{ route('blog.show', $post->slug) }}" class="bh-featured__carousel-slide-link">
-                                    <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="{{ $index === 0 ? 'eager' : 'lazy' }}">
+                                    <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="{{ $index === 0 ? 'eager' : 'lazy' }}" decoding="async" @if($index === 0) fetchpriority="high" @endif>
                                     @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                                     <div class="bh-featured__carousel-body">
                                         <h3 class="bh-card__title">{{ $post->title }}</h3>
@@ -1717,7 +1738,7 @@
                                     @foreach($latestPosts->take(6) as $post)
                                     <article class="bh-card">
                                         <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
-                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
                                             @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                                         </a>
                                         <div class="bh-card__body">
@@ -1758,7 +1779,7 @@
                                     @foreach($posts->take(5) as $post)
                                     <article class="bh-card">
                                         <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
-                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
                                             @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                                         </a>
                                         <div class="bh-card__body">
@@ -1814,7 +1835,7 @@
                                     @foreach($posts->take(6) as $post)
                                     <article class="bh-card">
                                         <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
-                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
                                             @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                                         </a>
                                         <div class="bh-card__body">
@@ -1838,7 +1859,7 @@
                                     @foreach($posts->take(6) as $post)
                                     <article class="bh-card">
                                         <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
-                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
                                             @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                                         </a>
                                         <div class="bh-card__body">

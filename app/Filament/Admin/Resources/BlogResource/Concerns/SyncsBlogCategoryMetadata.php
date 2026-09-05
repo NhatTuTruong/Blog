@@ -14,10 +14,6 @@ trait SyncsBlogCategoryMetadata
 
         $ids = $blog->blogCategories->pluck('id')->map(fn (mixed $id): int => (int) $id)->all();
 
-        if ($ids === []) {
-            return;
-        }
-
         $blog->syncBlogCategories($ids);
     }
 }

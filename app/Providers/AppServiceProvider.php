@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Blog;
 use App\Support\MailSettings;
 use App\Support\PublicStorage;
 use Filament\Forms\Components\BaseFileUpload;
@@ -12,7 +13,9 @@ use Filament\Tables\Actions\ForceDeleteAction;
 use Filament\Tables\Actions\RestoreAction;
 use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -100,5 +103,27 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable) {
             // Bỏ qua khi migrate / chưa có DB
         }
+
+        View::composer('partials.site-footer', function ($view): void {
+            $featuredPosts = collect();
+
+            try {
+                if (Schema::hasTable('blogs')) {
+                    $featuredPosts = Cache::remember('site.footer.featured_posts', 900, function () {
+                        return Blog::query()
+                            ->published()
+                            ->with(['blogCategory', 'blogCategories'])
+                            ->whereNotNull('featured_image')
+                            ->orderByDesc('created_at')
+                            ->take(3)
+                            ->get();
+                    });
+                }
+            } catch (\Throwable) {
+                // DB chưa sẵn sàng
+            }
+
+            $view->with('footerFeaturedPosts', $featuredPosts);
+        });
     }
 }

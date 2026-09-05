@@ -64,11 +64,42 @@ class BlogContentSanitizer
 
     public static function closeListsBeforeBlockElements(string $html): string
     {
-        return preg_replace(
+        $offset = 0;
+
+        while (preg_match(
             '/(<\/li>)(?!\s*<\/(?:ul|ol)>)(\s*<(?:p|h[1-6]|div|blockquote)\b)/i',
-            "$1\n</ul>$2",
-            $html
-        ) ?? $html;
+            $html,
+            $matches,
+            PREG_OFFSET_CAPTURE,
+            $offset
+        )) {
+            $matchPos = $matches[0][1];
+            $closeTag = self::listCloseTagBefore($html, $matchPos);
+            $replacement = $matches[1][0]."\n".$closeTag.$matches[2][0];
+            $html = substr_replace($html, $replacement, $matchPos, strlen($matches[0][0]));
+            $offset = $matchPos + strlen($replacement);
+        }
+
+        return $html;
+    }
+
+    protected static function listCloseTagBefore(string $html, int $position): string
+    {
+        $before = substr($html, 0, $position);
+        $ulOpens = preg_match_all('/<ul\b/i', $before) ?: 0;
+        $ulCloses = preg_match_all('/<\/ul>/i', $before) ?: 0;
+        $olOpens = preg_match_all('/<ol\b/i', $before) ?: 0;
+        $olCloses = preg_match_all('/<\/ol>/i', $before) ?: 0;
+
+        if ($olOpens > $olCloses) {
+            return '</ol>';
+        }
+
+        if ($ulOpens > $ulCloses) {
+            return '</ul>';
+        }
+
+        return '</ul>';
     }
 
     public static function removeDuplicateListClosures(string $html): string

@@ -11,12 +11,7 @@
         }
         return url(ltrim($url, '/'));
     };
-    $featuredPosts = \App\Models\Blog::query()
-        ->published()
-        ->whereNotNull('featured_image')
-        ->orderBy('created_at', 'desc')
-        ->take(3)
-        ->get();
+    $featuredPosts = $footerFeaturedPosts ?? collect();
 @endphp
 <footer class="site-footer">
     <div class="footer-inner">

@@ -8,6 +8,9 @@
         if ($seoTitleSuffix !== '' && ! str_contains($baseTitle, $seoTitleSuffix)) {
             $finalTitle = trim($baseTitle . ' ' . $seoTitleSuffix);
         }
+        if ($finalTitle === '' || $finalTitle === $seoTitleSuffix) {
+            $finalTitle = (string) config('app.name');
+        }
         $defaultMetaDescription = \App\Support\SiteSeo::get('meta_description_default', 'Latest articles and insights from our blog.');
         $defaultOgImage = \App\Support\SiteSeo::get('og_image_default', '');
         $robotsMeta = \App\Support\SiteSeo::get('robots', 'index, follow');
@@ -17,35 +20,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $finalTitle }}</title>
-    <meta name="description" content="@yield('description', $defaultMetaDescription)">
-    @if(filled($robotsMeta))
-    <meta name="robots" content="{{ $robotsMeta }}">
-    @endif
-    @if(filled($googleSiteVerification))
-    <meta name="google-site-verification" content="{{ $googleSiteVerification }}">
-    @endif
+    @include('partials.seo-head')
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FF4K1DWWT7"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-FF4K1DWWT7');
-    </script>
-
     @yield('head')
     @hasSection('og_image')
     <meta property="og:type" content="@yield('og_type', 'website')">
     <meta property="og:title" content="@yield('og_title', $finalTitle)">
-    <meta property="og:description" content="@yield('og_description', $defaultMetaDescription)">
+    <meta property="og:description" content="@yield('og_description', trim($__env->yieldContent('description', $defaultMetaDescription)))">
     <meta property="og:url" content="@yield('og_url', url()->current())">
     <meta property="og:image" content="@yield('og_image')">
     <meta property="og:site_name" content="{{ config('app.name') }}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="@yield('og_title', $finalTitle)">
-    <meta name="twitter:description" content="@yield('og_description', $defaultMetaDescription)">
+    <meta name="twitter:description" content="@yield('og_description', trim($__env->yieldContent('description', $defaultMetaDescription)))">
     <meta name="twitter:image" content="@yield('og_image')">
     
     @else
@@ -77,7 +64,8 @@
     @stack('head')
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@500;600;700&display=swap"></noscript>
     <style>
         :root {
             --bg: #ffffff;
@@ -235,11 +223,13 @@
             bar.querySelector('[data-dismiss]')?.addEventListener('click', function() {
                 localStorage.setItem('cookie-consent-accepted', '1');
                 bar.setAttribute('hidden', '');
+                document.dispatchEvent(new Event('cookie-consent-accepted'));
             });
         })();
     </script>
 
     @stack('scripts')
+    @include('partials.analytics-deferred')
 
     <button id="back-to-top" class="back-to-top" aria-label="Back to top" hidden>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

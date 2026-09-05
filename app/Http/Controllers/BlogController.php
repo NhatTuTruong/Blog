@@ -23,7 +23,7 @@ class BlogController extends Controller
                         ->orWhere('content', 'like', "%{$query}%");
                 });
             })
-            ->when($category, fn ($q) => $q->where('category', $category))
+            ->when($category, fn ($q) => $q->inBlogCategoryName($category))
             ->orderByDesc('created_at')
             ->paginate(12)
             ->withQueryString();
@@ -52,13 +52,13 @@ class BlogController extends Controller
 
         $post->increment('views_count');
 
+        $categoryIds = $post->resolvedCategoryIds();
+
         $relatedBlogs = Blog::query()
             ->with(['blogCategory', 'blogCategories'])
             ->where('is_published', true)
             ->where('id', '!=', $post->id)
-            ->when($post->category, function ($q) use ($post) {
-                $q->where('category', $post->category);
-            })
+            ->when($categoryIds !== [], fn ($q) => $q->sharingAnyCategory($categoryIds))
             ->orderByDesc('created_at')
             ->limit(4)
             ->get();

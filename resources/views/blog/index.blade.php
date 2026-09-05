@@ -2,6 +2,7 @@
 
 @section('title', \App\Support\SiteSeo::pageTitle('blog'))
 @section('description', \App\Support\SiteSeo::pageDescription('blog'))
+@section('canonical', url()->current())
 
 @push('styles')
 @include('partials.blog-category-tags-styles')
@@ -602,7 +603,7 @@
                     @foreach($posts as $post)
                     <article class="bh-card">
                         <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
-                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
                             @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                         </a>
                         <div class="bh-card__body">

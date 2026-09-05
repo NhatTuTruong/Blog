@@ -1,7 +1,60 @@
 @extends('layouts.app')
 
-@section('title', $post->title . ' - ' . config('app.name'))
+@section('title', $post->title)
 @section('description', Str::limit(strip_tags($post->renderedContent()), 160))
+@section('canonical', route('blog.show', $post->slug))
+@section('og_image', \App\Support\SiteSeo::absoluteUrl($post->featured_image_url))
+@section('og_type', 'article')
+@section('og_title', $post->title)
+@section('og_url', route('blog.show', $post->slug))
+
+@push('head')
+    <link rel="preload" as="image" href="{{ $post->featured_image_url }}" fetchpriority="high">
+    @php
+        $articleSchema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'Article',
+            'headline' => $post->title,
+            'description' => Str::limit(strip_tags($post->renderedContent()), 160),
+            'image' => [\App\Support\SiteSeo::absoluteUrl($post->featured_image_url)],
+            'datePublished' => $post->created_at?->toAtomString(),
+            'dateModified' => ($post->updated_at ?? $post->created_at)?->toAtomString(),
+            'author' => [
+                '@type' => 'Organization',
+                'name' => config('app.name'),
+            ],
+            'publisher' => [
+                '@type' => 'Organization',
+                'name' => config('app.name'),
+                'url' => config('app.url'),
+            ],
+            'mainEntityOfPage' => [
+                '@type' => 'WebPage',
+                '@id' => route('blog.show', $post->slug),
+            ],
+        ];
+        $breadcrumbSchema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => [
+                [
+                    '@type' => 'ListItem',
+                    'position' => 1,
+                    'name' => 'Blog',
+                    'item' => route('blog.index'),
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 2,
+                    'name' => $post->title,
+                    'item' => route('blog.show', $post->slug),
+                ],
+            ],
+        ];
+    @endphp
+    <script type="application/ld+json">{!! json_encode($articleSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+    <script type="application/ld+json">{!! json_encode($breadcrumbSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
+@endpush
 
 @push('styles')
 <style>
@@ -542,7 +595,7 @@
 
             <div class="blog-hero-media">
                 <div class="blog-hero-media-inner">
-                    <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="eager" decoding="async">
+                    <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" width="800" height="500" loading="eager" decoding="async" fetchpriority="high">
                 </div>
             </div>
         </section>
@@ -583,7 +636,7 @@
                 <div class="blog-aside-related">
                     @foreach($relatedBlogs as $related)
                         <a href="{{ route('blog.show', $related->slug) }}" class="related-blog-card" style="display:block;margin-bottom:0.75rem;">
-                            <img src="{{ $related->featured_image_url }}" alt="{{ $related->title }}" class="related-blog-card-thumb" loading="lazy" style="width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px;">
+                            <img src="{{ $related->featured_image_url }}" alt="{{ $related->title }}" class="related-blog-card-thumb" loading="lazy" decoding="async" width="400" height="250" style="width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px;">
                             <div class="related-blog-card-body" style="padding:0.5rem 0.5rem 0;">
                                 <h3 class="related-blog-card-title">{{ $related->title }}</h3>
                                 <p class="related-blog-card-meta">{{ $related->created_at?->format('d/m/Y') }}</p>

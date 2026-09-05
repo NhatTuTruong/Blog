@@ -54,11 +54,31 @@ class SiteSeo
 
     public static function pageTitle(string $page): string
     {
-        return (string) self::get("pages.{$page}.title", '');
+        $title = trim((string) self::get("pages.{$page}.title", ''));
+
+        return $title !== '' ? $title : (string) config('app.name');
     }
 
     public static function pageDescription(string $page): string
     {
-        return (string) self::get("pages.{$page}.description", '');
+        $description = trim((string) self::get("pages.{$page}.description", ''));
+
+        return $description !== '' ? $description : (string) self::get(
+            'meta_description_default',
+            'Latest articles and insights from our blog.'
+        );
+    }
+
+    public static function absoluteUrl(?string $url): ?string
+    {
+        if ($url === null || $url === '') {
+            return null;
+        }
+
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            return $url;
+        }
+
+        return url($url);
     }
 }
