@@ -1,9 +1,10 @@
 @extends('layouts.app')
 
-@section('title', config('app.name') . ' — Blog & Articles')
-@section('description', 'Discover guides, stories and trending articles. Search by topic or browse featured categories.')
+@section('title', \App\Support\SiteSeo::pageTitle('home'))
+@section('description', \App\Support\SiteSeo::pageDescription('home'))
 
 @push('styles')
+@include('partials.blog-category-tags-styles')
 <style>
     /* ================================
        BANNER HOMEPAGE
@@ -33,40 +34,73 @@
        HERO BANNER - MODERN 2-COLUMN
        ================================ */
     .bh-hero {
+        --hero-primary: #2563eb;
+        --hero-primary-light: #3b82f6;
+        --hero-primary-soft: #60a5fa;
+        --hero-primary-muted: #93c5fd;
+        --hero-glow: rgba(37, 99, 235, 0.35);
         position: relative;
-        min-height: 70vh;
+        min-height: 72vh;
         display: flex;
         align-items: center;
         overflow: hidden;
-        background: #0f172a;
+        background: linear-gradient(155deg, #030712 0%, #0a1628 45%, #0c1a3a 100%);
     }
-    .bh-hero::before {
-        content: '';
+    .bh-hero__bg {
         position: absolute;
         inset: 0;
-        background:
-            radial-gradient(ellipse 80% 60% at 20% 20%, rgba(37, 99, 235, 0.4) 0%, transparent 50%),
-            radial-gradient(ellipse 60% 50% at 80% 80%, rgba(139, 92, 246, 0.3) 0%, transparent 50%),
-            radial-gradient(ellipse 40% 40% at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
+        pointer-events: none;
     }
-    .bh-hero__particles {
+    .bh-hero__grid {
         position: absolute;
         inset: 0;
-        overflow: hidden;
+        background-image:
+            linear-gradient(rgba(37, 99, 235, 0.07) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(37, 99, 235, 0.07) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, #000 20%, transparent 75%);
+        -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, #000 20%, transparent 75%);
     }
-    .bh-hero__particle {
+    .bh-hero__aurora {
         position: absolute;
-        width: 4px;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.3);
         border-radius: 50%;
-        animation: particle-float 20s linear infinite;
+        filter: blur(80px);
+        opacity: 0.55;
+        animation: hero-aurora 14s ease-in-out infinite;
     }
-    @keyframes particle-float {
-        0% { transform: translateY(100vh) scale(0); opacity: 0; }
-        10% { opacity: 1; }
-        90% { opacity: 1; }
-        100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+    .bh-hero__aurora--1 {
+        width: 520px;
+        height: 520px;
+        top: -120px;
+        left: -80px;
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.45) 0%, transparent 70%);
+    }
+    .bh-hero__aurora--2 {
+        width: 480px;
+        height: 480px;
+        bottom: -100px;
+        right: 5%;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.35) 0%, rgba(99, 102, 241, 0.2) 50%, transparent 70%);
+        animation-delay: -5s;
+    }
+    .bh-hero__aurora--3 {
+        width: 320px;
+        height: 320px;
+        top: 35%;
+        right: 28%;
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.25) 0%, transparent 70%);
+        animation-delay: -9s;
+    }
+    @keyframes hero-aurora {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        33% { transform: translate(30px, -20px) scale(1.05); }
+        66% { transform: translate(-20px, 15px) scale(0.95); }
+    }
+    .bh-hero__noise {
+        position: absolute;
+        inset: 0;
+        opacity: 0.035;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     }
     .bh-hero__content {
         position: relative;
@@ -74,10 +108,10 @@
         width: 100%;
         max-width: 1280px;
         margin: 0 auto;
-        padding: 4rem 2rem;
+        padding: 4.5rem 2rem;
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 4rem;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: 3rem;
         align-items: center;
     }
     @media (max-width: 900px) {
@@ -92,58 +126,65 @@
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        background: rgba(37, 99, 235, 0.2);
-        border: 1px solid rgba(37, 99, 235, 0.4);
+        padding: 0.45rem 1rem 0.45rem 0.75rem;
+        background: rgba(37, 99, 235, 0.1);
+        border: 1px solid rgba(37, 99, 235, 0.35);
         border-radius: 999px;
-        color: #60a5fa;
-        font-size: 0.8rem;
+        color: var(--hero-primary-muted);
+        font-size: 0.78rem;
         font-weight: 600;
+        letter-spacing: 0.04em;
         margin-bottom: 1.5rem;
+        box-shadow: 0 0 24px rgba(37, 99, 235, 0.12);
     }
     .bh-hero__label svg {
         width: 14px;
         height: 14px;
+        color: var(--hero-primary-soft);
     }
     .bh-hero__title {
         font-family: 'Space Grotesk', sans-serif;
-        font-size: clamp(2.5rem, 5vw, 4rem);
+        font-size: clamp(2.5rem, 5vw, 3.75rem);
         font-weight: 800;
-        line-height: 1.1;
-        letter-spacing: -0.03em;
-        color: #fff;
+        line-height: 1.08;
+        letter-spacing: -0.035em;
+        color: #f8fafc;
         margin: 0 0 1.25rem;
     }
     .bh-hero__title .highlight {
-        background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #60a5fa 100%);
+        background: linear-gradient(120deg, #60a5fa 0%, #3b82f6 45%, #2563eb 100%);
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
-        background-size: 200% 200%;
-        animation: gradient-shift 4s ease infinite;
-    }
-    @keyframes gradient-shift {
-        0%, 100% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
     }
     .bh-hero__subtitle {
-        font-size: 1.15rem;
-        color: rgba(255, 255, 255, 0.65);
-        line-height: 1.7;
+        font-size: 1.05rem;
+        color: rgba(226, 232, 240, 0.62);
+        line-height: 1.75;
         margin: 0 0 2rem;
-        max-width: 480px;
+        max-width: 460px;
     }
     @media (max-width: 900px) {
         .bh-hero__subtitle { margin: 0 auto 2rem; }
     }
     .bh-hero__search {
         display: flex;
-        max-width: 480px;
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 14px;
+        max-width: 500px;
+        background: rgba(15, 23, 42, 0.65);
+        border: 1px solid rgba(37, 99, 235, 0.22);
+        border-radius: 999px;
         overflow: hidden;
-        backdrop-filter: blur(12px);
+        backdrop-filter: blur(16px);
+        box-shadow:
+            0 4px 24px rgba(0, 0, 0, 0.25),
+            inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    .bh-hero__search:focus-within {
+        border-color: rgba(37, 99, 235, 0.5);
+        box-shadow:
+            0 4px 32px rgba(37, 99, 235, 0.15),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
     @media (max-width: 900px) {
         .bh-hero__search { margin: 0 auto; }
@@ -152,33 +193,37 @@
         flex: 1;
         border: none;
         background: transparent;
-        padding: 1rem 1.25rem;
+        padding: 1rem 1.5rem;
         font-size: 0.95rem;
-        color: #fff;
+        color: #f1f5f9;
         outline: none;
     }
     .bh-hero__search input::placeholder {
-        color: rgba(255, 255, 255, 0.45);
+        color: rgba(148, 163, 184, 0.75);
     }
     .bh-hero__search button {
         border: none;
         background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
         color: #fff;
-        padding: 0.875rem 1.5rem;
+        padding: 0.75rem 1.35rem;
+        margin: 0.35rem;
+        border-radius: 999px;
         font-weight: 600;
-        font-size: 0.9rem;
+        font-size: 0.88rem;
         cursor: pointer;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        transition: all 0.2s;
+        gap: 0.45rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
     }
     .bh-hero__search button:hover {
-        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
     }
     .bh-hero__search button svg {
-        width: 18px;
-        height: 18px;
+        width: 17px;
+        height: 17px;
     }
     .bh-hero__cats {
         display: flex;
@@ -190,27 +235,33 @@
         .bh-hero__cats { justify-content: center; }
     }
     .bh-hero__cat {
-        padding: 0.5rem 1rem;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0.48rem 1rem;
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 999px;
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(226, 232, 240, 0.85);
         text-decoration: none;
         font-size: 0.8rem;
         font-weight: 500;
-        transition: all 0.25s;
+        transition: all 0.22s;
     }
-    .bh-hero__cat:hover,
-    .bh-hero__cat.active {
-        background: rgba(255, 255, 255, 0.12);
-        border-color: rgba(37, 99, 235, 0.5);
+    .bh-hero__cat:hover {
+        border-color: rgba(37, 99, 235, 0.45);
         color: #fff;
-        transform: translateY(-2px);
+        background: rgba(37, 99, 235, 0.12);
+    }
+    .bh-hero__cat.active {
+        background: rgba(37, 99, 235, 0.18);
+        border-color: rgba(96, 165, 250, 0.55);
+        color: #eff6ff;
+        box-shadow: 0 0 20px rgba(37, 99, 235, 0.2);
     }
     .bh-hero__stats {
         display: flex;
-        gap: 2rem;
-        margin-top: 2rem;
+        gap: 2.5rem;
+        margin-top: 2.25rem;
+        padding-top: 2rem;
+        border-top: 1px solid rgba(37, 99, 235, 0.15);
     }
     @media (max-width: 900px) {
         .bh-hero__stats { justify-content: center; }
@@ -218,142 +269,120 @@
     .bh-hero__stat strong {
         display: block;
         font-family: 'Space Grotesk', sans-serif;
-        font-size: 1.75rem;
+        font-size: 1.85rem;
         font-weight: 800;
-        color: #fff;
+        color: #f8fafc;
         line-height: 1;
+        letter-spacing: -0.02em;
     }
     .bh-hero__stat span {
-        font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.72rem;
+        color: rgba(147, 197, 253, 0.7);
         text-transform: uppercase;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.1em;
+        margin-top: 0.35rem;
+        display: block;
     }
     .bh-hero__cards {
         position: relative;
-        height: 380px;
+        height: 400px;
     }
     @media (max-width: 900px) {
         .bh-hero__cards { display: none; }
     }
+    .bh-hero__cards::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 280px;
+        height: 280px;
+        transform: translate(-40%, -50%);
+        border-radius: 50%;
+        border: 1px solid rgba(37, 99, 235, 0.15);
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, transparent 70%);
+    }
     .bh-hero__card {
         position: absolute;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        backdrop-filter: blur(12px);
+        background: rgba(15, 23, 42, 0.75);
+        border: 1px solid rgba(37, 99, 235, 0.2);
+        border-radius: 18px;
+        backdrop-filter: blur(20px);
         overflow: hidden;
-        transition: transform 0.4s ease;
+        box-shadow:
+            0 20px 40px rgba(0, 0, 0, 0.35),
+            0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+        transition: transform 0.4s ease, box-shadow 0.4s ease;
+    }
+    .bh-hero__card:hover {
+        box-shadow:
+            0 28px 48px rgba(0, 0, 0, 0.4),
+            0 0 32px rgba(37, 99, 235, 0.15);
     }
     .bh-hero__card:nth-child(1) {
-        width: 220px;
-        height: 280px;
-        top: 0;
-        right: 60px;
-        animation: card-float 6s ease-in-out infinite;
+        width: 230px;
+        height: 290px;
+        top: 10px;
+        right: 70px;
+        animation: card-float-1 7s ease-in-out infinite;
+        z-index: 3;
     }
     .bh-hero__card:nth-child(2) {
-        width: 190px;
-        height: 240px;
-        bottom: 0;
-        right: 20px;
-        animation: card-float 6s ease-in-out infinite 1s;
+        width: 200px;
+        height: 250px;
+        bottom: 10px;
+        right: 10px;
+        animation: card-float-2 7s ease-in-out infinite 1.2s;
+        z-index: 2;
     }
     .bh-hero__card:nth-child(3) {
-        width: 170px;
-        height: 200px;
-        top: 30px;
-        right: 0;
-        animation: card-float 6s ease-in-out infinite 2s;
+        width: 175px;
+        height: 215px;
+        top: 50px;
+        right: -10px;
+        animation: card-float-3 7s ease-in-out infinite 2.4s;
+        z-index: 1;
     }
-    @keyframes card-float {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        50% { transform: translateY(-15px) rotate(1deg); }
+    @keyframes card-float-1 {
+        0%, 100% { transform: rotate(-4deg) translateY(0); }
+        50% { transform: rotate(-4deg) translateY(-12px); }
+    }
+    @keyframes card-float-2 {
+        0%, 100% { transform: rotate(3deg) translateY(0); }
+        50% { transform: rotate(3deg) translateY(-12px); }
+    }
+    @keyframes card-float-3 {
+        0%, 100% { transform: rotate(-2deg) translateY(0); }
+        50% { transform: rotate(-2deg) translateY(-12px); }
     }
     .bh-hero__card-img {
         width: 100%;
-        height: 130px;
+        height: 135px;
         object-fit: cover;
+        border-bottom: 1px solid rgba(37, 99, 235, 0.12);
     }
-    .bh-hero__card:nth-child(2) .bh-hero__card-img { height: 110px; }
-    .bh-hero__card:nth-child(3) .bh-hero__card-img { height: 90px; }
+    .bh-hero__card:nth-child(2) .bh-hero__card-img { height: 115px; }
+    .bh-hero__card:nth-child(3) .bh-hero__card-img { height: 95px; }
     .bh-hero__card-body {
-        padding: 0.75rem;
+        padding: 0.85rem 0.9rem;
     }
     .bh-hero__card-cat {
-        font-size: 0.65rem;
+        font-size: 0.62rem;
         font-weight: 700;
-        color: #60a5fa;
+        color: var(--hero-primary-soft);
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.25rem;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.35rem;
     }
     .bh-hero__card-title {
-        font-size: 0.8rem;
+        font-size: 0.82rem;
         font-weight: 600;
-        color: #fff;
-        line-height: 1.3;
+        color: #f1f5f9;
+        line-height: 1.35;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-    }
-
-    /* Categories Pills */
-    .bh-hero__cats {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 0.75rem;
-        animation: bh-fadeInUp 0.8s ease-out 0.4s both;
-    }
-    .bh-hero__cat {
-        padding: 0.6rem 1.25rem;
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 999px;
-        color: rgba(255, 255, 255, 0.9);
-        text-decoration: none;
-        font-size: 0.875rem;
-        font-weight: 500;
-        transition: all 0.3s;
-    }
-    .bh-hero__cat:hover,
-    .bh-hero__cat.active {
-        background: rgba(255, 255, 255, 0.95);
-        color: var(--bh-ink);
-        border-color: transparent;
-        transform: translateY(-2px);
-    }
-
-    /* Stats */
-    .bh-hero__stats {
-        display: flex;
-        justify-content: center;
-        gap: 3rem;
-        margin-top: 3rem;
-        animation: bh-fadeInUp 0.8s ease-out 0.5s both;
-    }
-    .bh-hero__stat {
-        text-align: center;
-        color: #fff;
-    }
-    .bh-hero__stat strong {
-        display: block;
-        font-family: 'Space Grotesk', sans-serif;
-        font-size: 2.5rem;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        background: linear-gradient(135deg, #fff 0%, #93c5fd 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-    }
-    .bh-hero__stat span {
-        font-size: 0.8rem;
-        color: rgba(255, 255, 255, 0.6);
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
     }
 
     @keyframes bh-fadeInUp {
@@ -497,6 +526,9 @@
             font-size: 0.85rem;
             -webkit-line-clamp: 2;
         }
+        .bh-featured__carousel-body {
+            padding: 1.25rem 1.25rem 1.5rem;
+        }
         .bh-featured__carousel-dots {
             display: none !important;
         }
@@ -527,29 +559,8 @@
         overflow: hidden;
         position: relative;
     }
-    .bh-card__tag {
-        position: absolute;
-        top: 1rem;
-        left: 1rem;
-        background: var(--bh-accent);
-        color: #fff;
-        padding: 0.35rem 0.75rem;
-        font-size: 0.7rem;
-        font-weight: 700;
-        border-radius: 8px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
     .bh-card__body {
         padding: 1.5rem;
-    }
-    .bh-card__cat {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--bh-accent);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin-bottom: 0.5rem;
     }
     .bh-card__title {
         font-family: 'Space Grotesk', sans-serif;
@@ -632,38 +643,77 @@
         opacity: 0;
         transition: opacity 0.6s ease;
         pointer-events: none;
-        display: flex;
-        flex-direction: column;
+        overflow: hidden;
+        background: #0f172a;
     }
     .bh-featured__carousel-slide.active {
         opacity: 1;
         pointer-events: auto;
     }
-    .bh-featured__carousel-slide img {
+    .bh-featured__carousel-slide-link {
+        display: block;
+        position: relative;
         width: 100%;
-        flex: 1;
+        height: 100%;
+        text-decoration: none;
+        color: inherit;
+    }
+    .bh-featured__carousel-slide img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
         object-fit: cover;
-        min-height: 350px;
     }
     .bh-featured__carousel-body {
-        padding: 1.5rem;
-        background: var(--bh-card);
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 2;
+        padding: 1.75rem 1.75rem 3.75rem;
+        background: linear-gradient(
+            to top,
+            rgba(15, 23, 42, 0.97) 0%,
+            rgba(15, 23, 42, 0.82) 45%,
+            rgba(15, 23, 42, 0.2) 100%
+        );
+    }
+    .bh-featured__carousel-body .bh-card__cat {
+        color: rgba(255, 255, 255, 0.88);
+        margin-bottom: 0.35rem;
     }
     .bh-featured__carousel-body .bh-card__title {
         font-size: 1.5rem;
         -webkit-line-clamp: 2;
+        color: #ffffff;
+        margin-bottom: 0.5rem;
+    }
+    .bh-featured__carousel-body .bh-card__title a {
+        color: inherit;
+        text-decoration: none;
+        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
     }
     .bh-featured__carousel-body .bh-card__excerpt {
-        -webkit-line-clamp: 3;
+        -webkit-line-clamp: 2;
+        color: rgba(255, 255, 255, 0.86);
+        margin-bottom: 0.75rem;
+    }
+    .bh-featured__carousel-body .bh-card__meta {
+        color: rgba(255, 255, 255, 0.78);
+        border-top-color: rgba(255, 255, 255, 0.18);
+    }
+    .bh-featured__carousel-body .bh-card__read {
+        color: #ffffff;
     }
     .bh-featured__carousel-dots {
         position: absolute;
-        bottom: 1rem;
+        bottom: 1.1rem;
         left: 50%;
         transform: translateX(-50%);
         display: flex;
         gap: 0.5rem;
-        z-index: 10;
+        z-index: 12;
     }
     .bh-featured__carousel-dot {
         width: 10px;
@@ -711,18 +761,21 @@
         transform: scale(1.1);
     }
 
-    /* Right Sidebar - Equal Height */
+    /* Right Sidebar - overlay title on image */
     .bh-featured__sidebar {
         display: flex;
         flex-direction: column;
         gap: 1rem;
         height: 100%;
+        min-height: 500px;
     }
     .bh-featured__sidebar-item {
+        position: relative;
         display: flex;
-        gap: 1rem;
-        padding: 1rem;
-        background: var(--bh-card);
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 0;
+        background: #0f172a;
         border-radius: 14px;
         border: 1px solid var(--bh-border);
         text-decoration: none;
@@ -730,40 +783,60 @@
         transition: all 0.3s;
         flex: 1;
         min-height: 0;
+        overflow: hidden;
+        isolation: isolate;
     }
     .bh-featured__sidebar-item:hover {
         border-color: var(--bh-accent);
         transform: translateX(4px);
-        box-shadow: 0 4px 20px rgba(37, 99, 235, 0.1);
+        box-shadow: 0 4px 20px rgba(37, 99, 235, 0.18);
     }
     .bh-featured__sidebar-item img {
-        width: 100px;
-        height: auto;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
         object-fit: cover;
-        border-radius: 10px;
-        flex-shrink: 0;
-        align-self: center;
+        border-radius: 0;
+        z-index: 0;
     }
     .bh-featured__sidebar-item-body {
-        flex: 1;
+        position: relative;
+        z-index: 2;
+        flex: 0 0 auto;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-end;
+        gap: 0.35rem;
         min-width: 0;
+        padding: 0.85rem 1rem 0.95rem;
+        background: linear-gradient(
+            to top,
+            rgba(15, 23, 42, 0.96) 0%,
+            rgba(15, 23, 42, 0.78) 55%,
+            rgba(15, 23, 42, 0.15) 100%
+        );
+    }
+    .bh-featured__sidebar-item .bh-card__cat {
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 0.68rem;
+        margin-bottom: 0.1rem;
     }
     .bh-featured__sidebar-item h4 {
-        font-size: 0.95rem;
-        font-weight: 600;
-        line-height: 1.4;
-        margin: 0 0 0.5rem;
+        font-size: 0.92rem;
+        font-weight: 650;
+        line-height: 1.35;
+        margin: 0;
+        color: #ffffff;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
     }
     .bh-featured__sidebar-item span {
-        font-size: 0.75rem;
-        color: var(--bh-muted);
+        font-size: 0.72rem;
+        color: rgba(255, 255, 255, 0.78);
     }
 
     /* Mobile Carousel */
@@ -774,8 +847,15 @@
         .bh-featured__carousel-track {
             min-height: 400px;
         }
-        .bh-featured__carousel-slide img {
-            min-height: 280px;
+        .bh-featured__carousel-body {
+            padding: 1.25rem 1.25rem 3.25rem;
+        }
+        .bh-featured__sidebar {
+            min-height: 0;
+            height: auto;
+        }
+        .bh-featured__sidebar-item {
+            min-height: 132px;
         }
     }
 
@@ -1042,11 +1122,9 @@
         transform: translateX(4px);
         box-shadow: 0 4px 20px rgba(37, 99, 235, 0.1);
     }
-    .bh-cat-list__item img {
+    .bh-cat-list__item-thumb {
         width: 100px;
         height: 80px;
-        object-fit: cover;
-        border-radius: 10px;
         flex-shrink: 0;
     }
     .bh-cat-list__item-body { flex: 1; }
@@ -1132,14 +1210,19 @@
     }
     .bh-cat-zigzag-item:nth-child(even) { direction: rtl; }
     .bh-cat-zigzag-item:nth-child(even) > * { direction: ltr; }
-    .bh-cat-zigzag-item img {
+    .bh-cat-zigzag-item__media {
+        width: 100%;
+        overflow: hidden;
+        border-radius: 14px;
+    }
+    .bh-cat-zigzag-item__media img {
         width: 100%;
         aspect-ratio: 16/10;
         object-fit: cover;
-        border-radius: 14px;
+        display: block;
         transition: transform 0.5s;
     }
-    .bh-cat-zigzag-item:hover img { transform: scale(1.03); }
+    .bh-cat-zigzag-item:hover .bh-cat-zigzag-item__media img { transform: scale(1.03); }
     .bh-cat-zigzag-item-body { padding: 1rem 0; }
     .bh-cat-zigzag-item-body h3 {
         font-family: 'Space Grotesk', sans-serif;
@@ -1163,6 +1246,250 @@
         .bh-cat-zigzag-item { grid-template-columns: 1fr; gap: 1rem; }
         .bh-cat-zigzag-item:nth-child(even) { direction: ltr; }
     }
+
+    /* ================================
+       CATEGORY ZONE — SINGLE FIXED SIDEBAR
+       ================================ */
+    .bh-cat-zone {
+        padding: 2rem 0 4rem;
+    }
+    .bh-cat-page-layout {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 2.5rem;
+        align-items: start;
+    }
+    @media (max-width: 1024px) {
+        .bh-cat-page-layout { grid-template-columns: 1fr; }
+    }
+    .bh-cat-page-layout__main { min-width: 0; }
+
+    .bh-cat-block {
+        padding: 2rem 0;
+        border-bottom: 1px solid var(--bh-border);
+        scroll-margin-top: 6rem;
+    }
+    .bh-cat-block:first-child { padding-top: 0; }
+    .bh-cat-block:last-child { border-bottom: none; padding-bottom: 0; }
+    .bh-cat-block--alt {
+        margin: 0 -2rem;
+        padding: 2rem;
+        background: var(--bh-light);
+        border-bottom: none;
+    }
+    @media (max-width: 768px) {
+        .bh-cat-block--alt { margin: 0 -1rem; padding: 1.5rem 1rem; }
+    }
+
+    .bh-cat-sidebar {
+        position: sticky;
+        top: 5.5rem;
+        align-self: start;
+        z-index: 10;
+    }
+    .bh-cat-sidebar__inner {
+        background: linear-gradient(165deg, #0f172a 0%, #1e3a8a 55%, #1e40af 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow:
+            0 24px 48px rgba(15, 23, 42, 0.28),
+            0 0 0 1px rgba(96, 165, 250, 0.25),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        position: relative;
+        max-height: calc(100vh - 6.5rem);
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    }
+    .bh-cat-sidebar__inner::-webkit-scrollbar { width: 4px; }
+    .bh-cat-sidebar__inner::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+    }
+    .bh-cat-sidebar__inner::before {
+        content: '';
+        position: absolute;
+        top: -40%;
+        right: -30%;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(96, 165, 250, 0.35) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    @media (max-width: 1024px) {
+        .bh-cat-sidebar {
+            position: static;
+            order: -1;
+            margin-bottom: 1.5rem;
+        }
+    }
+    .bh-cat-sidebar__widget {
+        position: relative;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        backdrop-filter: blur(8px);
+    }
+    .bh-cat-sidebar__widget:last-child { margin-bottom: 0; }
+    .bh-cat-sidebar__title {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #93c5fd;
+        margin: 0 0 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .bh-cat-sidebar__title::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #60a5fa;
+        box-shadow: 0 0 10px rgba(96, 165, 250, 0.8);
+    }
+    .bh-cat-sidebar__cats {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    .bh-cat-sidebar__cats li { margin: 0; }
+    .bh-cat-sidebar__cats a {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.6rem 0.65rem;
+        margin: 0 -0.65rem;
+        font-size: 0.875rem;
+        color: rgba(255, 255, 255, 0.78);
+        text-decoration: none;
+        border-radius: 8px;
+        transition: background 0.15s, color 0.15s, transform 0.15s;
+    }
+    .bh-cat-sidebar__cats a:hover,
+    .bh-cat-sidebar__cats a.active,
+    .bh-cat-sidebar__cats a.is-current {
+        color: #fff;
+        background: rgba(37, 99, 235, 0.35);
+        transform: translateX(3px);
+    }
+    .bh-cat-sidebar__cat-name {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .bh-cat-sidebar__cat-count {
+        flex-shrink: 0;
+        font-size: 0.72rem;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.12);
+        color: #bfdbfe;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+    }
+    .bh-cat-sidebar__cats a:hover .bh-cat-sidebar__cat-count,
+    .bh-cat-sidebar__cats a.active .bh-cat-sidebar__cat-count,
+    .bh-cat-sidebar__cats a.is-current .bh-cat-sidebar__cat-count {
+        background: rgba(255, 255, 255, 0.22);
+        color: #fff;
+    }
+    .bh-cat-sidebar__trending {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        counter-reset: trend;
+    }
+    .bh-cat-sidebar__trending li {
+        counter-increment: trend;
+        margin: 0;
+        padding: 0.65rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .bh-cat-sidebar__trending li:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .bh-cat-sidebar__trending a {
+        display: flex;
+        gap: 0.75rem;
+        text-decoration: none;
+        color: inherit;
+        align-items: flex-start;
+        padding: 0.35rem 0.5rem;
+        margin: 0 -0.5rem;
+        border-radius: 10px;
+        transition: background 0.15s;
+    }
+    .bh-cat-sidebar__trending a:hover {
+        background: rgba(255, 255, 255, 0.08);
+    }
+    .bh-cat-sidebar__trending a::before {
+        content: counter(trend, decimal-leading-zero);
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 0.8rem;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.25);
+        min-width: 1.25rem;
+        line-height: 1.4;
+        transition: color 0.15s;
+    }
+    .bh-cat-sidebar__trending a:hover::before { color: #60a5fa; }
+    .bh-cat-sidebar__trending img {
+        width: 52px;
+        height: 52px;
+        object-fit: cover;
+        border-radius: 10px;
+        flex-shrink: 0;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+    }
+    .bh-cat-sidebar__trend-body {
+        flex: 1;
+        min-width: 0;
+    }
+    .bh-cat-sidebar__trend-title {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.92);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        transition: color 0.15s;
+    }
+    .bh-cat-sidebar__trending a:hover .bh-cat-sidebar__trend-title {
+        color: #fff;
+    }
+    .bh-cat-sidebar__trend-meta {
+        display: block;
+        font-size: 0.72rem;
+        color: rgba(255, 255, 255, 0.5);
+        margin-top: 0.25rem;
+    }
+    @media (max-width: 1024px) {
+        .bh-cat-sidebar__inner {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .bh-cat-sidebar__widget { margin-bottom: 0; }
+    }
+    @media (max-width: 640px) {
+        .bh-cat-sidebar__inner { grid-template-columns: 1fr; }
+    }
 </style>
 @endpush
 
@@ -1170,14 +1497,12 @@
 <div class="bh">
     {{-- HERO BANNER --}}
     <section class="bh-hero">
-        <div class="bh-hero__particles">
-            <div class="bh-hero__particle" style="left: 10%; animation-delay: 0s;"></div>
-            <div class="bh-hero__particle" style="left: 20%; animation-delay: 2s;"></div>
-            <div class="bh-hero__particle" style="left: 35%; animation-delay: 4s;"></div>
-            <div class="bh-hero__particle" style="left: 50%; animation-delay: 1s;"></div>
-            <div class="bh-hero__particle" style="left: 65%; animation-delay: 3s;"></div>
-            <div class="bh-hero__particle" style="left: 80%; animation-delay: 5s;"></div>
-            <div class="bh-hero__particle" style="left: 90%; animation-delay: 2.5s;"></div>
+        <div class="bh-hero__bg" aria-hidden="true">
+            <div class="bh-hero__grid"></div>
+            <div class="bh-hero__aurora bh-hero__aurora--1"></div>
+            <div class="bh-hero__aurora bh-hero__aurora--2"></div>
+            <div class="bh-hero__aurora bh-hero__aurora--3"></div>
+            <div class="bh-hero__noise"></div>
         </div>
 
         <div class="bh-hero__content">
@@ -1226,10 +1551,8 @@
                 @if($featuredPost)
                 <div class="bh-hero__card">
                     <img src="{{ $featuredPost->featured_image_url ?? 'https://picsum.photos/seed/' . $featuredPost->id . '/400/300' }}" alt="" class="bh-hero__card-img">
+                    @include('partials.blog-category-tags', ['post' => $featuredPost, 'variant' => 'overlay', 'compact' => true])
                     <div class="bh-hero__card-body">
-                        @if($featuredPost->category)
-                        <div class="bh-hero__card-cat">{{ $featuredPost->category }}</div>
-                        @endif
                         <div class="bh-hero__card-title">{{ $featuredPost->title }}</div>
                     </div>
                 </div>
@@ -1237,10 +1560,8 @@
                 @foreach($latestPosts->take(2) as $post)
                 <div class="bh-hero__card">
                     <img src="{{ $post->featured_image_url ?? 'https://picsum.photos/seed/' . $post->id . '/400/300' }}" alt="" class="bh-hero__card-img">
+                    @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay', 'compact' => true])
                     <div class="bh-hero__card-body">
-                        @if($post->category)
-                        <div class="bh-hero__card-cat">{{ $post->category }}</div>
-                        @endif
                         <div class="bh-hero__card-title">{{ $post->title }}</div>
                     </div>
                 </div>
@@ -1273,10 +1594,11 @@
                         <article class="bh-card">
                             <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
                                 <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                             </a>
                             <div class="bh-card__body">
-                                @if($post->category)
-                                    <div class="bh-card__cat">{{ $post->category }}</div>
+                                @if(!$post->featured_image_url)
+                                    @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline'])
                                 @endif
                                 <h3 class="bh-card__title">
                                     <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
@@ -1317,24 +1639,20 @@
                         <div class="bh-featured__carousel-track">
                             @foreach($carouselPosts as $index => $post)
                             <div class="bh-featured__carousel-slide {{ $index === 0 ? 'active' : '' }}" data-index="{{ $index }}">
-                                <a href="{{ route('blog.show', $post->slug) }}">
+                                <a href="{{ route('blog.show', $post->slug) }}" class="bh-featured__carousel-slide-link">
                                     <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="{{ $index === 0 ? 'eager' : 'lazy' }}">
-                                </a>
-                                <div class="bh-featured__carousel-body">
-                                    @if($post->category)
-                                        <div class="bh-card__cat">{{ $post->category }}</div>
-                                    @endif
-                                    <h3 class="bh-card__title">
-                                        <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
-                                    </h3>
-                                    @if($post->excerpt)
-                                        <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
-                                    @endif
-                                    <div class="bh-card__meta">
-                                        <span>{{ $post->created_at?->format('F j, Y') }} · {{ $post->reading_minutes }} min</span>
-                                        <span class="bh-card__read">Read →</span>
+                                    @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
+                                    <div class="bh-featured__carousel-body">
+                                        <h3 class="bh-card__title">{{ $post->title }}</h3>
+                                        @if($post->excerpt)
+                                            <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
+                                        @endif
+                                        <div class="bh-card__meta">
+                                            <span>{{ $post->created_at?->format('F j, Y') }} · {{ $post->reading_minutes }} min</span>
+                                            <span class="bh-card__read">Read →</span>
+                                        </div>
                                     </div>
-                                </div>
+                                </a>
                             </div>
                             @endforeach
                         </div>
@@ -1361,10 +1679,8 @@
                         @foreach($carouselPosts->skip(1)->take(4) as $post)
                         <a href="{{ route('blog.show', $post->slug) }}" class="bh-featured__sidebar-item">
                             <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">
+                            @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay', 'compact' => true])
                             <div class="bh-featured__sidebar-item-body">
-                                @if($post->category)
-                                    <div class="bh-card__cat">{{ $post->category }}</div>
-                                @endif
                                 <h4>{{ $post->title }}</h4>
                                 <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
                             </div>
@@ -1376,233 +1692,202 @@
         </section>
         @endif
 
-        {{-- LATEST --}}
-        @if($latestPosts->isNotEmpty())
-        <section class="bh-section bh-section--alt">
-            <div class="bh-wrap">
-                <div class="bh-section__header">
-                    <h2>Latest Articles</h2>
-                    <a href="{{ route('blog.index') }}">View all →</a>
-                </div>
-                <div class="bh-grid bh-grid--carousel">
-                    @foreach($latestPosts->take(6) as $post)
-                    <article class="bh-card">
-                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
-                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
-                            @if($post->category)
-                                <span class="bh-card__tag">{{ $post->category }}</span>
-                            @endif
-                        </a>
-                        <div class="bh-card__body">
-                            @if(!$post->featured_image_url)
-                                @if($post->category)
-                                    <div class="bh-card__cat">{{ $post->category }}</div>
-                                @endif
-                            @endif
-                            <h3 class="bh-card__title">
-                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
-                            </h3>
-                            @if($post->excerpt)
-                                <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
-                            @endif
-                            <div class="bh-card__meta">
-                                <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
-                                <span class="bh-card__read">Read →</span>
-                            </div>
-                        </div>
-                    </article>
-                    @endforeach
-                </div>
-            </div>
-        </section>
-        @endif
-
-        {{-- CATEGORY POSTS --}}
-        @if(isset($categoryPosts) && $categoryPosts->isNotEmpty())
+        {{-- LATEST + CATEGORY POSTS — single sticky sidebar --}}
+        @php
+            $showCategoryZone = $latestPosts->isNotEmpty()
+                || (isset($categoryPosts) && $categoryPosts->isNotEmpty())
+                || $trendingPosts->isNotEmpty()
+                || $featuredCategories->contains(fn ($cat) => ($cat['count'] ?? 0) > 0);
+        @endphp
+        @if($showCategoryZone)
             @php
                 $layouts = ['magazine', 'list', 'masonry', 'scroll', 'zigzag'];
             @endphp
-            @foreach($categoryPosts as $catIndex => $cat)
-            @php
-                $layout = $layouts[$catIndex % count($layouts)];
-                $posts = $cat['posts'];
-            @endphp
-            <section class="bh-section {{ $loop->even ? 'bh-section--alt' : '' }}">
+            <div class="bh-cat-zone bh-section--alt">
                 <div class="bh-wrap">
-                    <div class="bh-section__header">
-                        <h2>{{ $cat['name'] }}</h2>
-                        <a href="{{ $cat['url'] }}">More →</a>
-                    </div>
-
-                    @if($layout === 'magazine')
-                        <div class="bh-cat-magazine">
-                            @foreach($posts->take(5) as $post)
-                            <article class="bh-card">
-                                <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
-                                    <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
-                                    @if($post->category)
-                                        <span class="bh-card__tag">{{ $post->category }}</span>
-                                    @endif
-                                </a>
-                                <div class="bh-card__body">
-                                    @if(!$post->featured_image_url && $post->category)
-                                        <div class="bh-card__cat">{{ $post->category }}</div>
-                                    @endif
-                                    <h3 class="bh-card__title">
-                                        <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
-                                    </h3>
-                                    @if($post->excerpt)
-                                        <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
-                                    @endif
-                                    <div class="bh-card__meta">
-                                        <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
-                                        <span class="bh-card__read">Read →</span>
-                                    </div>
+                    <div class="bh-cat-page-layout">
+                        <div class="bh-cat-page-layout__main">
+                            @if($latestPosts->isNotEmpty())
+                            <div class="bh-cat-block" id="latest-articles">
+                                <div class="bh-section__header">
+                                    <h2>Latest Articles</h2>
+                                    <a href="{{ route('blog.index') }}">View all →</a>
                                 </div>
-                            </article>
-                            @endforeach
-                        </div>
-
-                    @elseif($layout === 'list')
-                        @php $featured = $posts->first(); @endphp
-                        <div class="bh-cat-list">
-                            <a href="{{ route('blog.show', $featured->slug) }}" class="bh-cat-list__featured">
-                                <img src="{{ $featured->featured_image_url }}" alt="{{ $featured->title }}">
-                                <div class="bh-cat-list__featured-overlay">
-                                    @if($featured->category)
-                                        <div class="bh-card__cat">{{ $featured->category }}</div>
-                                    @endif
-                                    <h3 class="bh-card__title">{{ $featured->title }}</h3>
-                                    <div class="bh-card__meta">
-                                        <span>{{ $featured->created_at?->format('F j, Y') }} · {{ $featured->reading_minutes }} min read</span>
-                                    </div>
+                                <div class="bh-grid bh-grid--carousel">
+                                    @foreach($latestPosts->take(6) as $post)
+                                    <article class="bh-card">
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
+                                        </a>
+                                        <div class="bh-card__body">
+                                            @if(!$post->featured_image_url)
+                                                @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline'])
+                                            @endif
+                                            <h3 class="bh-card__title">
+                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                            </h3>
+                                            @if($post->excerpt)
+                                                <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
+                                            @endif
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
+                                                <span class="bh-card__read">Read →</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    @endforeach
                                 </div>
-                            </a>
-                            <div class="bh-cat-list__items">
-                                @foreach($posts->skip(1)->take(4) as $post)
-                                <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-list__item">
-                                    <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}">
-                                    <div class="bh-cat-list__item-body">
-                                        @if($post->category)
-                                            <div class="bh-card__cat">{{ $post->category }}</div>
-                                        @endif
-                                        <h4>{{ $post->title }}</h4>
-                                        <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
-                                    </div>
-                                </a>
-                                @endforeach
                             </div>
-                        </div>
-
-                    @elseif($layout === 'masonry')
-                        <div class="bh-cat-masonry">
-                            @foreach($posts->take(6) as $post)
-                            <article class="bh-card">
-                                <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
-                                    <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
-                                    @if($post->category)
-                                        <span class="bh-card__tag">{{ $post->category }}</span>
-                                    @endif
-                                </a>
-                                <div class="bh-card__body">
-                                    @if(!$post->featured_image_url && $post->category)
-                                        <div class="bh-card__cat">{{ $post->category }}</div>
-                                    @endif
-                                    <h3 class="bh-card__title">
-                                        <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
-                                    </h3>
-                                    <div class="bh-card__meta">
-                                        <span>{{ $post->created_at?->format('M j, Y') }}</span>
-                                        <span class="bh-card__read">Read →</span>
-                                    </div>
-                                </div>
-                            </article>
-                            @endforeach
-                        </div>
-
-                    @elseif($layout === 'scroll')
-                        <div class="bh-cat-scroll">
-                            @foreach($posts->take(6) as $post)
-                            <article class="bh-card">
-                                <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
-                                    <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
-                                    @if($post->category)
-                                        <span class="bh-card__tag">{{ $post->category }}</span>
-                                    @endif
-                                </a>
-                                <div class="bh-card__body">
-                                    @if(!$post->featured_image_url && $post->category)
-                                        <div class="bh-card__cat">{{ $post->category }}</div>
-                                    @endif
-                                    <h3 class="bh-card__title">
-                                        <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
-                                    </h3>
-                                    <div class="bh-card__meta">
-                                        <span>{{ $post->created_at?->format('M j, Y') }}</span>
-                                        <span class="bh-card__read">Read →</span>
-                                    </div>
-                                </div>
-                            </article>
-                            @endforeach
-                        </div>
-
-                    @elseif($layout === 'zigzag')
-                        <div class="bh-cat-zigzag">
-                            @foreach($posts->take(4) as $post)
-                            <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-zigzag-item">
-                                <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">
-                                <div class="bh-cat-zigzag-item-body">
-                                    @if($post->category)
-                                        <div class="bh-card__cat">{{ $post->category }}</div>
-                                    @endif
-                                    <h3>{{ $post->title }}</h3>
-                                    @if($post->excerpt)
-                                        <p>{{ $post->excerpt }}</p>
-                                    @endif
-                                    <div class="bh-card__meta">
-                                        <span>{{ $post->created_at?->format('F j, Y') }} · {{ $post->reading_minutes }} min read</span>
-                                        <span class="bh-card__read">Read article →</span>
-                                    </div>
-                                </div>
-                            </a>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-            </section>
-            @endforeach
-        @endif
-
-        {{-- TRENDING --}}
-        @if($trendingPosts->isNotEmpty())
-        <section class="bh-section bh-section--alt">
-            <div class="bh-wrap">
-                <div class="bh-section__header">
-                    <h2>Trending Now</h2>
-                    <a href="{{ route('blog.index') }}">View all →</a>
-                </div>
-                <div class="bh-trending bh-trending--carousel">
-                    @foreach($trendingPosts->take(4) as $index => $post)
-                    <a href="{{ route('blog.show', $post->slug) }}" class="bh-trend">
-                        <span class="bh-trend__num">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</span>
-                        <img src="{{ $post->featured_image_url }}" alt="" class="bh-trend__img" loading="lazy">
-                        <div class="bh-trend__body">
-                            @if($post->category)
-                                <div class="bh-trend__cat">{{ $post->category }}</div>
                             @endif
-                            <p class="bh-trend__title">{{ $post->title }}</p>
-                            <div class="bh-trend__meta">
-                                {{ $post->created_at?->format('M j, Y') }}
-                                @if($post->views_count > 0)
-                                    · {{ number_format($post->views_count) }} views
+
+                            @if(isset($categoryPosts))
+                            @foreach($categoryPosts as $catIndex => $cat)
+                            @php
+                                $layout = $layouts[$catIndex % count($layouts)];
+                                $posts = $cat['posts'];
+                            @endphp
+                            <div class="bh-cat-block {{ $loop->even ? 'bh-cat-block--alt' : '' }}" id="cat-{{ $cat['slug'] }}">
+                                <div class="bh-section__header">
+                                    <h2>{{ $cat['name'] }}</h2>
+                                    <a href="{{ $cat['url'] }}">More →</a>
+                                </div>
+
+                                @if($layout === 'magazine')
+                                <div class="bh-cat-magazine">
+                                    @foreach($posts->take(5) as $post)
+                                    <article class="bh-card">
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
+                                        </a>
+                                        <div class="bh-card__body">
+                                            @if(!$post->featured_image_url)
+                                                @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline'])
+                                            @endif
+                                            <h3 class="bh-card__title">
+                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                            </h3>
+                                            @if($post->excerpt)
+                                                <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
+                                            @endif
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
+                                                <span class="bh-card__read">Read →</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    @endforeach
+                                </div>
+
+                                @elseif($layout === 'list')
+                                @php $featured = $posts->first(); @endphp
+                                <div class="bh-cat-list">
+                                    <a href="{{ route('blog.show', $featured->slug) }}" class="bh-cat-list__featured">
+                                        <img src="{{ $featured->featured_image_url }}" alt="{{ $featured->title }}">
+                                        @include('partials.blog-category-tags', ['post' => $featured, 'variant' => 'overlay'])
+                                        <div class="bh-cat-list__featured-overlay">
+                                            <h3 class="bh-card__title">{{ $featured->title }}</h3>
+                                            <div class="bh-card__meta">
+                                                <span>{{ $featured->created_at?->format('F j, Y') }} · {{ $featured->reading_minutes }} min read</span>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <div class="bh-cat-list__items">
+                                        @foreach($posts->skip(1)->take(4) as $post)
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-list__item">
+                                            <span class="bh-cat-list__item-thumb">
+                                                <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}">
+                                                @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay', 'compact' => true])
+                                            </span>
+                                            <div class="bh-cat-list__item-body">
+                                                <h4>{{ $post->title }}</h4>
+                                                <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
+                                            </div>
+                                        </a>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                @elseif($layout === 'masonry')
+                                <div class="bh-cat-masonry">
+                                    @foreach($posts->take(6) as $post)
+                                    <article class="bh-card">
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
+                                        </a>
+                                        <div class="bh-card__body">
+                                            @if(!$post->featured_image_url)
+                                                @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline'])
+                                            @endif
+                                            <h3 class="bh-card__title">
+                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                            </h3>
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('M j, Y') }}</span>
+                                                <span class="bh-card__read">Read →</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    @endforeach
+                                </div>
+
+                                @elseif($layout === 'scroll')
+                                <div class="bh-cat-scroll">
+                                    @foreach($posts->take(6) as $post)
+                                    <article class="bh-card">
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
+                                        </a>
+                                        <div class="bh-card__body">
+                                            @if(!$post->featured_image_url)
+                                                @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline'])
+                                            @endif
+                                            <h3 class="bh-card__title">
+                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                            </h3>
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('M j, Y') }}</span>
+                                                <span class="bh-card__read">Read →</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    @endforeach
+                                </div>
+
+                                @elseif($layout === 'zigzag')
+                                <div class="bh-cat-zigzag">
+                                    @foreach($posts->take(4) as $post)
+                                    <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-zigzag-item">
+                                        <span class="bh-cat-zigzag-item__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">
+                                            @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
+                                        </span>
+                                        <div class="bh-cat-zigzag-item-body">
+                                            <h3>{{ $post->title }}</h3>
+                                            @if($post->excerpt)
+                                                <p>{{ $post->excerpt }}</p>
+                                            @endif
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('F j, Y') }} · {{ $post->reading_minutes }} min read</span>
+                                                <span class="bh-card__read">Read article →</span>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    @endforeach
+                                </div>
                                 @endif
                             </div>
+                            @endforeach
+                            @endif
                         </div>
-                    </a>
-                    @endforeach
+
+                        @include('partials.home-category-sidebar')
+                    </div>
                 </div>
             </div>
-        </section>
         @endif
 
         {{-- EMPTY --}}
@@ -1699,6 +1984,45 @@
     }, { passive: true });
 
     startTimer();
+})();
+
+(function() {
+    var blocks = document.querySelectorAll('.bh-cat-page-layout__main [id^="cat-"]');
+    var links = document.querySelectorAll('[data-cat-anchor]');
+    if (!blocks.length || !links.length) return;
+
+    function setActive(slug) {
+        links.forEach(function(link) {
+            var isActive = link.getAttribute('data-cat-anchor') === slug;
+            link.classList.toggle('is-current', isActive);
+        });
+    }
+
+    function onScroll() {
+        var offset = window.scrollY + 120;
+        var current = null;
+        blocks.forEach(function(block) {
+            if (block.offsetTop <= offset) {
+                current = block.id.replace('cat-', '');
+            }
+        });
+        if (current) setActive(current);
+    }
+
+    links.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            var slug = link.getAttribute('data-cat-anchor');
+            var target = document.getElementById('cat-' + slug);
+            if (target) {
+                e.preventDefault();
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                setActive(slug);
+            }
+        });
+    });
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
 })();
 </script>
 @endsection

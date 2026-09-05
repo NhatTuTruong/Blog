@@ -36,6 +36,7 @@ class PinterestQueueItem extends Model
         'status',
         'scheduled_at',
         'processed_at',
+        'processing_started_at',
         'error_message',
     ];
 
@@ -43,6 +44,7 @@ class PinterestQueueItem extends Model
         'coupon_codes' => 'array',
         'scheduled_at' => 'datetime',
         'processed_at' => 'datetime',
+        'processing_started_at' => 'datetime',
         'sort_order' => 'integer',
         'used_default_caption' => 'boolean',
     ];

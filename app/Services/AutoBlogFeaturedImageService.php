@@ -9,16 +9,30 @@ use Illuminate\Support\Facades\Log;
 
 class AutoBlogFeaturedImageService
 {
-    public function resolveForQueueItem(AutoBlogQueueItem $item): ?string
+    public function resolveUploadedPath(AutoBlogQueueItem $item): ?string
     {
         $uploaded = $this->normalizeStoragePath($item->image_path);
         if ($uploaded !== null) {
             PublicStorage::syncUploadedPath($uploaded);
+        }
+
+        return $uploaded;
+    }
+
+    public function resolveForQueueItem(AutoBlogQueueItem $item): ?string
+    {
+        $uploaded = $this->resolveUploadedPath($item);
+        if ($uploaded !== null) {
             $item->touch();
 
             return $uploaded;
         }
 
+        return $this->resolveApifyFallback($item);
+    }
+
+    public function resolveApifyFallback(AutoBlogQueueItem $item): ?string
+    {
         $dest = "blogs/auto-generated/item-{$item->id}.jpg";
 
         try {
@@ -31,7 +45,6 @@ class AutoBlogFeaturedImageService
                 topCandidates: 5,
             );
 
-            // Update timestamp so stale recovery doesn't kill this item mid-download
             $item->touch();
 
             return $path;

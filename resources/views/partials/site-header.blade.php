@@ -1,6 +1,6 @@
 @php
     $navLinks = \App\Models\SiteContent::get('header_nav', \App\Models\SiteContent::defaultHeaderNav());
-    $socialLinks = collect(\App\Models\SiteContent::get('social_media_links', []))->filter(fn($s) => !empty($s['url']) && !empty($s['enabled']));
+    $socialLinks = \App\Models\SiteContent::visibleSocialLinks();
     $normalizeUrl = function ($url) {
         if (empty($url)) {
             return url('/');

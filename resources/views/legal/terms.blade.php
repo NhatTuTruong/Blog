@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Terms of Use - ' . config('app.name'))
-@section('description', 'Terms of use for our website and blog.')
+@section('title', \App\Support\SiteSeo::pageTitle('terms'))
+@section('description', \App\Support\SiteSeo::pageDescription('terms'))
 
 @push('styles')
 <style>

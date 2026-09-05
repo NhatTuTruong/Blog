@@ -111,23 +111,6 @@ class SystemSettings extends Page implements HasForms
                         ->required(),
                 ])
                 ->columns(3),
-            Section::make('SEO mặc định')
-                ->description('Áp dụng cho các trang dùng layout chính.')
-                ->schema([
-                    TextInput::make('seo_title_suffix')
-                        ->label('Title suffix')
-                        ->helperText('Ví dụ: - '.config('app.name'))
-                        ->maxLength(120),
-                    TextInput::make('seo_meta_description_default')
-                        ->label('Meta description fallback')
-                        ->required()
-                        ->maxLength(255),
-                    TextInput::make('seo_og_image_default')
-                        ->label('OpenGraph image mặc định (URL)')
-                        ->url()
-                        ->maxLength(500),
-                ])
-                ->columns(1),
             Section::make('Thiết lập chung')
                 ->schema([
                     TextInput::make('site_contact_email')
@@ -193,9 +176,6 @@ class SystemSettings extends Page implements HasForms
             'auto_blog_variant_guide' => (bool) AdminSettings::get('auto_blog_variant_guide', true),
             'auto_blog_variant_comparison' => (bool) AdminSettings::get('auto_blog_variant_comparison', true),
             'auto_blog_queue_interval_minutes' => (int) AdminSettings::get('auto_blog_queue_interval_minutes', 10),
-            'seo_title_suffix' => (string) AdminSettings::get('seo_title_suffix', '- '.config('app.name')),
-            'seo_meta_description_default' => (string) AdminSettings::get('seo_meta_description_default', 'Latest articles and insights from our blog.'),
-            'seo_og_image_default' => (string) AdminSettings::get('seo_og_image_default', ''),
             'coupon_sync_dedupe_domain' => \App\Support\CouponSyncSettings::dedupeDomainEnabled(),
         ]);
     }
@@ -213,9 +193,6 @@ class SystemSettings extends Page implements HasForms
         AdminSettings::set('auto_blog_variant_comparison', (bool) ($data['auto_blog_variant_comparison'] ?? true));
         AdminSettings::set('auto_blog_queue_interval_minutes', max(1, min(1440, (int) ($data['auto_blog_queue_interval_minutes'] ?? 10))));
 
-        AdminSettings::set('seo_title_suffix', trim((string) ($data['seo_title_suffix'] ?? ('- '.config('app.name')))));
-        AdminSettings::set('seo_meta_description_default', trim((string) ($data['seo_meta_description_default'] ?? 'Latest articles and insights from our blog.')));
-        AdminSettings::set('seo_og_image_default', trim((string) ($data['seo_og_image_default'] ?? '')));
         AdminSettings::set('coupon_sync_dedupe_domain', (bool) ($data['coupon_sync_dedupe_domain'] ?? true));
     }
 

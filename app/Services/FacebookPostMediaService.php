@@ -64,6 +64,28 @@ class FacebookPostMediaService
         return SocialMediaPublicUrl::build($base, $storagePath);
     }
 
+    /**
+     * Thay ảnh queue item bằng ảnh mặc định (URL cài đặt / default1–3).
+     */
+    public function applyDefaultImageForItem(FacebookQueueItem $item): bool
+    {
+        $this->lastError = null;
+
+        try {
+            $dest = "facebook-generated/item-{$item->id}-fallback.jpg";
+            $path = app(SocialMediaImageSourceService::class)->applyDefaultJpeg($item->user_id, $dest);
+            $ready = $this->convertUploadToJpeg($path, $item->id) ?? $path;
+
+            $item->update(['image_path' => $ready]);
+
+            return PublicStorage::exists($ready);
+        } catch (\Throwable $e) {
+            $this->lastError = $e->getMessage();
+
+            return false;
+        }
+    }
+
     public function mediaAccessToken(FacebookQueueItem $item): string
     {
         return hash_hmac('sha256', 'facebook-media:'.$item->id, (string) config('app.key'));

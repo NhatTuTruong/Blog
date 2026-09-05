@@ -1,0 +1,944 @@
+
+
+===== LINE 3415 =====
+TEXT: Đang thêm sidebar bên phải cho từng block blog theo category, gồm Categories và Trending Posts.
+
+[REDACTED]
+TOOL: Write d:\Project\Web blog\SourceCode_CouponPage_4_12026\Blog\resources\views\partials\home-category-sidebar.blade.php
+@php
+    $popularCategories = $featuredCategories->sortByDesc('count')->values();
+@endphp
+<aside class="bh-cat-sidebar">
+    @if($popularCategories->isNotEmpty())
+    <div class="bh-cat-sidebar__widget">
+        <h3 class="bh-cat-sidebar__title">Categories</h3>
+        <ul class="bh-cat-sidebar__cats">
+            @foreach($popularCategories->take(8) as $cat)
+            <li>
+                <a href="{{ $cat['url'] }}" class="{{ request('cat') === $cat['name'] ? 'active' : '' }}">
+                    <span class="bh-cat-sidebar__cat-name">{{ $cat['name'] }}</span>
+                    <span class="bh-cat-sidebar__cat-count">{{ $cat['count'] }}</span>
+                </a>
+            </li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
+
+    @if(isset($trendingPosts) && $trendingPosts->isNotEmpty())
+    <div class="bh-cat-sidebar__widget">
+        <h3 class="bh-cat-sidebar__title">Trending Posts</h3>
+        <ol class="bh-cat-sidebar__trending">
+            @foreach($trendingPosts->take(5) as $i => $post)
+            <li>
+                <a href="{{ route('blog.show', $post->slug) }}">
+                    @if($post->featured_image_url)
+                    <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">
+                    @endif
+                    <div class="bh-cat-sidebar__trend-body">
+                        <span class="bh-cat-sidebar__trend-title">{{ $post->title }}</span>
+                        <span class="bh-cat-sidebar__trend-meta">
+                            {{ $post->created_at?->format('M j, Y') }}
+                            @if($post->views_count > 0)
+                                · {{ number_format($post->views_count) }} views
+                            @endif
+                        </span>
+                    </div>
+                </a>
+            </li>
+            @endforeach
+        </ol>
+    </div>
+    @endif
+</aside>
+
+TOOL: StrReplace d:\Project\Web blog\SourceCode_CouponPage_4_12026\Blog\resources\views\home.blade.php
+    @media (max-width: 768px) {
+        .bh-cat-zigzag-item { grid-template-columns: 1fr; gap: 1rem; }
+        .bh-cat-zigzag-item:nth-child(even) { direction: ltr; }
+    }
+
+    /* ================================
+       CATEGORY SECTION + SIDEBAR
+       ================================ */
+    .bh-cat-layout {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 2.5rem;
+        align-items: start;
+    }
+    @media (max-width: 1024px) {
+        .bh-cat-layout { grid-template-columns: 1fr; gap: 2rem; }
+    }
+    .bh-cat-layout__main { min-width: 0; }
+
+    .bh-cat-sidebar {
+        position: sticky;
+        top: 1.5rem;
+    }
+    @media (max-width: 1024px) {
+        .bh-cat-sidebar {
+            position: static;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+    }
+    @media (max-width: 640px) {
+        .bh-cat-sidebar { grid-template-columns: 1fr; }
+    }
+    .bh-cat-sidebar__widget {
+        background: var(--bh-card);
+        border: 1px solid var(--bh-border);
+        border-radius: 14px;
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+    .bh-cat-sidebar__widget:last-child { margin-bottom: 0; }
+    .bh-cat-sidebar__title {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--bh-ink);
+        margin: 0 0 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--bh-accent);
+    }
+    .bh-cat-sidebar__cats {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    .bh-cat-sidebar__cats li { margin: 0; }
+    .bh-cat-sidebar__cats a {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.55rem 0;
+        font-size: 0.875rem;
+        color: var(--bh-muted);
+        text-decoration: none;
+        border-bottom: 1px solid var(--bh-light);
+        transition: color 0.15s;
+    }
+    .bh-cat-sidebar__cats li:last-child a { border-bottom: none; }
+    .bh-cat-sidebar__cats a:hover,
+    .bh-cat-sidebar__cats a.active {
+        color: var(--bh-accent);
+    }
+    .bh-cat-sidebar__cat-name {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .bh-cat-sidebar__cat-count {
+        flex-shrink: 0;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: var(--bh-light);
+        color: var(--bh-muted);
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+    }
+    .bh-cat-sidebar__cats a.active .bh-cat-sidebar__cat-count {
+        background: rgba(37, 99, 235, 0.1);
+        color: var(--bh-accent);
+    }
+    .bh-cat-sidebar__trending {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        counter-reset: trend;
+    }
+    .bh-cat-sidebar__trending li {
+        counter-increment: trend;
+        margin: 0;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--bh-light);
+    }
+    .bh-cat-sidebar__trending li:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .bh-cat-sidebar__trending a {
+        display: flex;
+        gap: 0.75rem;
+        text-decoration: none;
+        color: inherit;
+        align-items: flex-start;
+    }
+    .bh-cat-sidebar__trending a::before {
+        content: counter(trend, decimal-leading-zero);
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--bh-border);
+        min-width: 1.25rem;
+        line-height: 1.4;
+        transition: color 0.15s;
+    }
+    .bh-cat-sidebar__trending a:hover::before { color: var(--bh-accent); }
+    .bh-cat-sidebar__trending img {
+        width: 56px;
+        height: 56px;
+        object-fit: cover;
+        border-radius: 8px;
+        flex-shrink: 0;
+    }
+    .bh-cat-sidebar__trend-body {
+        flex: 1;
+        min-width: 0;
+    }
+    .bh-cat-sidebar__trend-title {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        line-height: 1.4;
+        color: var(--bh-ink);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        transition: color 0.15s;
+    }
+    .bh-cat-sidebar__trending a:hover .bh-cat-sidebar__trend-title {
+        color: var(--bh-accent);
+    }
+    .bh-cat-sidebar__trend-meta {
+        display: block;
+        font-size: 0.72rem;
+        color: var(--bh-muted);
+        margin-top: 0.25rem;
+    }
+</style>
+TOOL: StrReplace d:\Project\Web blog\SourceCode_CouponPage_4_12026\Blog\resources\views\home.blade.php
+                    <div class="bh-section__header">
+                        <h2>{{ $cat['name'] }}</h2>
+                        <a href="{{ $cat['url'] }}">More →</a>
+                    </div>
+
+                    <div class="bh-cat-layout">
+                        <div class="bh-cat-layout__main">
+                    @if($layout === 'magazine')
+TOOL: StrReplace d:\Project\Web blog\SourceCode_CouponPage_4_12026\Blog\resources\views\home.blade.php
+                        </div>
+                    @endif
+                        </div>
+
+                        @include('partials.home-category-sidebar')
+                    </div>
+                </div>
+            </section>
+
+
+===== LINE 3423 =====
+TEXT: Đang gom tất cả block category vào một layout duy nhất, sidebar sticky cố định bên phải.
+
+[REDACTED]
+TOOL: StrReplace d:\Project\Web blog\SourceCode_CouponPage_4_12026\Blog\resources\views\home.blade.php
+    /* ================================
+       CATEGORY ZONE — SINGLE FIXED SIDEBAR
+       ================================ */
+    .bh-cat-zone {
+        padding: 2rem 0 4rem;
+    }
+    .bh-cat-page-layout {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 2.5rem;
+        align-items: start;
+    }
+    @media (max-width: 1024px) {
+        .bh-cat-page-layout { grid-template-columns: 1fr; }
+    }
+    .bh-cat-page-layout__main { min-width: 0; }
+
+    .bh-cat-block {
+        padding: 2rem 0;
+        border-bottom: 1px solid var(--bh-border);
+    }
+    .bh-cat-block:first-child { padding-top: 0; }
+    .bh-cat-block:last-child { border-bottom: none; padding-bottom: 0; }
+    .bh-cat-block--alt {
+        margin: 0 -2rem;
+        padding: 2rem;
+        background: var(--bh-light);
+        border-bottom: none;
+    }
+    @media (max-width: 768px) {
+        .bh-cat-block--alt { margin: 0 -1rem; padding: 1.5rem 1rem; }
+    }
+
+    .bh-cat-sidebar {
+        position: sticky;
+        top: 5.5rem;
+        align-self: start;
+        z-index: 10;
+    }
+    @media (max-width: 1024px) {
+        .bh-cat-sidebar {
+            position: static;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            order: -1;
+            margin-bottom: 1rem;
+        }
+    }
+TOOL: StrReplace d:\Project\Web blog\SourceCode_CouponPage_4_12026\Blog\resources\views\home.blade.php
+        {{-- CATEGORY POSTS — single sticky sidebar --}}
+        @if(isset($categoryPosts) && $categoryPosts->isNotEmpty())
+            @php
+                $layouts = ['magazine', 'list', 'masonry', 'scroll', 'zigzag'];
+            @endphp
+            <div class="bh-cat-zone">
+                <div class="bh-wrap">
+                    <div class="bh-cat-page-layout">
+                        <div class="bh-cat-page-layout__main">
+                            @foreach($categoryPosts as $catIndex => $cat)
+                            @php
+                                $layout = $layouts[$catIndex % count($layouts)];
+                                $posts = $cat['posts'];
+                            @endphp
+                            <div class="bh-cat-block {{ $loop->even ? 'bh-cat-block--alt' : '' }}">
+                                <div class="bh-section__header">
+                                    <h2>{{ $cat['name'] }}</h2>
+                                    <a href="{{ $cat['url'] }}">More →</a>
+                                </div>
+
+                                @if($layout === 'magazine')
+TOOL: StrReplace d:\Project\Web blog\SourceCode_CouponPage_4_12026\Blog\resources\views\home.blade.php
+                                @endif
+                            </div>
+                            @endforeach
+                        </div>
+
+                        @include('partials.home-category-sidebar')
+                    </div>
+                </div>
+            </div>
+        @endif
+
+
+===== LINE 3429 =====
+TEXT: [REDACTED]
+TOOL: StrReplace d:\Project\Web blog\SourceCode_CouponPage_4_12026\Blog\resources\views\home.blade.php
+        {{-- LATEST + CATEGORY POSTS — single sticky sidebar --}}
+        @if($latestPosts->isNotEmpty() || (isset($categoryPosts) && $categoryPosts->isNotEmpty()))
+            @php
+                $layouts = ['magazine', 'list', 'masonry', 'scroll', 'zigzag'];
+            @endphp
+            <div class="bh-cat-zone bh-section--alt">
+                <div class="bh-wrap">
+                    <div class="bh-cat-page-layout">
+                        <div class="bh-cat-page-layout__main">
+                            @if($latestPosts->isNotEmpty())
+                            <div class="bh-cat-block" id="latest-articles">
+                                <div class="bh-section__header">
+                                    <h2>Latest Articles</h2>
+                                    <a href="{{ route('blog.index') }}">View all →</a>
+                                </div>
+                                <div class="bh-grid bh-grid--carousel">
+                                    @foreach($latestPosts->take(6) as $post)
+                                    <article class="bh-card">
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            @if($post->category)
+                                                <span class="bh-card__tag">{{ $post->category }}</span>
+                                            @endif
+                                        </a>
+                                        <div class="bh-card__body">
+                                            @if(!$post->featured_image_url && $post->category)
+                                                <div class="bh-card__cat">{{ $post->category }}</div>
+                                            @endif
+                                            <h3 class="bh-card__title">
+                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                            </h3>
+                                            @if($post->excerpt)
+                                                <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
+                                            @endif
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
+                                                <span class="bh-card__read">Read →</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+
+                            @if(isset($categoryPosts))
+                            @foreach($categoryPosts as $catIndex => $cat)
+                            @php
+                                $layout = $layouts[$catIndex % count($layouts)];
+                                $posts = $cat['posts'];
+                            @endphp
+                            <div class="bh-cat-block {{ $loop->even ? 'bh-cat-block--alt' : '' }}" id="cat-{{ $cat['slug'] }}">
+                                <div class="bh-section__header">
+                                    <h2>{{ $cat['name'] }}</h2>
+                                    <a href="{{ $cat['url'] }}">More →</a>
+                                </div>
+
+                                @if($layout === 'magazine')
+                                <div class="bh-cat-magazine">
+                                    @foreach($posts->take(5) as $post)
+                                    <article class="bh-card">
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            @if($post->category)
+                                                <span class="bh-card__tag">{{ $post->category }}</span>
+                                            @endif
+                                        </a>
+                                        <div class="bh-card__body">
+                                            @if(!$post->featured_image_url && $post->category)
+                                                <div class="bh-card__cat">{{ $post->category }}</div>
+                                            @endif
+                                            <h3 class="bh-card__title">
+                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                            </h3>
+                                            @if($post->excerpt)
+                                                <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
+                                            @endif
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
+                                                <span class="bh-card__read">Read →</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    @endforeach
+                                </div>
+
+                                @elseif($layout === 'list')
+                                @php $featured = $posts->first(); @endphp
+                                <div class="bh-cat-list">
+                                    <a href="{{ route('blog.show', $featured->slug) }}" class="bh-cat-list__featured">
+                                        <img src="{{ $featured->featured_image_url }}" alt="{{ $featured->title }}">
+                                        <div class="bh-cat-list__featured-overlay">
+                                            @if($featured->category)
+                                                <div class="bh-card__cat">{{ $featured->category }}</div>
+                                            @endif
+                                            <h3 class="bh-card__title">{{ $featured->title }}</h3>
+                                            <div class="bh-card__meta">
+                                                <span>{{ $featured->created_at?->format('F j, Y') }} · {{ $featured->reading_minutes }} min read</span>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <div class="bh-cat-list__items">
+                                        @foreach($posts->skip(1)->take(4) as $post)
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-list__item">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}">
+                                            <div class="bh-cat-list__item-body">
+                                                @if($post->category)
+                                                    <div class="bh-card__cat">{{ $post->category }}</div>
+                                                @endif
+                                                <h4>{{ $post->title }}</h4>
+                                                <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
+                                            </div>
+                                        </a>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                @elseif($layout === 'masonry')
+                                <div class="bh-cat-masonry">
+                                    @foreach($posts->take(6) as $post)
+                                    <article class="bh-card">
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            @if($post->category)
+                                                <span class="bh-card__tag">{{ $post->category }}</span>
+                                            @endif
+                                        </a>
+                                        <div class="bh-card__body">
+                                            @if(!$post->featured_image_url && $post->category)
+                                                <div class="bh-card__cat">{{ $post->category }}</div>
+                                            @endif
+                                            <h3 class="bh-card__title">
+                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                            </h3>
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('M j, Y') }}</span>
+                                                <span class="bh-card__read">Read →</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    @endforeach
+                                </div>
+
+                                @elseif($layout === 'scroll')
+                                <div class="bh-cat-scroll">
+                                    @foreach($posts->take(6) as $post)
+                                    <article class="bh-card">
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            @if($post->category)
+                                                <span class="bh-card__tag">{{ $post->category }}</span>
+                                            @endif
+                                        </a>
+                                        <div class="bh-card__body">
+                                            @if(!$post->featured_image_url && $post->category)
+                                                <div class="bh-card__cat">{{ $post->category }}</div>
+                                            @endif
+                                            <h3 class="bh-card__title">
+                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                            </h3>
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('M j, Y') }}</span>
+                                                <span class="bh-card__read">Read →</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    @endforeach
+                                </div>
+
+                                @elseif($layout === 'zigzag')
+                                <div class="bh-cat-zigzag">
+                                    @foreach($posts->take(4) as $post)
+                                    <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-zigzag-item">
+                                        <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">
+                                        <div class="bh-cat-zigzag-item-body">
+                                            @if($post->category)
+                                                <div class="bh-card__cat">{{ $post->category }}</div>
+                                            @endif
+                                            <h3>{{ $post->title }}</h3>
+                                            @if($post->excerpt)
+                                                <p>{{ $post->excerpt }}</p>
+                                            @endif
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('F j, Y') }} · {{ $post->reading_minutes }} min read</span>
+                                                <span class="bh-card__read">Read article →</span>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    @endforeach
+                                </div>
+                                @endif
+                            </div>
+                            @endforeach
+                            @endif
+                        </div>
+
+                        @include('partials.home-category-sidebar')
+                    </div>
+                </div>
+            </div>
+        @endif
+
+
+===== LINE 3439 =====
+TEXT: [REDACTED]
+TOOL: StrReplace d:\Project\Web blog\SourceCode_CouponPage_4_12026\Blog\resources\views\home.blade.php
+    .bh-cat-sidebar {
+        position: sticky;
+        top: 5.5rem;
+        align-self: start;
+        z-index: 10;
+    }
+    .bh-cat-sidebar__inner {
+        background: linear-gradient(165deg, #0f172a 0%, #1e3a8a 55%, #1e40af 100%);
+        border-radius: 20px;
+        padding: 1.5rem;
+        box-shadow:
+            0 24px 48px rgba(15, 23, 42, 0.28),
+            0 0 0 1px rgba(96, 165, 250, 0.25),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        position: relative;
+    }
+    .bh-cat-sidebar__inner::before {
+        content: '';
+        position: absolute;
+        top: -40%;
+        right: -30%;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(96, 165, 250, 0.35) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    @media (max-width: 1024px) {
+        .bh-cat-sidebar {
+            position: static;
+            order: -1;
+            margin-bottom: 1.5rem;
+        }
+    }
+    .bh-cat-sidebar__widget {
+        position: relative;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        backdrop-filter: blur(8px);
+    }
+    .bh-cat-sidebar__widget:last-child { margin-bottom: 0; }
+    .bh-cat-sidebar__title {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #93c5fd;
+        margin: 0 0 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .bh-cat-sidebar__title::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #60a5fa;
+        box-shadow: 0 0 10px rgba(96, 165, 250, 0.8);
+    }
+    .bh-cat-sidebar__cats {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    .bh-cat-sidebar__cats li { margin: 0; }
+    .bh-cat-sidebar__cats a {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.6rem 0.65rem;
+        margin: 0 -0.65rem;
+        font-size: 0.875rem;
+        color: rgba(255, 255, 255, 0.78);
+        text-decoration: none;
+        border-radius: 8px;
+        transition: background 0.15s, color 0.15s, transform 0.15s;
+    }
+    .bh-cat-sidebar__cats a:hover,
+    .bh-cat-sidebar__cats a.active,
+    .bh-cat-sidebar__cats a.is-current {
+        color: #fff;
+        background: rgba(37, 99, 235, 0.35);
+        transform: translateX(3px);
+    }
+    .bh-cat-sidebar__cat-name {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .bh-cat-sidebar__cat-count {
+        flex-shrink: 0;
+        font-size: 0.72rem;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.12);
+        color: #bfdbfe;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+    }
+    .bh-cat-sidebar__cats a:hover .bh-cat-sidebar__cat-count,
+    .bh-cat-sidebar__cats a.active .bh-cat-sidebar__cat-count,
+    .bh-cat-sidebar__cats a.is-current .bh-cat-sidebar__cat-count {
+        background: rgba(255, 255, 255, 0.22);
+        color: #fff;
+    }
+    .bh-cat-sidebar__trending {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        counter-reset: trend;
+    }
+    .bh-cat-sidebar__trending li {
+        counter-increment: trend;
+        margin: 0;
+        padding: 0.65rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .bh-cat-sidebar__trending li:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .bh-cat-sidebar__trending a {
+        display: flex;
+        gap: 0.75rem;
+        text-decoration: none;
+        color: inherit;
+        align-items: flex-start;
+        padding: 0.35rem 0.5rem;
+        margin: 0 -0.5rem;
+        border-radius: 10px;
+        transition: background 0.15s;
+    }
+    .bh-cat-sidebar__trending a:hover {
+        background: rgba(255, 255, 255, 0.08);
+    }
+    .bh-cat-sidebar__trending a::before {
+        content: counter(trend, decimal-leading-zero);
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 0.8rem;
+        font-weight: 800;
+        color: rgba(255, 255, 255, 0.25);
+        min-width: 1.25rem;
+        line-height: 1.4;
+        transition: color 0.15s;
+    }
+    .bh-cat-sidebar__trending a:hover::before { color: #60a5fa; }
+    .bh-cat-sidebar__trending img {
+        width: 52px;
+        height: 52px;
+        object-fit: cover;
+        border-radius: 10px;
+        flex-shrink: 0;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+    }
+    .bh-cat-sidebar__trend-body {
+        flex: 1;
+        min-width: 0;
+    }
+    .bh-cat-sidebar__trend-title {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.92);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        transition: color 0.15s;
+    }
+    .bh-cat-sidebar__trending a:hover .bh-cat-sidebar__trend-title {
+        color: #fff;
+    }
+    .bh-cat-sidebar__trend-meta {
+        display: block;
+        font-size: 0.72rem;
+        color: rgba(255, 255, 255, 0.5);
+        margin-top: 0.25rem;
+    }
+    @media (max-width: 1024px) {
+        .bh-cat-sidebar__inner {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .bh-cat-sidebar__widget { margin-bottom: 0; }
+    }
+    @media (max-width: 640px) {
+        .bh-cat-sidebar__inner { grid-template-columns: 1fr; }
+    }
+
+
+===== LINE 4109 =====
+TEXT: Giờ tôi thay thế toàn bộ khối từ `{{-- LATEST --}}` đến hết `{{-- CATEGORY POSTS --}}` thành layout có sidebar:
+TOOL: StrReplace resources\views\home.blade.php
+        {{-- LATEST + CATEGORY POSTS — single sticky sidebar --}}
+        @if($latestPosts->isNotEmpty() || (isset($categoryPosts) && $categoryPosts->isNotEmpty()))
+            @php
+                $layouts = ['magazine', 'list', 'masonry', 'scroll', 'zigzag'];
+            @endphp
+            <div class="bh-cat-zone bh-section--alt">
+                <div class="bh-wrap">
+                    <div class="bh-cat-page-layout">
+                        <div class="bh-cat-page-layout__main">
+                            @if($latestPosts->isNotEmpty())
+                            <div class="bh-cat-block" id="latest-articles">
+                                <div class="bh-section__header">
+                                    <h2>Latest Articles</h2>
+                                    <a href="{{ route('blog.index') }}">View all →</a>
+                                </div>
+                                <div class="bh-grid bh-grid--carousel">
+                                    @foreach($latestPosts->take(6) as $post)
+                                    <article class="bh-card">
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            @if($post->category)
+                                                <span class="bh-card__tag">{{ $post->category }}</span>
+                                            @endif
+                                        </a>
+                                        <div class="bh-card__body">
+                                            @if(!$post->featured_image_url)
+                                                @if($post->category)
+                                                    <div class="bh-card__cat">{{ $post->category }}</div>
+                                                @endif
+                                            @endif
+                                            <h3 class="bh-card__title">
+                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                            </h3>
+                                            @if($post->excerpt)
+                                                <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
+                                            @endif
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
+                                                <span class="bh-card__read">Read →</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
+
+                            @if(isset($categoryPosts))
+                            @foreach($categoryPosts as $catIndex => $cat)
+                            @php
+                                $layout = $layouts[$catIndex % count($layouts)];
+                                $posts = $cat['posts'];
+                            @endphp
+                            <div class="bh-cat-block {{ $loop->even ? 'bh-cat-block--alt' : '' }}" id="cat-{{ $cat['slug'] }}">
+                                <div class="bh-section__header">
+                                    <h2>{{ $cat['name'] }}</h2>
+                                    <a href="{{ $cat['url'] }}">More →</a>
+                                </div>
+
+                                @if($layout === 'magazine')
+                                <div class="bh-cat-magazine">
+                                    @foreach($posts->take(5) as $post)
+                                    <article class="bh-card">
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            @if($post->category)
+                                                <span class="bh-card__tag">{{ $post->category }}</span>
+                                            @endif
+                                        </a>
+                                        <div class="bh-card__body">
+                                            @if(!$post->featured_image_url && $post->category)
+                                                <div class="bh-card__cat">{{ $post->category }}</div>
+                                            @endif
+                                            <h3 class="bh-card__title">
+                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                            </h3>
+                                            @if($post->excerpt)
+                                                <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
+                                            @endif
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
+                                                <span class="bh-card__read">Read →</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    @endforeach
+                                </div>
+
+                                @elseif($layout === 'list')
+                                @php $featured = $posts->first(); @endphp
+                                <div class="bh-cat-list">
+                                    <a href="{{ route('blog.show', $featured->slug) }}" class="bh-cat-list__featured">
+                                        <img src="{{ $featured->featured_image_url }}" alt="{{ $featured->title }}">
+                                        <div class="bh-cat-list__featured-overlay">
+                                            @if($featured->category)
+                                                <div class="bh-card__cat">{{ $featured->category }}</div>
+                                            @endif
+                                            <h3 class="bh-card__title">{{ $featured->title }}</h3>
+                                            <div class="bh-card__meta">
+                                                <span>{{ $featured->created_at?->format('F j, Y') }} · {{ $featured->reading_minutes }} min read</span>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <div class="bh-cat-list__items">
+                                        @foreach($posts->skip(1)->take(4) as $post)
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-list__item">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}">
+                                            <div class="bh-cat-list__item-body">
+                                                @if($post->category)
+                                                    <div class="bh-card__cat">{{ $post->category }}</div>
+                                                @endif
+                                                <h4>{{ $post->title }}</h4>
+                                                <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
+                                            </div>
+                                        </a>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                @elseif($layout === 'masonry')
+                                <div class="bh-cat-masonry">
+                                    @foreach($posts->take(6) as $post)
+                                    <article class="bh-card">
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            @if($post->category)
+                                                <span class="bh-card__tag">{{ $post->category }}</span>
+                                            @endif
+                                        </a>
+                                        <div class="bh-card__body">
+                                            @if(!$post->featured_image_url && $post->category)
+                                                <div class="bh-card__cat">{{ $post->category }}</div>
+                                            @endif
+                                            <h3 class="bh-card__title">
+                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                            </h3>
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('M j, Y') }}</span>
+                                                <span class="bh-card__read">Read →</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    @endforeach
+                                </div>
+
+                                @elseif($layout === 'scroll')
+                                <div class="bh-cat-scroll">
+                                    @foreach($posts->take(6) as $post)
+                                    <article class="bh-card">
+                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
+                                            @if($post->category)
+                                                <span class="bh-card__tag">{{ $post->category }}</span>
+                                            @endif
+                                        </a>
+                                        <div class="bh-card__body">
+                                            @if(!$post->featured_image_url && $post->category)
+                                                <div class="bh-card__cat">{{ $post->category }}</div>
+                                            @endif
+                                            <h3 class="bh-card__title">
+                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                            </h3>
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('M j, Y') }}</span>
+                                                <span class="bh-card__read">Read →</span>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    @endforeach
+                                </div>
+
+                                @elseif($layout === 'zigzag')
+                                <div class="bh-cat-zigzag">
+                                    @foreach($posts->take(4) as $post)
+                                    <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-zigzag-item">
+                                        <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">
+                                        <div class="bh-cat-zigzag-item-body">
+                                            @if($post->category)
+                                                <div class="bh-card__cat">{{ $post->category }}</div>
+                                            @endif
+                                            <h3>{{ $post->title }}</h3>
+                                            @if($post->excerpt)
+                                                <p>{{ $post->excerpt }}</p>
+                                            @endif
+                                            <div class="bh-card__meta">
+                                                <span>{{ $post->created_at?->format('F j, Y') }} · {{ $post->reading_minutes }} min read</span>
+                                                <span class="bh-card__read">Read article →</span>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    @endforeach
+                                </div>
+                                @endif
+                            </div>
+                            @endforeach
+                            @endif
+                        </div>
+
+                        @include('partials.home-category-sidebar')
+                    </div>
+                </div>
+            </div>
+        @endif

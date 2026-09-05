@@ -1972,7 +1972,7 @@ class SocialMediaPublish extends Page implements HasForms, HasTable
     {
         return Select::make('media_type')
             ->label('Loại media tự động')
-            ->options(SocialMediaMediaType::options())
+            ->options(SocialMediaMediaType::formOptions())
             ->default(SocialMediaMediaType::IMAGE)
             ->native(false)
             ->columnSpan(['default' => 6, 'md' => 2]);

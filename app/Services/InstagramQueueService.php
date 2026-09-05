@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Models\InstagramAccount;
 use App\Models\InstagramQueueItem;
 use App\Models\User;
-use App\Support\AdminSettings;
+use App\Services\Concerns\ManagesSocialMediaQueueStaleItems;
 use App\Support\GeminiKeyScope;
 use App\Support\InstagramSettings;
+use App\Support\SocialMediaImageDeliveryError;
 use App\Support\SocialMediaMediaType;
+use App\Support\SocialMediaQueueConfig;
 use App\Support\SocialMediaQueueSource;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -16,6 +18,8 @@ use Illuminate\Support\Str;
 
 class InstagramQueueService
 {
+    use ManagesSocialMediaQueueStaleItems;
+
     public ?string $lastError = null;
 
     public ?string $lastPublishNote = null;
@@ -53,10 +57,7 @@ class InstagramQueueService
 
     protected function staleProcessingMinutes(): int
     {
-        $geminiTimeout = max(60, (int) AdminSettings::get('gemini_timeout', 120));
-
-        // Gemini + upload video Meta có thể mất vài phút; sau đó coi là kẹt.
-        return max(8, (int) ceil($geminiTimeout / 60) + 3);
+        return SocialMediaQueueConfig::staleMinutes();
     }
 
     public function hasStuckProcessing(): bool
@@ -85,6 +86,7 @@ class InstagramQueueService
             $item->update([
                 'status' => InstagramQueueItem::STATUS_PENDING,
                 'processed_at' => null,
+                'processing_started_at' => null,
                 'error_message' => null,
             ]);
         }
@@ -100,7 +102,7 @@ class InstagramQueueService
 
     public function recoverStaleProcessingItems(): int
     {
-        return app(QueueStaleRecoveryService::class)->failStaleItems(InstagramQueueItem::class);
+        return $this->recoverSocialStaleProcessingItems(InstagramQueueItem::class);
     }
 
     public function abortQueueOnError(string $reason): int
@@ -223,6 +225,10 @@ class InstagramQueueService
 
         $this->recoverStaleProcessingItems();
 
+        if ($this->hasActiveSocialProcessing(InstagramQueueItem::class)) {
+            return ['processed' => false, 'item' => null, 'media_id' => null];
+        }
+
         $hasManualActive = InstagramQueueItem::query()
             ->where(function ($query): void {
                 $query->where('queue_source', SocialMediaQueueSource::MANUAL)
@@ -256,15 +262,7 @@ class InstagramQueueService
         }
 
         // Atomic: chỉ update nếu status vẫn là PENDING (tránh race condition)
-        $updated = InstagramQueueItem::query()
-            ->where('id', $item->id)
-            ->where('status', InstagramQueueItem::STATUS_PENDING)
-            ->update([
-                'status' => InstagramQueueItem::STATUS_PROCESSING,
-                'updated_at' => now(),
-            ]);
-
-        if ($updated === 0) {
+        if (! $this->claimSocialQueueItem($item, InstagramQueueItem::class)) {
             // Item đã bị process bởi process khác, thử lấy item tiếp theo
             return $this->processNextDue();
         }
@@ -272,7 +270,7 @@ class InstagramQueueService
         $item->refresh();
 
         try {
-            @set_time_limit(300);
+            $this->beginSocialQueueItemProcessing();
 
             $mediaId = $this->publishQueueItem($item);
 
@@ -405,7 +403,7 @@ class InstagramQueueService
             }
         }
 
-        if (! $this->isInstagramImageDeliveryError($originalError)) {
+        if (! SocialMediaImageDeliveryError::shouldRetryWithDefaultImage($originalError)) {
             return null;
         }
 
@@ -442,23 +440,6 @@ class InstagramQueueService
         }
 
         return null;
-    }
-
-    protected function isInstagramImageDeliveryError(?string $message): bool
-    {
-        if (! filled($message)) {
-            return false;
-        }
-
-        $message = strtolower((string) $message);
-
-        return str_contains($message, '9004')
-            || str_contains($message, '2207052')
-            || str_contains($message, 'only photo or video')
-            || str_contains($message, 'meta không tải được ảnh')
-            || str_contains($message, 'content-type không phải jpeg')
-            || str_contains($message, 'không truy cập được url ảnh')
-            || str_contains($message, 'không kiểm tra được url ảnh');
     }
 
     /**

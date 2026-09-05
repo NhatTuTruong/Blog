@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -25,6 +27,11 @@ class BlogCategory extends Model
     public function blogs(): HasMany
     {
         return $this->hasMany(Blog::class);
+    }
+
+    public function assignedBlogs(): BelongsToMany
+    {
+        return $this->belongsToMany(Blog::class, 'blog_blog_category');
     }
 
     public function scopeActive($query)

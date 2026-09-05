@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\BlogCategory;
+use App\Support\BlogCategorySelection;
 use Maatwebsite\Excel\Facades\Excel;
 
 class AutoBlogImportService
@@ -51,11 +51,9 @@ class AutoBlogImportService
         }
 
         $items = [];
-        $categoryOptions = BlogCategory::optionsForSelect();
-        $categoryByName = array_flip($categoryOptions);
 
         foreach ($rows as $index => $row) {
-            $parsed = $this->parseRow($row, $columnMap, $categoryByName);
+            $parsed = $this->parseRow($row, $columnMap);
             if ($parsed === []) {
                 continue;
             }
@@ -111,7 +109,7 @@ class AutoBlogImportService
      * @param  array<int, mixed>  $row
      * @return array<string, mixed>
      */
-    protected function parseRow(array $row, array $columnMap, array $categoryByName): array
+    protected function parseRow(array $row, array $columnMap): array
     {
         $domain = $this->cellValue($row, $columnMap['brand_domain'] ?? null);
 
@@ -120,15 +118,7 @@ class AutoBlogImportService
         }
 
         $categoryInput = $this->cellValue($row, $columnMap['blog_category_id'] ?? null);
-        $blogCategoryId = null;
-
-        if ($categoryInput !== '') {
-            if (is_numeric($categoryInput)) {
-                $blogCategoryId = (int) $categoryInput;
-            } else {
-                $blogCategoryId = $categoryByName[$categoryInput] ?? null;
-            }
-        }
+        $categoryIds = BlogCategorySelection::normalizeIds($categoryInput !== '' ? $categoryInput : null);
 
         $couponRaw = $this->cellValue($row, $columnMap['coupon_codes'] ?? null);
         $couponCodes = $this->parseCouponCodes($couponRaw);
@@ -137,7 +127,7 @@ class AutoBlogImportService
 
         return [
             'brand_domain' => $domain,
-            'blog_category_id' => $blogCategoryId,
+            'blog_category_ids' => $categoryIds,
             'featured_image' => $featuredImageRaw !== '' ? $featuredImageRaw : null,
             'content_idea' => $this->cellValue($row, $columnMap['content_idea'] ?? null) ?: null,
             'aff_link' => $this->cellValue($row, $columnMap['aff_link'] ?? null) ?: null,
@@ -219,7 +209,7 @@ class AutoBlogImportService
     {
         $lines = [
             'Domain brand,Danh mục bài viết,Nội dung / ý tưởng,Link Affiliate,Coupon code,Ảnh đại diện (URL hoặc path)',
-            'nike.com,Shoes,Review giày chạy bộ mới,https://example.com/aff,SAVE10,https://example.com/nike-shoe.jpg',
+            'nike.com,Shoes; Travel,Review giày chạy bộ mới,https://example.com/aff,SAVE10,https://example.com/nike-shoe.jpg',
             'amazon.com,Tech,Top laptop 2026,,DEAL20;EXTRA5,',
         ];
 

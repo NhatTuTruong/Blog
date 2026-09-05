@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', $post->title . ' - ' . config('app.name'))
-@section('description', Str::limit(strip_tags($post->content ?? ''), 160))
+@section('description', Str::limit(strip_tags($post->renderedContent()), 160))
 
 @push('styles')
 <style>
@@ -37,7 +37,7 @@
         gap: 0.5rem;
         font-size: 0.8rem;
         color: var(--blog-muted);
-        margin-bottom: 1.25rem;
+        margin-bottom: 1rem;
     }
 
     .blog-breadcrumb a {
@@ -50,63 +50,80 @@
 
     .blog-hero {
         position: relative;
-        border-radius: 1.5rem;
-        overflow: hidden;
-        border: 1px solid var(--blog-border);
-        background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 55%),
-                    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.08), transparent 60%),
-                    #ffffff;
         display: grid;
-        grid-template-columns: minmax(0, 3fr) minmax(0, 2.5fr);
-        gap: 0;
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        align-items: stretch;
+        border-radius: 1.25rem;
+        overflow: hidden;
+        min-height: 0;
+        background:
+            radial-gradient(circle at top left, rgba(37, 99, 235, 0.1), transparent 52%),
+            #ffffff;
+        border: 1px solid var(--blog-border);
+        box-shadow: 0 16px 48px rgba(15, 23, 42, 0.1);
     }
 
-    @media (max-width: 900px) {
-        .blog-hero {
-            grid-template-columns: minmax(0, 1fr);
-        }
+    .blog-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #2563eb, #60a5fa, #2563eb);
+        z-index: 2;
     }
 
     .blog-hero-main {
-        padding: 1.75rem 1.75rem 1.75rem;
         position: relative;
         z-index: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 1.35rem 1.5rem;
+        min-height: 260px;
     }
 
     .blog-hero-eyebrow {
         display: inline-flex;
         align-items: center;
+        flex-wrap: wrap;
         gap: 0.4rem;
-        padding: 0.2rem 0.75rem;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.75);
-        border: 1px solid var(--blog-border);
-        font-size: 0.75rem;
-        color: var(--blog-muted);
-        margin-bottom: 0.85rem;
-        backdrop-filter: blur(10px);
+        margin-bottom: 0.75rem;
     }
 
     .blog-hero-eyebrow span {
         display: inline-flex;
         align-items: center;
-        gap: 0.25rem;
+        gap: 0.3rem;
+        padding: 0.28rem 0.7rem;
+        border-radius: 999px;
+        background: #f8fafc;
+        border: 1px solid var(--blog-border);
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--blog-muted);
+    }
+
+    .blog-hero-eyebrow-cat {
+        background: var(--blog-accent-soft) !important;
+        border-color: rgba(37, 99, 235, 0.25) !important;
+        color: var(--blog-accent) !important;
     }
 
     .blog-title {
         font-family: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        font-size: clamp(1.9rem, 3vw, 2.5rem);
-        font-weight: 750;
+        font-size: clamp(1.55rem, 2.6vw, 2.15rem);
+        font-weight: 800;
         letter-spacing: -0.03em;
-        line-height: 1.25;
+        line-height: 1.2;
         color: var(--blog-text);
-        margin-bottom: 0.85rem;
+        margin-bottom: 0.65rem;
     }
 
     .blog-meta {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         color: var(--blog-muted);
-        max-width: 38rem;
     }
 
     .blog-meta a {
@@ -116,32 +133,27 @@
 
     .blog-hero-media {
         position: relative;
-        min-height: 200px;
-        background: radial-gradient(circle at center, rgba(37, 99, 235, 0.1), rgba(59, 130, 246, 0.06));
+        min-height: 260px;
+        max-height: 300px;
+        background: #f1f5f9;
         overflow: hidden;
     }
 
     .blog-hero-media-inner {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: stretch;
-        justify-content: center;
+        width: 100%;
+        height: 100%;
     }
 
     .blog-hero-media img {
+        display: block;
         width: 100%;
         height: 100%;
         object-fit: cover;
-        transform: scale(1.03);
-        filter: saturate(1.1);
+        object-position: center;
     }
 
     .blog-hero-media-overlay {
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(to right, rgba(255, 255, 255, 0.92), transparent 55%),
-                    linear-gradient(to top, rgba(255, 255, 255, 0.5), transparent 45%);
+        display: none;
     }
 
     .blog-hero-media-fallback {
@@ -152,6 +164,56 @@
         justify-content: center;
         color: var(--blog-muted);
         font-size: 0.8rem;
+    }
+
+    @media (max-width: 900px) {
+        .blog-hero {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .blog-hero-media {
+            order: -1;
+            min-height: 220px;
+            max-height: 240px;
+        }
+
+        .blog-hero-main {
+            min-height: 0;
+            padding: 1.15rem 1.25rem 1.35rem;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .blog-title {
+            font-size: clamp(1.35rem, 6vw, 1.75rem);
+        }
+    }
+
+    .blog-hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-top: 0.85rem;
+    }
+
+    .blog-hero-share {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.85rem;
+        border-radius: 999px;
+        border: 1px solid var(--blog-border);
+        background: #ffffff;
+        color: var(--blog-muted);
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+    }
+
+    .blog-hero-share:hover {
+        border-color: var(--blog-accent);
+        color: var(--blog-accent);
     }
 
     .blog-main-grid {
@@ -263,6 +325,18 @@
         color: var(--blog-text);
         font-size: 0.98rem;
         line-height: 1.8;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .blog-content.prose pre {
+        white-space: pre-wrap;
+        overflow-x: auto;
+        max-width: 100%;
+    }
+
+    .blog-content.prose pre code {
+        white-space: inherit;
     }
 
     .blog-content.prose h2,
@@ -293,6 +367,18 @@
         max-width: 100%;
         border-radius: 0.9rem;
         border: 1px solid var(--blog-border);
+    }
+
+    .blog-content.prose .blog-inline-image {
+        margin: 1.75rem 0;
+        text-align: center;
+    }
+
+    .blog-content.prose .blog-inline-image img {
+        width: 100%;
+        height: auto;
+        display: block;
+        margin: 0 auto;
     }
 
     .blog-side-media {
@@ -421,7 +507,7 @@
 
 @section('content')
     @php
-        $wordCount = str_word_count(strip_tags($post->content ?? ''));
+        $wordCount = str_word_count(strip_tags($post->renderedContent()));
         $readingMinutes = max(1, (int) ceil($wordCount / 220));
     @endphp
 
@@ -429,14 +515,14 @@
         <div class="blog-breadcrumb">
             <a href="{{ route('blog.index') }}">Blog</a>
             <span>/</span>
-            <span>{{ Str::limit($post->title, 40) }}</span>
+            <span>{{ Str::limit($post->title, 48) }}</span>
         </div>
 
         <section class="blog-hero">
             <div class="blog-hero-main">
                 <div class="blog-hero-eyebrow">
                     @if($post->category)
-                        <span><span>🗂</span><span>{{ $post->category }}</span></span>
+                        <span class="blog-hero-eyebrow-cat"><span>🗂</span><span>{{ $post->category }}</span></span>
                     @endif
                     <span><span>📅</span><span>{{ $post->created_at?->format('d/m/Y') }}</span></span>
                     <span><span>⏱</span><span>{{ $readingMinutes }} min read</span></span>
@@ -445,13 +531,19 @@
                 <p class="blog-meta">
                     Published on {{ $post->created_at?->format('F j, Y') }}
                 </p>
+                <div class="blog-hero-actions">
+                    <button type="button" class="blog-hero-share"
+                        onclick="navigator.clipboard.writeText(window.location.href); this.querySelector('span:last-child').textContent='Link copied'; setTimeout(() => this.querySelector('span:last-child').textContent='Copy link', 1200);">
+                        <span>🔗</span>
+                        <span>Copy link</span>
+                    </button>
+                </div>
             </div>
 
             <div class="blog-hero-media">
                 <div class="blog-hero-media-inner">
-                    <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="eager">
+                    <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="eager" decoding="async">
                 </div>
-                <div class="blog-hero-media-overlay"></div>
             </div>
         </section>
 
@@ -462,21 +554,8 @@
                     <span>Back to all articles</span>
                 </a>
 
-                <div class="blog-chip-row">
-                    @if(!empty($post->category))
-                        <span class="blog-chip blog-chip-accent">{{ $post->category }}</span>
-                    @endif
-                    <span class="blog-chip">{{ $post->created_at?->format('d/m/Y') }}</span>
-                    <span class="blog-chip">{{ $readingMinutes }} min read</span>
-                    <button type="button" class="blog-share-button"
-                        onclick="navigator.clipboard.writeText(window.location.href); this.textContent='Link copied'; setTimeout(() => this.textContent='Copy link', 1200);">
-                        <span>🔗</span>
-                        <span>Copy link</span>
-                    </button>
-                </div>
-
                 <div class="blog-content prose">
-                    {!! $post->content !!}
+                    {!! $post->renderedContent() !!}
                 </div>
 
                 @if($post->images && count($post->images) > 0)

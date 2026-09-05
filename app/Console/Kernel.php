@@ -3,6 +3,7 @@
 namespace App\Console;
 
 use App\Support\AdminSettings;
+use App\Support\SocialMediaQueueConfig;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -29,19 +30,21 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground();
 
+        $socialOverlap = SocialMediaQueueConfig::schedulerOverlapMinutes();
+
         $schedule->command('instagram:process-queue')
             ->everyMinute()
-            ->withoutOverlapping()
+            ->withoutOverlapping($socialOverlap)
             ->runInBackground();
 
         $schedule->command('facebook:process-queue')
             ->everyMinute()
-            ->withoutOverlapping()
+            ->withoutOverlapping($socialOverlap)
             ->runInBackground();
 
         $schedule->command('pinterest:process-queue')
             ->everyMinute()
-            ->withoutOverlapping()
+            ->withoutOverlapping($socialOverlap)
             ->runInBackground();
 
         $schedule->command('email:process-recurring')

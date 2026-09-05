@@ -91,6 +91,71 @@ class SocialMediaImageSourceService
         return BrandDomain::searchUrl($brandDomain);
     }
 
+    public function downloadRemoteImageAsWebp(string $imageUrl, string $destAbsolute): bool
+    {
+        try {
+            $response = Http::timeout(45)
+                ->withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; SocialMediaBot/1.0)'])
+                ->get($imageUrl);
+        } catch (\Throwable $e) {
+            Log::warning('SocialMediaImageSource: download image failed', [
+                'url' => $imageUrl,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+
+        if (! $response->successful()) {
+            return false;
+        }
+
+        $body = $response->body();
+        if ($body === '') {
+            return false;
+        }
+
+        if ($this->responseBodyLooksLikeBlockedPlaceholder($body)) {
+            Log::info('SocialMediaImageSource: remote image looks like permission placeholder', [
+                'url' => $imageUrl,
+            ]);
+
+            return false;
+        }
+
+        $temp = tempnam(sys_get_temp_dir(), 'smp-img-');
+        if ($temp === false) {
+            return false;
+        }
+
+        try {
+            file_put_contents($temp, $body);
+
+            if (! $this->copyImageAsWebp($temp, $destAbsolute)) {
+                return false;
+            }
+
+            $savedPath = is_file($destAbsolute)
+                ? $destAbsolute
+                : (is_file($jpegPath = preg_replace('/\.webp$/i', '.jpg', $destAbsolute) ?: '')
+                    ? $jpegPath
+                    : null);
+
+            if ($savedPath === null || $this->isBlockedPlaceholderImage($savedPath)) {
+                @unlink($destAbsolute);
+                if (isset($jpegPath) && is_string($jpegPath)) {
+                    @unlink($jpegPath);
+                }
+
+                return false;
+            }
+
+            return true;
+        } finally {
+            @unlink($temp);
+        }
+    }
+
     public function downloadRemoteImageAsJpeg(string $imageUrl, string $destAbsolute): bool
     {
         try {
@@ -310,6 +375,65 @@ class SocialMediaImageSourceService
         }
 
         return $paths;
+    }
+
+    protected function copyImageAsWebp(string $sourceAbsolute, string $destAbsolute): bool
+    {
+        if (extension_loaded('gd')) {
+            $image = $this->loadImage($sourceAbsolute);
+            if ($image !== null) {
+                $image = $this->ensureTruecolorImage($image);
+                imagesavealpha($image, true);
+                imagealphablending($image, true);
+
+                if (function_exists('imagewebp')) {
+                    $saved = @imagewebp($image, $destAbsolute, 85);
+                    imagedestroy($image);
+
+                    return $saved && is_file($destAbsolute);
+                }
+
+                imagedestroy($image);
+            }
+        }
+
+        $mime = mime_content_type($sourceAbsolute) ?: '';
+        if (str_contains($mime, 'webp')) {
+            return copy($sourceAbsolute, $destAbsolute);
+        }
+
+        $jpegDest = preg_replace('/\.webp$/i', '.jpg', $destAbsolute) ?: $destAbsolute;
+
+        return $this->copyImageAsJpeg($sourceAbsolute, $jpegDest);
+    }
+
+    protected function ensureTruecolorImage(\GdImage $image): \GdImage
+    {
+        if (imageistruecolor($image)) {
+            return $image;
+        }
+
+        if (function_exists('imagepalettetotruecolor') && @imagepalettetotruecolor($image)) {
+            return $image;
+        }
+
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $truecolor = imagecreatetruecolor($width, $height);
+
+        if ($truecolor === false) {
+            return $image;
+        }
+
+        imagealphablending($truecolor, false);
+        imagesavealpha($truecolor, true);
+        $transparent = imagecolorallocatealpha($truecolor, 0, 0, 0, 127);
+        imagefilledrectangle($truecolor, 0, 0, $width, $height, $transparent);
+        imagealphablending($truecolor, true);
+        imagecopy($truecolor, $image, 0, 0, 0, 0, $width, $height);
+        imagedestroy($image);
+
+        return $truecolor;
     }
 
     protected function copyImageAsJpeg(string $sourceAbsolute, string $destAbsolute): bool

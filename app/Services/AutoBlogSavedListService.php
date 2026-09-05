@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AutoBlogSavedList;
 use App\Models\User;
+use App\Support\BlogCategorySelection;
 use Illuminate\Support\Collection;
 
 class AutoBlogSavedListService
@@ -110,9 +111,9 @@ class AutoBlogSavedListService
                 return [
                     'featured_image' => filled($featuredImage) ? trim((string) $featuredImage) : null,
                     'brand_domain' => trim((string) $record['brand_domain']),
-                    'blog_category_id' => filled($record['blog_category_id'] ?? null)
-                        ? (int) $record['blog_category_id']
-                        : null,
+                    'blog_category_ids' => BlogCategorySelection::normalizeIds(
+                        $record['blog_category_ids'] ?? $record['blog_category_id'] ?? null
+                    ),
                     'content_idea' => filled($record['content_idea'] ?? null)
                         ? trim((string) $record['content_idea'])
                         : null,

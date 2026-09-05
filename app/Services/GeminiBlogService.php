@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Support\AffiliateContentGuidelines;
+use App\Support\BlogContentSanitizer;
 use App\Support\GeminiKeyScope;
 use App\Support\GeminiSettings;
 use App\Support\IntegrationSettingsStore;
@@ -34,7 +35,10 @@ You are a professional English SEO copywriter.
 
 Requirements:
 - Language: English, SEO-friendly, about 1,000–1,500 words.
-- Structure: one <h1>, main sections with <h2>, optional <h3>.
+- Use a varied article structure — do NOT follow the same outline every time.
+- Mix formats: editorial guide, listicle, FAQ-style Q&A, category deep-dive, comparison angle, or problem-solution narrative.
+- Structure: one <h1>, at least 5 creative <h2> sections, optional <h3> subsections.
+- Avoid repetitive headings like "What is X?", "Pros and Cons", "Who Should Consider", "Conclusion" in every article.
 - Helpful editorial content only — no coupon codes, affiliate CTAs, or store promotions.
 - Return complete HTML: <h1>, <p>, <ul>/<ol>, <h2>, <h3>. Do not wrap in <html>/<body>.
 
@@ -90,8 +94,6 @@ PROMPT;
         $detectedLang = $this->detectLanguage($contentIdea ?? '');
         $langConfig = $this->getLanguageInstructions($detectedLang);
         $langLabel = $langConfig['label'];
-        $brandLang = $langConfig['h1_format'];
-        $brandStructure = $langConfig['structure'];
 
         $wordCount = $this->extractWordCount($contentIdea ?? '');
         $wordCountInstruction = $wordCount > 0
@@ -102,17 +104,42 @@ PROMPT;
             ? <<<SECTION
 
 
-## Content direction (MANDATORY - follow this exactly)
-The article MUST cover these specific topics:
+## Content direction (HIGHEST PRIORITY — follow exactly)
+This brief is the **primary blueprint** for the entire article. It overrides generic format templates.
+
+Use the brief below as your main editorial direction. Shape the article around it:
 {$contentIdea}
 
-IMPORTANT: 
-- Cover ALL the topics listed above in detail.
-- Use the specific terms and content provided as your source material.
-- Do NOT add, invent, or hallucinate additional information not in the topic list.
-- Present the information in a well-structured, engaging format.
+IMPORTANT:
+- Follow ALL topics, angles, keywords, section ideas, and constraints in the brief above.
+- Every major point, product line, theme, or requirement in the brief must appear clearly in the final article.
+- Use the specific terms and points provided as your source material.
+- If the brief suggests sections or an outline, follow that intent — use creative `<h2>` titles that reflect the brief (not a generic copy-paste template).
+- Do NOT ignore, contradict, skip, or replace requirements from the brief with unrelated content.
+- Do NOT invent facts, products, or claims that are not supported by the brief or well-known public knowledge about the brand.
+- The brief may be written in any language — that does NOT change the output language unless the brief explicitly requests another language.
+- Structural variety is allowed ONLY when it helps express the brief better — never choose a random format at the expense of the brief.
 SECTION
             : '';
+
+        $hasContentIdea = filled($contentIdea);
+
+        $languageRules = $detectedLang === 'en'
+            ? <<<LANG
+
+## Language (CRITICAL)
+- Write the ENTIRE article in **English** only.
+- Default output language is English even if the content direction above is written in Vietnamese or another language.
+- Switch to another language ONLY when the content direction explicitly requests it (e.g. "viết tiếng Việt", "write in French", "in Spanish").
+- Never mix languages in one article (no English paragraphs mixed with Vietnamese/Chinese/etc.).
+LANG
+            : <<<LANG
+
+## Language (CRITICAL)
+- Write the ENTIRE article in **{$langLabel}** only because the content direction explicitly requested this language.
+- Use **{$langLabel}** consistently in `<h1>`, all headings, paragraphs, and lists.
+- Never mix {$langLabel} with English or any other language in the same article.
+LANG;
 
         $affSection = $ctaUrl !== $siteUrl
             ? "\n## Affiliate / CTA link (for reference only — do NOT add links in your HTML)\nPromotional URL: {$ctaUrl}\n"
@@ -140,6 +167,24 @@ COUPONS;
         }
 
         $affiliateRules = AffiliateContentGuidelines::promptRules();
+        $formatInstructions = $this->buildVariedArticleFormatInstructions($brandLabel, $hasContentIdea);
+        $contentCoverageSection = $hasContentIdea
+            ? <<<COVERAGE
+
+## Coverage checklist
+- The article must fully satisfy the **Content direction** section above.
+- Map each topic, keyword, angle, or requested section from the brief to clear `<h2>` or `<h3>` blocks.
+- Do not introduce major sections that are absent from the brief unless they are minimal transitions needed for readability.
+- If the brief mentions specific products, categories, use cases, or claims — include them explicitly.
+COVERAGE
+            : <<<COVERAGE
+
+## Content coverage (weave into your chosen format — do NOT force a rigid template)
+- Explain what {$brandLabel} offers and who it suits.
+- Include product/category highlights relevant to the brand.
+- Give an honest, balanced view: strengths AND limitations (word the sections creatively — avoid a heading literally named "Pros and Cons" unless the chosen format calls for it).
+- Help readers decide whether {$brandLabel} is worth their time and money.
+COVERAGE;
 
         $prompt = <<<PROMPT
 You are an expert SEO copywriter for **independent affiliate review** blogs.
@@ -148,7 +193,7 @@ You are an expert SEO copywriter for **independent affiliate review** blogs.
 - Domain: {$host}
 - Official website: {$siteUrl}
 - Brand name to use: {$brandLabel}
-{$contentIdeaSection}{$affSection}{$couponSection}
+{$contentIdeaSection}{$languageRules}{$affSection}{$couponSection}
 {$affiliateRules}
 
 ## Task
@@ -161,24 +206,17 @@ Write ONE long-form **affiliate review / buyer's guide** about this brand. Langu
 - ALL formatting must be in HTML tags.
 - Do NOT include any `<a>` hyperlinks in your output.
 - Brand name "{$brandLabel}" must appear correctly (check spelling!) in `<h1>`, `<h2>`, and throughout the article.
+- All `<h2>` and `<h3>` headings must be in **{$langLabel}** with creative, natural wording.
 
-## Required structure
-1. `<h1>`: Brand name + clear value proposition ({$brandLang}).
-2. Opening: problem readers face + why this brand is worth considering (third person).
-3. What is {$brandLabel}: what they sell, positioning, USP.
-4. Products / services / highlights (optional `<h3>` subsections).
-5. **Pros and cons** — both lists, balanced.
-6. Who should consider shopping at {$brandLabel}.
-7. Closing summary paragraph.
-
-Structure format: {$brandStructure}.
+{$formatInstructions}
+{$contentCoverageSection}
 
 Do not claim you partnered with the brand unless factual. Do not use "we/us/our" or Vietnamese "Chúng tôi" / store-owner voice anywhere.
 PROMPT;
 
         $result = $this->callGeminiWithFallback($prompt, $timeout, [
             'maxOutputTokens' => 8192,
-            'temperature' => 0.85,
+            'temperature' => 0.92,
         ], $ownerUserId, GeminiKeyScope::AUTO_BLOG);
 
         if ($result === null) {
@@ -192,6 +230,7 @@ PROMPT;
             $siteUrl,
             $brandLabel,
         );
+        $result['content'] = BlogContentSanitizer::sanitize($result['content']);
 
         $result['domain'] = $host;
 
@@ -203,6 +242,11 @@ PROMPT;
         $original = $text;
 
         $text = trim($text);
+        $text = BlogContentSanitizer::unwrapMarkdownCodeFences($text);
+
+        if (BlogContentSanitizer::looksLikeHtml($text)) {
+            return BlogContentSanitizer::sanitize($text);
+        }
 
         $text = preg_replace('/^#{1}\s+(.+)$/m', '<h1>$1</h1>', $text);
         $text = preg_replace('/^#{2}\s+(.+)$/m', '<h2>$1</h2>', $text);
@@ -225,7 +269,8 @@ PROMPT;
         $text = preg_replace('/(<\/li>)(?!\n(<\/ul>|\s*$))/s', "$1\n", $text);
         if (! str_contains($text, '<ul>') && preg_match_all('/<li>.+?<\/li>/s', $text, $matches)) {
             foreach ($matches[0] as $block) {
-                $text = str_replace($block, '<ul>'.$block.'</ul>', $text, $count = 1);
+                $count = 1;
+                $text = str_replace($block, '<ul>'.$block.'</ul>', $text, $count);
             }
         }
 
@@ -272,7 +317,7 @@ PROMPT;
         }
         $text = implode("\n", $result);
 
-        $text = preg_replace('/```[\w]*\n([\s\S]*?)```/m', '<pre><code>$1</code></pre>', $text);
+        $text = BlogContentSanitizer::unwrapMarkdownCodeFences($text);
         $text = preg_replace('/`([^`]+)`/', '<code>$1</code>', $text);
 
         $text = preg_replace('/^---+\s*$/m', '<hr>', $text);
@@ -308,7 +353,7 @@ PROMPT;
             ]);
         }
 
-        return $text;
+        return BlogContentSanitizer::sanitize($text);
     }
 
     protected function formatBrandPromoContent(string $html, string $ctaUrl, string $siteUrl, string $brandLabel): string
@@ -321,7 +366,15 @@ PROMPT;
 
     protected function removeMarkdownArtifacts(string $html): string
     {
-        $original = $html;
+        $html = BlogContentSanitizer::unwrapMarkdownCodeFences($html);
+        $html = BlogContentSanitizer::unwrapPreCodeHtml($html);
+
+        if (! str_contains($html, '**')
+            && ! str_contains($html, '```')
+            && ! preg_match('/^#{1,6}\s/m', $html)
+            && ! preg_match('/^\s*[-*+]\s+/m', $html)) {
+            return $html;
+        }
 
         $html = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $html);
         $html = preg_replace('/__(.+?)__/s', '<strong>$1</strong>', $html);
@@ -332,7 +385,7 @@ PROMPT;
         $html = preg_replace('/^#{2}\s+(.+)$/m', '<h2>$1</h2>', $html);
         $html = preg_replace('/^#{3}\s+(.+)$/m', '<h3>$1</h3>', $html);
 
-        $html = preg_replace('/```[\w]*\n?([\s\S]*?)```/', '<pre><code>$1</code></pre>', $html);
+        $html = BlogContentSanitizer::unwrapMarkdownCodeFences($html);
         $html = preg_replace('/`([^`\n]+)`/', '<code>$1</code>', $html);
 
         $html = preg_replace('/\[([^\]]+)\]\([^\)]+\)/', '$1', $html);
@@ -753,9 +806,9 @@ PROMPT;
         return [
             'success' => true,
             'result' => [
-                'title' => $title,
-                'content' => $text,
-                'featured_image' => null,
+            'title' => $title,
+            'content' => $text,
+            'featured_image' => null,
             ],
             'error' => '',
             'retryable' => false,
@@ -820,50 +873,52 @@ PROMPT;
     }
 
     /**
-     * Detect language from content idea string.
-     * Priority: 1. Explicit language mention (e.g., "viết tiếng Thái"), 2. Vietnamese characters, 3. Default 'en'
+     * Detect output language from content idea.
+     * Default is English. Only switch when the idea explicitly requests a language.
      */
     protected function detectLanguage(string $text): string
     {
-        if ($text === '') {
+        if (trim($text) === '') {
             return 'en';
         }
 
         $explicitLangMap = [
             // Asian
-            'tiếng việt' => 'vi', 'tieng viet' => 'vi', 'vietnamese' => 'vi',
-            'tiếng thái' => 'th', 'tieng thai' => 'th', 'thai' => 'th', 'ภาษาไทย' => 'th',
-            'tiếng trung' => 'zh', 'tieng trung' => 'zh', 'chinese' => 'zh', '中文' => 'zh',
-            'tiếng nhật' => 'ja', 'tieng nhat' => 'ja', 'japanese' => 'ja', '日本語' => 'ja',
-            'tiếng hàn' => 'ko', 'tieng han' => 'ko', 'korean' => 'ko', '한국어' => 'ko',
-            'tiếng indonesia' => 'id', 'tieng indonesia' => 'id', 'indonesian' => 'id', 'bahasa indonesia' => 'id',
-            'tiếng malaysia' => 'ms', 'tieng malaysia' => 'ms', 'malaysian' => 'ms', 'bahasa melayu' => 'ms',
-            'tiếng ấn độ' => 'hi', 'tieng an do' => 'hi', 'hindi' => 'hi',
-            'tiếng ả rập' => 'ar', 'tieng a rap' => 'ar', 'arabic' => 'ar', 'العربية' => 'ar',
-            'tiếng hồi giáo' => 'ar', 'tieng hoi giao' => 'ar',
+            'tiếng việt' => 'vi', 'tieng viet' => 'vi', 'vietnamese' => 'vi', 'in vietnamese' => 'vi', 'write in vietnamese' => 'vi', 'bằng tiếng việt' => 'vi', 'bang tieng viet' => 'vi',
+            'tiếng thái' => 'th', 'tieng thai' => 'th', 'thai' => 'th', 'ภาษาไทย' => 'th', 'in thai' => 'th', 'write in thai' => 'th', 'bằng tiếng thái' => 'th',
+            'tiếng trung' => 'zh', 'tieng trung' => 'zh', 'chinese' => 'zh', '中文' => 'zh', 'in chinese' => 'zh', 'write in chinese' => 'zh', 'bằng tiếng trung' => 'zh',
+            'tiếng nhật' => 'ja', 'tieng nhat' => 'ja', 'japanese' => 'ja', '日本語' => 'ja', 'in japanese' => 'ja', 'write in japanese' => 'ja', 'bằng tiếng nhật' => 'ja',
+            'tiếng hàn' => 'ko', 'tieng han' => 'ko', 'korean' => 'ko', '한국어' => 'ko', 'in korean' => 'ko', 'write in korean' => 'ko', 'bằng tiếng hàn' => 'ko',
+            'tiếng indonesia' => 'id', 'tieng indonesia' => 'id', 'indonesian' => 'id', 'bahasa indonesia' => 'id', 'in indonesian' => 'id', 'write in indonesian' => 'id',
+            'tiếng malaysia' => 'ms', 'tieng malaysia' => 'ms', 'malaysian' => 'ms', 'bahasa melayu' => 'ms', 'in malay' => 'ms', 'write in malay' => 'ms',
+            'tiếng ấn độ' => 'hi', 'tieng an do' => 'hi', 'hindi' => 'hi', 'in hindi' => 'hi', 'write in hindi' => 'hi',
+            'tiếng ả rập' => 'ar', 'tieng a rap' => 'ar', 'arabic' => 'ar', 'العربية' => 'ar', 'in arabic' => 'ar', 'write in arabic' => 'ar',
             // European
-            'tiếng anh' => 'en', 'tieng anh' => 'en', 'english' => 'en',
-            'tiếng pháp' => 'fr', 'tieng phap' => 'fr', 'french' => 'fr', 'français' => 'fr',
-            'tiếng đức' => 'de', 'tieng duc' => 'de', 'german' => 'de', 'deutsch' => 'de',
-            'tiếng tây ban nha' => 'es', 'tieng tay ban nha' => 'es', 'spanish' => 'es', 'español' => 'es',
-            'tiếng ý' => 'it', 'tieng i' => 'it', 'italian' => 'it', 'italiano' => 'it',
-            'tiếng bồ đào nha' => 'pt', 'tieng bo dao nha' => 'pt', 'portuguese' => 'pt', 'português' => 'pt',
-            'tiếng nga' => 'ru', 'tieng nga' => 'ru', 'russian' => 'ru', 'русский' => 'ru',
-            'tiếng hà lan' => 'nl', 'tieng ha lan' => 'nl', 'dutch' => 'nl', 'nederlands' => 'nl',
-            'tiếng ba lan' => 'pl', 'tieng ba lan' => 'pl', 'polish' => 'pl', 'polski' => 'pl',
-            'tiếng thụy điển' => 'sv', 'tieng thuy dien' => 'sv', 'swedish' => 'sv', 'svenska' => 'sv',
-            'tiếng na uy' => 'no', 'tieng na uy' => 'no', 'norwegian' => 'no', 'norsk' => 'no',
-            'tiếng đan mạch' => 'da', 'tieng dan mach' => 'da', 'danish' => 'da', 'dansk' => 'da',
-            'tiếng phần lan' => 'fi', 'tieng phan lan' => 'fi', 'finnish' => 'fi', 'suomi' => 'fi',
-            'tiếng hy lạp' => 'el', 'tieng hy lap' => 'el', 'greek' => 'el', 'ελληνικά' => 'el',
-            'tiếng hungary' => 'hu', 'tieng hungary' => 'hu', 'hungarian' => 'hu', 'magyar' => 'hu',
-            'tiếng sec' => 'cs', 'tieng sec' => 'cs', 'czech' => 'cs', 'čeština' => 'cs',
-            'tiếng romania' => 'ro', 'tieng romania' => 'ro', 'romanian' => 'ro', 'română' => 'ro',
-            'tiếng bulgaria' => 'bg', 'tieng bulgaria' => 'bg', 'bulgarian' => 'bg', 'български' => 'bg',
-            'tiếng turkey' => 'tr', 'tieng turkey' => 'tr', 'turkish' => 'tr', 'türkçe' => 'tr',
+            'tiếng anh' => 'en', 'tieng anh' => 'en', 'english' => 'en', 'in english' => 'en', 'write in english' => 'en', 'bằng tiếng anh' => 'en',
+            'tiếng pháp' => 'fr', 'tieng phap' => 'fr', 'french' => 'fr', 'français' => 'fr', 'in french' => 'fr', 'write in french' => 'fr', 'bằng tiếng pháp' => 'fr',
+            'tiếng đức' => 'de', 'tieng duc' => 'de', 'german' => 'de', 'deutsch' => 'de', 'in german' => 'de', 'write in german' => 'de', 'bằng tiếng đức' => 'de',
+            'tiếng tây ban nha' => 'es', 'tieng tay ban nha' => 'es', 'spanish' => 'es', 'español' => 'es', 'in spanish' => 'es', 'write in spanish' => 'es', 'bằng tiếng tây ban nha' => 'es',
+            'tiếng ý' => 'it', 'tieng i' => 'it', 'italian' => 'it', 'italiano' => 'it', 'in italian' => 'it', 'write in italian' => 'it',
+            'tiếng bồ đào nha' => 'pt', 'tieng bo dao nha' => 'pt', 'portuguese' => 'pt', 'português' => 'pt', 'in portuguese' => 'pt', 'write in portuguese' => 'pt',
+            'tiếng nga' => 'ru', 'tieng nga' => 'ru', 'russian' => 'ru', 'русский' => 'ru', 'in russian' => 'ru', 'write in russian' => 'ru',
+            'tiếng hà lan' => 'nl', 'tieng ha lan' => 'nl', 'dutch' => 'nl', 'nederlands' => 'nl', 'in dutch' => 'nl', 'write in dutch' => 'nl',
+            'tiếng ba lan' => 'pl', 'tieng ba lan' => 'pl', 'polish' => 'pl', 'polski' => 'pl', 'in polish' => 'pl', 'write in polish' => 'pl',
+            'tiếng thụy điển' => 'sv', 'tieng thuy dien' => 'sv', 'swedish' => 'sv', 'svenska' => 'sv', 'in swedish' => 'sv', 'write in swedish' => 'sv',
+            'tiếng na uy' => 'no', 'tieng na uy' => 'no', 'norwegian' => 'no', 'norsk' => 'no', 'in norwegian' => 'no', 'write in norwegian' => 'no',
+            'tiếng đan mạch' => 'da', 'tieng dan mach' => 'da', 'danish' => 'da', 'dansk' => 'da', 'in danish' => 'da', 'write in danish' => 'da',
+            'tiếng phần lan' => 'fi', 'tieng phan lan' => 'fi', 'finnish' => 'fi', 'suomi' => 'fi', 'in finnish' => 'fi', 'write in finnish' => 'fi',
+            'tiếng hy lạp' => 'el', 'tieng hy lap' => 'el', 'greek' => 'el', 'ελληνικά' => 'el', 'in greek' => 'el', 'write in greek' => 'el',
+            'tiếng hungary' => 'hu', 'tieng hungary' => 'hu', 'hungarian' => 'hu', 'magyar' => 'hu', 'in hungarian' => 'hu', 'write in hungarian' => 'hu',
+            'tiếng sec' => 'cs', 'tieng sec' => 'cs', 'czech' => 'cs', 'čeština' => 'cs', 'in czech' => 'cs', 'write in czech' => 'cs',
+            'tiếng romania' => 'ro', 'tieng romania' => 'ro', 'romanian' => 'ro', 'română' => 'ro', 'in romanian' => 'ro', 'write in romanian' => 'ro',
+            'tiếng bulgaria' => 'bg', 'tieng bulgaria' => 'bg', 'bulgarian' => 'bg', 'български' => 'bg', 'in bulgarian' => 'bg', 'write in bulgarian' => 'bg',
+            'tiếng turkey' => 'tr', 'tieng turkey' => 'tr', 'turkish' => 'tr', 'türkçe' => 'tr', 'in turkish' => 'tr', 'write in turkish' => 'tr',
         ];
 
-        $lowerText = mb_strtolower($text);
+        $lowerText = mb_strtolower(trim($text));
+
+        // Longer phrases first to avoid partial matches like "english" inside other words.
+        uksort($explicitLangMap, fn (string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a));
 
         foreach ($explicitLangMap as $keyword => $lang) {
             if (str_contains($lowerText, $keyword)) {
@@ -871,36 +926,150 @@ PROMPT;
             }
         }
 
-        $vietnameseIndicators = [
-            'ạ', 'ả', 'ã', 'ă', 'â', 'ấ', 'ầ', 'ẩ', 'ẫ', 'ậ',
-            'ẹ', 'ẻ', 'ẽ', 'ê', 'ế', 'ề', 'ể', 'ễ', 'ệ',
-            'ị', 'ỉ', 'ĩ',
-            'ọ', 'ỏ', 'õ', 'ô', 'ố', 'ồ', 'ổ', 'ỗ', 'ộ',
-            'ơ', 'ớ', 'ờ', 'ở', 'ỡ', 'ợ',
-            'ụ', 'ủ', 'ũ', 'ư', 'ứ', 'ừ', 'ử', 'ữ', 'ự',
-            'y', 'ỳ', 'ỷ', 'ỹ', 'ỵ',
-            'à', 'á', 'ả', 'ã', 'è', 'é', 'ẻ', 'ẽ', 'ì', 'í', 'ỉ', 'ĩ',
-            'ò', 'ó', 'ỏ', 'õ', 'ù', 'ú', 'ủ', 'ũ', 'ỳ', 'ý', 'ỷ', 'ỹ',
-            'đ',
-            'của', 'và', 'là', 'có', 'được', 'trong', 'cho', 'với', 'này', 'các',
+        return 'en';
+    }
+
+    protected function buildVariedArticleFormatInstructions(string $brandLabel, bool $hasContentIdea = false): string
+    {
+        $brandEsc = htmlspecialchars($brandLabel, ENT_QUOTES, 'UTF-8');
+
+        if ($hasContentIdea) {
+            return <<<SECTION
+
+
+## Article structure (secondary to Content direction)
+
+The **Content direction** section above is the master plan. Use it to decide:
+- Which `<h2>` / `<h3>` sections to create
+- Which topics to emphasize, de-emphasize, or skip
+- What angle, tone, and narrative flow to use
+
+Rules when a content direction is provided:
+- Derive section headings from the brief's topics and keywords (creative wording is fine).
+- Do NOT replace the brief with a generic affiliate template.
+- Do NOT drop brief requirements to fit a listicle, FAQ, or other format.
+- You may use FAQ, listicle, checklist, or editorial style **only if it helps deliver the brief more clearly**.
+- Avoid the overused sequence: "What is {$brandEsc}?" → "Pros and Cons..." → "Who Should Consider..." → "Conclusion" **unless the content direction explicitly asks for those sections**.
+- `<h1>` should reflect the brief's main angle while including the brand name {$brandEsc}.
+SECTION;
+        }
+
+        $formats = [
+            [
+                'name' => 'Editorial spotlight',
+                'instructions' => <<<'TXT'
+Open with a hook about a shopper problem this brand solves.
+Suggested flow (rename all headings creatively):
+- Why shoppers are paying attention to the brand right now
+- What makes the catalog stand out
+- Standout categories or product lines (use <h3> if helpful)
+- Shopping experience: site, shipping, support
+- Honest limitations readers should know
+- Final takeaway with a clear recommendation tone
+TXT,
+            ],
+            [
+                'name' => 'Buyer\'s checklist',
+                'instructions' => <<<'TXT'
+Write as a practical pre-purchase guide.
+Suggested flow:
+- Quick snapshot of the brand
+- Before you buy: what to check first
+- What to look for in products / pricing / policies
+- Red flags vs green flags
+- Who gets the most value here
+- Bottom line for smart shoppers
+TXT,
+            ],
+            [
+                'name' => 'FAQ-style article',
+                'instructions' => <<<'TXT'
+After a short intro, use 6–8 <h2> headings written as reader questions
+(e.g. "Is {brand} legit?", "What does {brand} sell?", "Are prices competitive?").
+Answer each question in 1–3 paragraphs. Include balanced pros/limitations inside relevant answers.
+TXT,
+            ],
+            [
+                'name' => 'Numbered listicle',
+                'instructions' => <<<'TXT'
+Use a listicle angle such as "7 things to know before shopping at {brand}" or
+"5 reasons shoppers choose {brand}".
+Each main point gets its own <h2> (numbered or thematic). Mix short lists and prose.
+TXT,
+            ],
+            [
+                'name' => 'Category deep-dive',
+                'instructions' => <<<'TXT'
+Focus on the brand's main product categories as separate <h2> sections.
+For each category: who it suits, what to expect, tips for choosing well.
+Include one section on overall value and one on who should skip this brand.
+TXT,
+            ],
+            [
+                'name' => 'Problem → solution narrative',
+                'instructions' => <<<'TXT'
+Start from common frustrations shoppers face in this niche.
+Show how the brand addresses those pain points section by section.
+Include a "where it may not be the best fit" section with fair criticism.
+TXT,
+            ],
+            [
+                'name' => 'Value & trust review',
+                'instructions' => <<<'TXT'
+Emphasize pricing, quality signals, policies, and trust factors.
+Sections might cover: first impressions, product quality cues, shipping/returns,
+customer support reputation, strengths, limitations, ideal customer profiles.
+Avoid generic "Pros and Cons" as the exact heading — phrase it differently.
+TXT,
+            ],
+            [
+                'name' => 'Comparison lens (no fake competitors)',
+                'instructions' => <<<'TXT'
+Frame the article around how this brand compares to typical market alternatives
+(without inventing specific competitor names or false claims).
+Cover positioning, unique selling points, trade-offs, and who should choose this brand over generic options.
+TXT,
+            ],
+            [
+                'name' => 'New shopper playbook',
+                'instructions' => <<<'TXT'
+Write a step-by-step guide for first-time buyers.
+Suggested sections: getting oriented on the site, picking the right category,
+reading product details, applying deals if mentioned, avoiding common mistakes,
+and a confident closing summary.
+TXT,
+            ],
+            [
+                'name' => 'Trend & timing angle',
+                'instructions' => <<<'TXT'
+Lead with why this brand is relevant now (season, trends, shopper behavior).
+Cover catalog highlights, value proposition, experience quality, caveats,
+and whether it is worth checking out today.
+TXT,
+            ],
         ];
 
-        $vietCount = 0;
-        foreach ($vietnameseIndicators as $indicator) {
-            if (str_contains($text, $indicator)) {
-                $vietCount++;
-                if ($vietCount >= 2) {
-                    return 'vi';
-                }
-            }
-        }
+        $format = $formats[array_rand($formats)];
 
-        $viChars = preg_match_all('/[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/u', $text, $matches);
-        if ($viChars > 2) {
-            return 'vi';
-        }
+        return <<<SECTION
 
-        return 'en';
+
+## Article format for THIS article (use when no content direction was provided)
+
+Selected format: **{$format['name']}**
+
+{$format['instructions']}
+
+## Diversity rules (CRITICAL)
+- Do NOT use this overused template in order:
+  "What is {$brandEsc}?" → "Pros and Cons of Shopping at {$brandEsc}" →
+  "Who Should Consider Shopping at {$brandEsc}?" → "Conclusion".
+- Create **at least 5 distinct <h2> sections** with specific, engaging titles tailored to {$brandEsc} and the chosen format.
+- Vary rhythm: alternate paragraphs with `<ul>` / `<ol>` lists where it helps readability.
+- `<h1>` must include the brand name {$brandEsc} plus a clear value proposition.
+- End with a natural closing section — use a creative heading (e.g. "Final thoughts", "Worth a look?", "The bottom line") instead of a generic "Conclusion" unless the format truly fits.
+- Still cover strengths and limitations somewhere in the article, but with fresh headings and natural prose.
+SECTION;
     }
 
     /**

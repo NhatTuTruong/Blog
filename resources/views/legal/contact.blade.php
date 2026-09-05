@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Contact Us - ' . config('app.name'))
-@section('description', 'Get in touch with us for questions and feedback.')
+@section('title', \App\Support\SiteSeo::pageTitle('contact'))
+@section('description', \App\Support\SiteSeo::pageDescription('contact'))
 
 @push('styles')
 <style>

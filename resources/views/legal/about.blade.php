@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'About Us - ' . config('app.name'))
-@section('description', 'Learn about our blog and editorial mission.')
+@section('title', \App\Support\SiteSeo::pageTitle('about'))
+@section('description', \App\Support\SiteSeo::pageDescription('about'))
 
 @push('styles')
 <style>

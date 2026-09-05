@@ -17,6 +17,7 @@ class QueueStaleRecoveryService
         ?int $staleMinutes = null,
         ?string $message = null,
         bool $failStalePending = true,
+        string $staleTimestampColumn = 'updated_at',
     ): int {
         $staleMinutes = max(1, $staleMinutes ?? self::STALE_MINUTES);
         $threshold = now()->subMinutes($staleMinutes);
@@ -26,7 +27,21 @@ class QueueStaleRecoveryService
 
         $processing = $modelClass::query()
             ->where('status', $modelClass::STATUS_PROCESSING)
-            ->where('updated_at', '<', $threshold)
+            ->where(function ($query) use ($staleTimestampColumn, $threshold): void {
+                if ($staleTimestampColumn === 'processing_started_at') {
+                    $query->where(function ($inner) use ($threshold): void {
+                        $inner->whereNotNull('processing_started_at')
+                            ->where('processing_started_at', '<', $threshold);
+                    })->orWhere(function ($inner) use ($threshold): void {
+                        $inner->whereNull('processing_started_at')
+                            ->where('updated_at', '<', $threshold);
+                    });
+
+                    return;
+                }
+
+                $query->where($staleTimestampColumn, '<', $threshold);
+            })
             ->get();
 
         foreach ($processing as $item) {

@@ -59,4 +59,25 @@ class SocialMediaMediaType
             self::VIDEO => 'Video',
         ];
     }
+
+    public static function isAutoVideoOptionEnabled(): bool
+    {
+        return (bool) config('social_media.auto_video_option_enabled', true);
+    }
+
+    /**
+     * Options for admin "Loại media tự động" select (respects SOCIAL_VIDEO_UI_ENABLED).
+     *
+     * @return array<string, string>
+     */
+    public static function formOptions(): array
+    {
+        $options = self::options();
+
+        if (! self::isAutoVideoOptionEnabled()) {
+            unset($options[self::VIDEO]);
+        }
+
+        return $options;
+    }
 }

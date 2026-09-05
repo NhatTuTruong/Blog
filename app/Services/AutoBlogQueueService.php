@@ -4,9 +4,9 @@ namespace App\Services;
 
 use App\Models\AutoBlogQueueItem;
 use App\Models\Blog;
-use App\Models\BlogCategory;
 use App\Models\User;
 use App\Support\AdminSettings;
+use App\Support\BlogCategorySelection;
 use App\Support\GeminiKeyScope;
 use App\Support\GeminiSettings;
 use App\Support\IntegrationSettingsStore;
@@ -144,12 +144,11 @@ class AutoBlogQueueService
         $baseTime = ($startAt ?? now())->copy();
 
         $validRecords->each(function (array $record, int $index) use ($batchId, $user, $interval, $baseTime): void {
-            $categoryId = filled($record['blog_category_id'] ?? null) ? (int) $record['blog_category_id'] : null;
-            $categoryName = null;
-
-            if ($categoryId) {
-                $categoryName = BlogCategory::query()->find($categoryId)?->name;
-            }
+            $categoryIds = BlogCategorySelection::normalizeIds(
+                $record['blog_category_ids'] ?? $record['blog_category_id'] ?? null
+            );
+            $primaryCategoryId = $categoryIds[0] ?? null;
+            $categoryName = BlogCategorySelection::labelForIds($categoryIds);
 
             $couponCodes = collect($record['coupon_codes'] ?? [])
                 ->map(fn (mixed $code): string => trim((string) $code))
@@ -163,7 +162,8 @@ class AutoBlogQueueService
                 'user_id' => $user?->id,
                 'sort_order' => $index,
                 'brand_domain' => trim((string) $record['brand_domain']),
-                'blog_category_id' => $categoryId,
+                'blog_category_id' => $primaryCategoryId,
+                'blog_category_ids' => $categoryIds !== [] ? $categoryIds : null,
                 'category_name' => $categoryName,
                 'content_idea' => filled($record['content_idea'] ?? null) ? trim((string) $record['content_idea']) : null,
                 'aff_link' => filled($record['aff_link'] ?? null) ? trim((string) $record['aff_link']) : null,
@@ -242,7 +242,9 @@ class AutoBlogQueueService
     {
         $gemini = app(GeminiBlogService::class);
 
-        $categoryLabel = $item->category_name
+        $categoryIds = $item->resolvedCategoryIds();
+        $categoryLabel = BlogCategorySelection::labelForIds($categoryIds)
+            ?? $item->category_name
             ?? $item->blogCategory?->name
             ?? 'General';
 
@@ -259,26 +261,35 @@ class AutoBlogQueueService
         }
 
         $author = User::where('is_admin', true)->first() ?? User::first();
-        $featuredImage = app(AutoBlogFeaturedImageService::class)->resolveForQueueItem($item);
+        $featuredImageService = app(AutoBlogFeaturedImageService::class);
 
-        // Insert inline images into content (uses best images, different from featured)
-        $contentWithImages = app(AutoBlogContentImageService::class)->insertImagesIntoContent(
+        $imageResult = app(AutoBlogContentImageService::class)->enrichBlogWithApifyImages(
             $result['content'],
             $item->brand_domain,
             $item->user_id,
             $item->id,
+            $featuredImageService->resolveUploadedPath($item),
         );
 
-        return Blog::create([
+        $featuredImage = $imageResult['featured_image']
+            ?? $featuredImageService->resolveApifyFallback($item);
+
+        $blog = Blog::create([
             'user_id' => $item->user_id ?? $author?->id,
-            'blog_category_id' => $item->blog_category_id,
+            'blog_category_id' => $categoryIds[0] ?? $item->blog_category_id,
             'title' => $result['title'],
             'category' => $categoryLabel,
-            'content' => $contentWithImages,
+            'content' => $imageResult['content'],
             'featured_image' => $featuredImage,
             'is_published' => true,
             'views_count' => 0,
         ]);
+
+        if ($categoryIds !== []) {
+            $blog->syncBlogCategories($categoryIds);
+        }
+
+        return $blog;
     }
 
     /**

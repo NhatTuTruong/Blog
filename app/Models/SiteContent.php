@@ -176,14 +176,124 @@ HTML;
 
     public static function defaultSocialLinks(): array
     {
+        return collect(self::socialPlatformOptions())
+            ->keys()
+            ->map(fn (string $platform): array => [
+                'platform' => $platform,
+                'url' => '',
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function socialPlatformOptions(): array
+    {
         return [
-            ['platform' => 'facebook', 'url' => '', 'enabled' => false],
-            ['platform' => 'instagram', 'url' => '', 'enabled' => false],
-            ['platform' => 'twitter', 'url' => '', 'enabled' => false],
-            ['platform' => 'youtube', 'url' => '', 'enabled' => false],
-            ['platform' => 'tiktok', 'url' => '', 'enabled' => false],
-            ['platform' => 'pinterest', 'url' => '', 'enabled' => false],
-            ['platform' => 'linkedin', 'url' => '', 'enabled' => false],
+            'facebook' => 'Facebook',
+            'instagram' => 'Instagram',
+            'twitter' => 'Twitter / X',
+            'youtube' => 'YouTube',
+            'tiktok' => 'TikTok',
+            'pinterest' => 'Pinterest',
+            'linkedin' => 'LinkedIn',
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $links
+     * @return array<string, string>
+     */
+    public static function socialLinksAsMap(array $links): array
+    {
+        $map = array_fill_keys(array_keys(self::socialPlatformOptions()), '');
+
+        foreach ($links as $link) {
+            if (! is_array($link)) {
+                continue;
+            }
+
+            $platform = (string) ($link['platform'] ?? '');
+
+            if (array_key_exists($platform, $map)) {
+                $map[$platform] = trim((string) ($link['url'] ?? ''));
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  array<string, mixed>  $map
+     * @return array<int, array<string, string>>
+     */
+    public static function socialLinksFromMap(array $map): array
+    {
+        return collect(self::socialPlatformOptions())
+            ->map(fn (string $label, string $platform): array => [
+                'platform' => $platform,
+                'url' => trim((string) ($map[$platform] ?? '')),
+            ])
+            ->values()
+            ->all();
+    }
+
+    public static function visibleSocialLinks(): \Illuminate\Support\Collection
+    {
+        $links = self::get('social_media_links', self::defaultSocialLinks());
+
+        if (! is_array($links)) {
+            return collect();
+        }
+
+        return collect($links)->filter(fn (mixed $item): bool => is_array($item) && filled($item['url'] ?? null));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function defaultSeoSettings(): array
+    {
+        $appName = (string) config('app.name');
+
+        return [
+            'title_suffix' => '- '.$appName,
+            'meta_description_default' => 'Latest articles and insights from our blog.',
+            'og_image_default' => '',
+            'robots' => 'index, follow',
+            'google_site_verification' => '',
+            'pages' => [
+                'home' => [
+                    'title' => $appName.' — Blog & Articles',
+                    'description' => 'Discover guides, stories and trending articles. Search by topic or browse featured categories.',
+                ],
+                'blog' => [
+                    'title' => 'Blog — '.$appName,
+                    'description' => 'Explore guides, stories and trending articles. Search by topic or browse featured categories.',
+                ],
+                'about' => [
+                    'title' => 'About Us - '.$appName,
+                    'description' => 'Learn about our blog and editorial mission.',
+                ],
+                'contact' => [
+                    'title' => 'Contact Us - '.$appName,
+                    'description' => 'Get in touch with us for questions and feedback.',
+                ],
+                'privacy' => [
+                    'title' => 'Privacy Policy - '.$appName,
+                    'description' => 'Read our privacy policy and how we handle your data.',
+                ],
+                'cookie' => [
+                    'title' => 'Cookie Policy - '.$appName,
+                    'description' => 'How we use cookies and similar technologies on our website.',
+                ],
+                'terms' => [
+                    'title' => 'Terms of Use - '.$appName,
+                    'description' => 'Terms of use for our website and blog.',
+                ],
+            ],
         ];
     }
 

@@ -5,9 +5,11 @@ namespace App\Services;
 use App\Models\PinterestAccount;
 use App\Models\PinterestQueueItem;
 use App\Models\User;
-use App\Support\AdminSettings;
+use App\Services\Concerns\ManagesSocialMediaQueueStaleItems;
 use App\Support\GeminiKeyScope;
 use App\Support\PinterestSettings;
+use App\Support\SocialMediaImageDeliveryError;
+use App\Support\SocialMediaQueueConfig;
 use App\Support\SocialMediaQueueSource;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +17,11 @@ use Illuminate\Support\Str;
 
 class PinterestQueueService
 {
+    use ManagesSocialMediaQueueStaleItems;
+
     public ?string $lastError = null;
+
+    public ?string $lastPublishNote = null;
 
     public function intervalMinutes(?int $userId = null): int
     {
@@ -50,10 +56,7 @@ class PinterestQueueService
 
     protected function staleProcessingMinutes(): int
     {
-        $geminiTimeout = max(60, (int) AdminSettings::get('gemini_timeout', 120));
-
-        // Gemini + upload video Meta có thể mất vài phút; sau đó coi là kẹt.
-        return max(8, (int) ceil($geminiTimeout / 60) + 3);
+        return SocialMediaQueueConfig::staleMinutes();
     }
 
     public function hasStuckProcessing(): bool
@@ -82,6 +85,7 @@ class PinterestQueueService
             $item->update([
                 'status' => PinterestQueueItem::STATUS_PENDING,
                 'processed_at' => null,
+                'processing_started_at' => null,
                 'error_message' => null,
             ]);
         }
@@ -97,7 +101,7 @@ class PinterestQueueService
 
     public function recoverStaleProcessingItems(): int
     {
-        return app(QueueStaleRecoveryService::class)->failStaleItems(PinterestQueueItem::class);
+        return $this->recoverSocialStaleProcessingItems(PinterestQueueItem::class);
     }
 
     public function abortQueueOnError(string $reason): int
@@ -251,6 +255,10 @@ class PinterestQueueService
 
         $this->recoverStaleProcessingItems();
 
+        if ($this->hasActiveSocialProcessing(PinterestQueueItem::class)) {
+            return ['processed' => false, 'item' => null, 'media_id' => null];
+        }
+
         $hasManualActive = PinterestQueueItem::query()
             ->where(function ($query): void {
                 $query->where('queue_source', SocialMediaQueueSource::MANUAL)
@@ -283,24 +291,14 @@ class PinterestQueueService
             return ['processed' => false, 'item' => null, 'media_id' => null];
         }
 
-        // Atomic: chỉ update nếu status vẫn là PENDING (tránh race condition)
-        $updated = PinterestQueueItem::query()
-            ->where('id', $item->id)
-            ->where('status', PinterestQueueItem::STATUS_PENDING)
-            ->update([
-                'status' => PinterestQueueItem::STATUS_PROCESSING,
-                'updated_at' => now(),
-            ]);
-
-        if ($updated === 0) {
-            // Item đã bị process bởi process khác, thử lấy item tiếp theo
+        if (! $this->claimSocialQueueItem($item, PinterestQueueItem::class)) {
             return $this->processNextDue();
         }
 
         $item->refresh();
 
         try {
-            @set_time_limit(300);
+            $this->beginSocialQueueItemProcessing();
 
             $mediaId = $this->publishQueueItem($item);
 
@@ -308,8 +306,10 @@ class PinterestQueueService
                 'status' => PinterestQueueItem::STATUS_COMPLETED,
                 'pinterest_pin_id' => $mediaId,
                 'processed_at' => now(),
-                'error_message' => null,
+                'error_message' => $this->lastPublishNote,
             ]);
+
+            $this->lastPublishNote = null;
 
             $item = $item->fresh();
             if ($item instanceof PinterestQueueItem && filled($item->video_path)) {
@@ -387,21 +387,21 @@ class PinterestQueueService
         $description = (string) $caption;
         $link = filled($item->aff_link) ? (string) $item->aff_link : null;
 
-        $imageUrl = $media->signedPublicImageUrl($item);
-        if ($imageUrl === null) {
-            throw new \RuntimeException($media->lastError ?? 'Không tạo được URL ảnh công khai.');
-        }
-
-        $urlError = $media->validatePublicImageUrl($imageUrl);
-        if ($urlError !== null) {
-            throw new \RuntimeException($urlError);
-        }
-
         if (filled($item->video_path)) {
+            $imageUrl = $media->signedPublicImageUrl($item);
+            if ($imageUrl === null) {
+                throw new \RuntimeException($media->lastError ?? 'Không tạo được URL ảnh công khai.');
+            }
+
+            $urlError = $media->validatePublicImageUrl($imageUrl);
+            if ($urlError !== null) {
+                throw new \RuntimeException($urlError);
+            }
+
             $videoPath = $media->resolveMediaAbsolutePath($item);
             $pinId = $api->publishVideoPin($videoPath, $imageUrl, $title, $description, $link);
         } else {
-            $pinId = $api->publishImagePin($imageUrl, $title, $description, $link);
+            $pinId = $this->publishImageWithDefaultFallback($item, $media, $api, $title, $description, $link);
         }
 
         if ($pinId === null) {
@@ -409,6 +409,73 @@ class PinterestQueueService
         }
 
         return $pinId;
+    }
+
+    protected function publishImageWithDefaultFallback(
+        PinterestQueueItem $item,
+        PinterestPostMediaService $media,
+        PinterestApiService $api,
+        string $title,
+        string $description,
+        ?string $link,
+    ): ?string {
+        $this->lastPublishNote = null;
+        $originalError = null;
+
+        $imageUrl = $media->signedPublicImageUrl($item->fresh() ?? $item);
+        if ($imageUrl === null) {
+            $originalError = $media->lastError ?? 'Không tạo được URL ảnh công khai.';
+        } else {
+            $urlError = $media->validatePublicImageUrl($imageUrl);
+            if ($urlError !== null) {
+                $originalError = $urlError;
+            } else {
+                $pinId = $api->publishImagePin($imageUrl, $title, $description, $link);
+                if ($pinId !== null) {
+                    return $pinId;
+                }
+
+                $originalError = $api->lastError;
+            }
+        }
+
+        if (! SocialMediaImageDeliveryError::shouldRetryWithDefaultImage($originalError)) {
+            return null;
+        }
+
+        if (! $media->applyDefaultImageForItem($item)) {
+            $api->lastError = $originalError ?? $media->lastError ?? $api->lastError;
+
+            return null;
+        }
+
+        $item = $item->fresh() ?? $item;
+        $fallbackUrl = $media->signedPublicImageUrl($item);
+        if ($fallbackUrl === null) {
+            $api->lastError = $originalError ?? $media->lastError;
+
+            return null;
+        }
+
+        $fallbackUrlError = $media->validatePublicImageUrl($fallbackUrl);
+        if ($fallbackUrlError !== null) {
+            $api->lastError = $fallbackUrlError;
+
+            return null;
+        }
+
+        $pinId = $api->publishImagePin($fallbackUrl, $title, $description, $link);
+        if ($pinId !== null) {
+            $note = 'Đã đăng với ảnh mặc định.';
+            if (filled($originalError)) {
+                $note .= ' Ảnh gốc: '.trim((string) $originalError);
+            }
+            $this->lastPublishNote = $note;
+
+            return $pinId;
+        }
+
+        return null;
     }
 
     /**

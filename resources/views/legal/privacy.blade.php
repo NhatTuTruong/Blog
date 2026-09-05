@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Privacy Policy - ' . config('app.name'))
-@section('description', 'Read our privacy policy and how we handle your data.')
+@section('title', \App\Support\SiteSeo::pageTitle('privacy'))
+@section('description', \App\Support\SiteSeo::pageDescription('privacy'))
 
 @push('styles')
 <style>

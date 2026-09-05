@@ -15,7 +15,7 @@ class BlogController extends Controller
         $category = $request->string('category')->toString();
 
         $posts = Blog::query()
-            ->with('blogCategory')
+            ->with(['blogCategory', 'blogCategories'])
             ->where('is_published', true)
             ->when($query, function ($q) use ($query) {
                 $q->where(function ($qq) use ($query) {
@@ -45,7 +45,7 @@ class BlogController extends Controller
     public function show(string $slug): View
     {
         $post = Blog::query()
-            ->with('blogCategory')
+            ->with(['blogCategory', 'blogCategories'])
             ->where('is_published', true)
             ->where('slug', $slug)
             ->firstOrFail();
@@ -53,7 +53,7 @@ class BlogController extends Controller
         $post->increment('views_count');
 
         $relatedBlogs = Blog::query()
-            ->with('blogCategory')
+            ->with(['blogCategory', 'blogCategories'])
             ->where('is_published', true)
             ->where('id', '!=', $post->id)
             ->when($post->category, function ($q) use ($post) {
@@ -65,7 +65,7 @@ class BlogController extends Controller
 
         if ($relatedBlogs->count() < 4) {
             $additionalBlogs = Blog::query()
-                ->with('blogCategory')
+                ->with(['blogCategory', 'blogCategories'])
                 ->where('is_published', true)
                 ->where('id', '!=', $post->id)
                 ->whereNotIn('id', $relatedBlogs->pluck('id'))

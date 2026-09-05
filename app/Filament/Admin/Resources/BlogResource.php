@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources;
 use App\Filament\Admin\Resources\BlogResource\Pages;
 use App\Models\Blog;
 use App\Models\User;
+use App\Support\BlogCategorySelection;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -56,17 +57,27 @@ class BlogResource extends Resource
                                     $set('slug', \Illuminate\Support\Str::slug($state));
                                 }
                             }),
-                        Forms\Components\Select::make('blog_category_id')
+                        Forms\Components\Select::make('blogCategories')
                             ->label('Danh mục')
                             ->relationship(
-                                name: 'blogCategory',
+                                name: 'blogCategories',
                                 titleAttribute: 'name',
                                 modifyQueryUsing: fn ($query) => $query->orderBy('sort_order')->orderBy('name'),
                             )
+                            ->multiple()
                             ->searchable()
                             ->preload()
                             ->placeholder('Chọn danh mục (tùy chọn)')
-                            ->helperText('Quản lý danh mục tại mục «Danh mục bài viết»'),
+                            ->helperText('Có thể chọn nhiều danh mục. Bài sẽ hiển thị trong tất cả danh mục đã chọn.')
+                            ->live()
+                            ->afterStateUpdated(function ($state, Forms\Set $set): void {
+                                $ids = BlogCategorySelection::normalizeIds(is_array($state) ? $state : null);
+                                $set('blog_category_id', $ids[0] ?? null);
+                                $set('category', BlogCategorySelection::labelForIds($ids) ?? null);
+                            })
+                            ->columnSpan(2),
+                        Forms\Components\Hidden::make('blog_category_id'),
+                        Forms\Components\Hidden::make('category'),
                         Forms\Components\TextInput::make('slug')
                             ->label('Slug')
                             ->required()
@@ -84,8 +95,17 @@ class BlogResource extends Resource
                             ->label('Xuất bản')
                             ->default(true)
                             ->helperText('Chỉ bài đã xuất bản mới hiển thị trên trang chủ'),
+                        Forms\Components\TextInput::make('priority')
+                            ->label('Độ ưu tiên')
+                            ->helperText('Số lớn hơn hiển thị trước ở Featured Story/Trending Posts. Mặc định 1.')
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(255)
+                            ->default(1)
+                            ->step(1)
+                            ->columnSpan(1),
                     ])
-                    ->columns(2),
+                    ->columns(3),
                 Forms\Components\Section::make('Nội dung')
                     ->schema([
                         Forms\Components\RichEditor::make('content')
@@ -159,15 +179,19 @@ class BlogResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->limit(40),
-                Tables\Columns\TextColumn::make('category')
+                Tables\Columns\TextColumn::make('category_labels')
                     ->label('Danh mục')
-                    ->limit(20),
+                    ->getStateUsing(fn (Blog $record): string => $record->category_labels)
+                    ->limit(30),
                 Tables\Columns\TextColumn::make('slug')
+                    ->label('Slug')
                     ->searchable()
-                    ->limit(25),
-                Tables\Columns\IconColumn::make('is_published')
+                    ->limit(25)
+                    ->hidden(),
+                Tables\Columns\ToggleColumn::make('is_published')
                     ->label('Xuất bản')
-                    ->boolean(),
+                    ->tooltip('Bật/tắt để xuất bản hoặc chuyển về bản nháp')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('views_count')
                     ->label('Lượt xem')
                     ->numeric()
@@ -175,15 +199,29 @@ class BlogResource extends Resource
                     ->badge()
                     ->color('info')
                     ->default(0),
+                Tables\Columns\TextInputColumn::make('priority')
+                    ->label('Ưu tiên')
+                    ->type('number')
+                    ->inputMode('numeric')
+                    ->step(1)
+                    ->extraInputAttributes(['min' => 0, 'max' => 255])
+                    ->width(100)
+                    ->default(1)
+                    ->sortable()
+                    ->rules(['integer', 'min:0', 'max:255'])
+                    ->tooltip('Số lớn = hiển thị trước ở trang chủ. Mặc định 1.')
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Ngày đăng')
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('blog_category_id')
+                Tables\Filters\SelectFilter::make('blogCategories')
                     ->label('Danh mục')
-                    ->relationship('blogCategory', 'name'),
+                    ->relationship('blogCategories', 'name')
+                    ->searchable()
+                    ->preload(),
                 Tables\Filters\SelectFilter::make('is_published')
                     ->label('Trạng thái')
                     ->options([
@@ -234,6 +272,11 @@ class BlogResource extends Resource
                     Tables\Actions\ForceDeleteBulkAction::make()->label(''),
                 ]),
             ]);
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()->with('blogCategories');
     }
 
     public static function getRelations(): array

@@ -21,6 +21,7 @@ class AutoBlogQueueItem extends Model
         'sort_order',
         'brand_domain',
         'blog_category_id',
+        'blog_category_ids',
         'category_name',
         'content_idea',
         'aff_link',
@@ -35,6 +36,7 @@ class AutoBlogQueueItem extends Model
 
     protected $casts = [
         'coupon_codes' => 'array',
+        'blog_category_ids' => 'array',
         'scheduled_at' => 'datetime',
         'processed_at' => 'datetime',
         'sort_order' => 'integer',
@@ -53,6 +55,25 @@ class AutoBlogQueueItem extends Model
     public function blog(): BelongsTo
     {
         return $this->belongsTo(Blog::class);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function resolvedCategoryIds(): array
+    {
+        $ids = collect(is_array($this->blog_category_ids) ? $this->blog_category_ids : [])
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids !== []) {
+            return $ids;
+        }
+
+        return filled($this->blog_category_id) ? [(int) $this->blog_category_id] : [];
     }
 
     public function statusLabel(): string

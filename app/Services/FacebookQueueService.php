@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Models\FacebookAccount;
 use App\Models\FacebookQueueItem;
 use App\Models\User;
-use App\Support\AdminSettings;
+use App\Services\Concerns\ManagesSocialMediaQueueStaleItems;
 use App\Support\FacebookSettings;
 use App\Support\GeminiKeyScope;
+use App\Support\SocialMediaImageDeliveryError;
 use App\Support\SocialMediaMediaType;
+use App\Support\SocialMediaQueueConfig;
 use App\Support\SocialMediaQueueSource;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -16,7 +18,11 @@ use Illuminate\Support\Str;
 
 class FacebookQueueService
 {
+    use ManagesSocialMediaQueueStaleItems;
+
     public ?string $lastError = null;
+
+    public ?string $lastPublishNote = null;
 
     public function intervalMinutes(?int $userId = null): int
     {
@@ -51,10 +57,7 @@ class FacebookQueueService
 
     protected function staleProcessingMinutes(): int
     {
-        $geminiTimeout = max(60, (int) AdminSettings::get('gemini_timeout', 120));
-
-        // Gemini + upload video Meta có thể mất vài phút; sau đó coi là kẹt.
-        return max(8, (int) ceil($geminiTimeout / 60) + 3);
+        return SocialMediaQueueConfig::staleMinutes();
     }
 
     public function hasStuckProcessing(): bool
@@ -83,6 +86,7 @@ class FacebookQueueService
             $item->update([
                 'status' => FacebookQueueItem::STATUS_PENDING,
                 'processed_at' => null,
+                'processing_started_at' => null,
                 'error_message' => null,
             ]);
         }
@@ -98,7 +102,7 @@ class FacebookQueueService
 
     public function recoverStaleProcessingItems(): int
     {
-        return app(QueueStaleRecoveryService::class)->failStaleItems(FacebookQueueItem::class);
+        return $this->recoverSocialStaleProcessingItems(FacebookQueueItem::class);
     }
 
     public function abortQueueOnError(string $reason): int
@@ -221,6 +225,10 @@ class FacebookQueueService
 
         $this->recoverStaleProcessingItems();
 
+        if ($this->hasActiveSocialProcessing(FacebookQueueItem::class)) {
+            return ['processed' => false, 'item' => null, 'media_id' => null];
+        }
+
         $hasManualActive = FacebookQueueItem::query()
             ->where(function ($query): void {
                 $query->where('queue_source', SocialMediaQueueSource::MANUAL)
@@ -253,24 +261,14 @@ class FacebookQueueService
             return ['processed' => false, 'item' => null, 'media_id' => null];
         }
 
-        // Atomic: chỉ update nếu status vẫn là PENDING (tránh race condition)
-        $updated = FacebookQueueItem::query()
-            ->where('id', $item->id)
-            ->where('status', FacebookQueueItem::STATUS_PENDING)
-            ->update([
-                'status' => FacebookQueueItem::STATUS_PROCESSING,
-                'updated_at' => now(),
-            ]);
-
-        if ($updated === 0) {
-            // Item đã bị process bởi process khác, thử lấy item tiếp theo
+        if (! $this->claimSocialQueueItem($item, FacebookQueueItem::class)) {
             return $this->processNextDue();
         }
 
         $item->refresh();
 
         try {
-            @set_time_limit(300);
+            $this->beginSocialQueueItemProcessing();
 
             $mediaId = $this->publishQueueItem($item);
 
@@ -278,8 +276,10 @@ class FacebookQueueService
                 'status' => FacebookQueueItem::STATUS_COMPLETED,
                 'facebook_post_id' => $mediaId,
                 'processed_at' => now(),
-                'error_message' => null,
+                'error_message' => $this->lastPublishNote,
             ]);
+
+            $this->lastPublishNote = null;
 
             $item = $item->fresh();
             if ($item instanceof FacebookQueueItem && filled($item->video_path)) {
@@ -351,12 +351,12 @@ class FacebookQueueService
 
         $media = app(FacebookPostMediaService::class);
         $graph = app(FacebookGraphService::class)->forAccount($account);
-        $absolutePath = $media->resolveMediaAbsolutePath($item);
 
         if (filled($item->video_path)) {
+            $absolutePath = $media->resolveMediaAbsolutePath($item);
             $mediaId = $graph->publishVideoFromPath($absolutePath, (string) $caption);
         } else {
-            $mediaId = $graph->publishPhotoFromPath($absolutePath, (string) $caption);
+            $mediaId = $this->publishPhotoWithDefaultFallback($item, $media, $graph, (string) $caption);
         }
 
         if ($mediaId === null) {
@@ -364,6 +364,44 @@ class FacebookQueueService
         }
 
         return $mediaId;
+    }
+
+    protected function publishPhotoWithDefaultFallback(
+        FacebookQueueItem $item,
+        FacebookPostMediaService $media,
+        FacebookGraphService $graph,
+        string $caption,
+    ): ?string {
+        $this->lastPublishNote = null;
+        $originalError = null;
+
+        $absolutePath = $media->resolveMediaAbsolutePath($item);
+        $mediaId = $graph->publishPhotoFromPath($absolutePath, $caption);
+        if ($mediaId !== null) {
+            return $mediaId;
+        }
+
+        $originalError = $graph->lastError;
+
+        if (! $media->applyDefaultImageForItem($item)) {
+            $graph->lastError = $originalError ?? $media->lastError ?? $graph->lastError;
+
+            return null;
+        }
+
+        $fallbackPath = $media->resolveMediaAbsolutePath($item->fresh() ?? $item);
+        $mediaId = $graph->publishPhotoFromPath($fallbackPath, $caption);
+        if ($mediaId !== null) {
+            $note = 'Đã đăng với ảnh mặc định.';
+            if (filled($originalError)) {
+                $note .= ' Ảnh gốc: '.trim((string) $originalError);
+            }
+            $this->lastPublishNote = $note;
+
+            return $mediaId;
+        }
+
+        return null;
     }
 
     /**

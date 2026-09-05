@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Pages;
 
 use App\Models\SiteContent;
+use App\Support\SiteSeo;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Repeater;
@@ -12,7 +13,6 @@ use Filament\Forms\Components\Tabs;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
@@ -53,7 +53,9 @@ class SiteContentPage extends Page implements HasForms
         $this->form->fill([
             'maintenance_enabled' => SiteContent::get('maintenance_enabled', false),
             'header_nav' => SiteContent::get('header_nav', SiteContent::defaultHeaderNav()),
-            'social_media_links' => SiteContent::get('social_media_links', SiteContent::defaultSocialLinks()),
+            'social_links' => SiteContent::socialLinksAsMap(
+                SiteContent::get('social_media_links', SiteContent::defaultSocialLinks())
+            ),
             'footer_brand_description' => SiteContent::get('footer_brand_description', 'Articles, guides and stories — updated regularly.'),
             'footer_columns' => SiteContent::get('footer_columns', SiteContent::defaultFooterColumns()),
             'footer_copyright' => SiteContent::get('footer_copyright', '© ' . date('Y') . ' ' . config('app.name') . '. All rights reserved.'),
@@ -64,6 +66,7 @@ class SiteContentPage extends Page implements HasForms
             'page_about_us' => SiteContent::get('page_about_us', SiteContent::defaultPageAboutUs()),
             'page_contact' => SiteContent::get('page_contact', SiteContent::defaultPageContact()),
             'page_privacy' => SiteContent::get('page_privacy', SiteContent::defaultPagePrivacy()),
+            'seo_settings' => SiteSeo::settings(),
         ]);
     }
 
@@ -109,37 +112,18 @@ class SiteContentPage extends Page implements HasForms
                                                 TextInput::make('url')->label('URL')->required()->maxLength(500)->placeholder('/blog hoặc https://...'),
                                             ]),
                                     ]),
-                                Section::make('Mạng xã hội')
-                                    ->description('Các icon mạng xã hội hiển thị trên header. Bật và nhập link để hiển thị.')
-                                    ->schema([
-                                        Repeater::make('social_media_links')
-                                            ->label('')
-                                            ->itemLabel(fn (array $state): ?string => ucfirst($state['platform'] ?? 'Mạng xã hội'))
-                                            ->addActionLabel('Thêm mạng xã hội')
-                                            ->schema([
-                                                Select::make('platform')
-                                                    ->label('Nền tảng')
-                                                    ->options([
-                                                        'facebook' => 'Facebook',
-                                                        'instagram' => 'Instagram',
-                                                        'twitter' => 'Twitter / X',
-                                                        'youtube' => 'YouTube',
-                                                        'tiktok' => 'TikTok',
-                                                        'pinterest' => 'Pinterest',
-                                                        'linkedin' => 'LinkedIn',
-                                                    ])
-                                                    ->required(),
-                                                TextInput::make('url')
-                                                    ->label('Link')
-                                                    ->url()
-                                                    ->placeholder('https://...'),
-                                                Toggle::make('enabled')
-                                                    ->label('Hiển thị')
-                                                    ->default(false),
-                                            ])
-                                            ->columns(3),
-                                    ]),
                             ]),
+                        Tabs\Tab::make('Mạng xã hội')
+                            ->icon('heroicon-o-share')
+                            ->schema([
+                                Section::make('Icon mạng xã hội trên Header')
+                                    ->description('Nhập link cho từng nền tảng. Icon chỉ hiển thị trên header khi có link; để trống sẽ tự ẩn.')
+                                    ->schema($this->socialLinksFormSchema())
+                                    ->columns(2),
+                            ]),
+                        Tabs\Tab::make('SEO')
+                            ->icon('heroicon-o-magnifying-glass')
+                            ->schema($this->seoFormSchema()),
                         Tabs\Tab::make('Footer')
                             ->icon('heroicon-o-squares-2x2')
                             ->schema([
@@ -261,7 +245,7 @@ class SiteContentPage extends Page implements HasForms
         $data = $this->form->getState();
         SiteContent::set('maintenance_enabled', $data['maintenance_enabled'] ?? false);
         SiteContent::set('header_nav', $data['header_nav'] ?? []);
-        SiteContent::set('social_media_links', $data['social_media_links'] ?? []);
+        SiteContent::set('social_media_links', SiteContent::socialLinksFromMap($data['social_links'] ?? []));
         SiteContent::set('footer_brand_description', $data['footer_brand_description'] ?? '');
         SiteContent::set('footer_columns', $data['footer_columns'] ?? []);
         SiteContent::set('footer_copyright', $data['footer_copyright'] ?? '');
@@ -272,10 +256,83 @@ class SiteContentPage extends Page implements HasForms
         SiteContent::set('page_about_us', $data['page_about_us'] ?? '');
         SiteContent::set('page_contact', $data['page_contact'] ?? '');
         SiteContent::set('page_privacy', $data['page_privacy'] ?? '');
+        SiteContent::set('seo_settings', $data['seo_settings'] ?? SiteContent::defaultSeoSettings());
 
         Notification::make()
-            ->title('Đã lưu nội dung Header, Footer, trang lỗi và các trang.')
+            ->title('Đã lưu nội dung trang, SEO, Header, Footer và các trang.')
             ->success()
             ->send();
+    }
+
+    /**
+     * @return array<int, Section>
+     */
+    protected function seoFormSchema(): array
+    {
+        $pageFields = fn (string $prefix, string $label): array => [
+            TextInput::make("seo_settings.pages.{$prefix}.title")
+                ->label("Title — {$label}")
+                ->maxLength(120),
+            Textarea::make("seo_settings.pages.{$prefix}.description")
+                ->label("Meta description — {$label}")
+                ->rows(2)
+                ->maxLength(255),
+        ];
+
+        return [
+            Section::make('SEO toàn site')
+                ->description('Cấu hình mặc định cho thẻ meta, Open Graph và Twitter Card.')
+                ->schema([
+                    TextInput::make('seo_settings.title_suffix')
+                        ->label('Hậu tố title')
+                        ->helperText('Ví dụ: - '.config('app.name').'. Để trống nếu không muốn thêm hậu tố.')
+                        ->maxLength(120),
+                    Textarea::make('seo_settings.meta_description_default')
+                        ->label('Meta description mặc định')
+                        ->rows(2)
+                        ->maxLength(255)
+                        ->required(),
+                    TextInput::make('seo_settings.og_image_default')
+                        ->label('Open Graph image mặc định (URL)')
+                        ->url()
+                        ->maxLength(500)
+                        ->placeholder('https://example.com/og-image.jpg'),
+                    TextInput::make('seo_settings.robots')
+                        ->label('Robots meta')
+                        ->maxLength(100)
+                        ->placeholder('index, follow'),
+                    TextInput::make('seo_settings.google_site_verification')
+                        ->label('Google Search Console verification')
+                        ->maxLength(255)
+                        ->placeholder('Mã xác minh từ Google'),
+                ])
+                ->columns(1),
+            Section::make('SEO theo trang')
+                ->description('Title và meta description riêng cho từng trang công khai.')
+                ->schema([
+                    Section::make('Trang chủ')->schema($pageFields('home', 'Trang chủ'))->columns(1)->compact(),
+                    Section::make('Blog')->schema($pageFields('blog', 'Blog'))->columns(1)->compact(),
+                    Section::make('About Us')->schema($pageFields('about', 'About'))->columns(1)->compact(),
+                    Section::make('Contact')->schema($pageFields('contact', 'Contact'))->columns(1)->compact(),
+                    Section::make('Privacy Policy')->schema($pageFields('privacy', 'Privacy'))->columns(1)->compact(),
+                    Section::make('Cookie Policy')->schema($pageFields('cookie', 'Cookie'))->columns(1)->compact(),
+                    Section::make('Terms of Use')->schema($pageFields('terms', 'Terms'))->columns(1)->compact(),
+                ]),
+        ];
+    }
+
+    /**
+     * @return array<int, TextInput>
+     */
+    protected function socialLinksFormSchema(): array
+    {
+        return collect(SiteContent::socialPlatformOptions())
+            ->map(fn (string $label, string $platform): TextInput => TextInput::make("social_links.{$platform}")
+                ->label($label)
+                ->url()
+                ->placeholder('https://...')
+                ->maxLength(500))
+            ->values()
+            ->all();
     }
 }

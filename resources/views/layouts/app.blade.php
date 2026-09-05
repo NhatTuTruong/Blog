@@ -2,20 +2,28 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     @php
-        $seoTitleSuffix = \App\Support\AdminSettings::get('seo_title_suffix', '- ' . config('app.name'));
+        $seoTitleSuffix = \App\Support\SiteSeo::get('title_suffix', '- ' . config('app.name'));
         $baseTitle = trim($__env->yieldContent('title', config('app.name')));
         $finalTitle = $baseTitle;
         if ($seoTitleSuffix !== '' && ! str_contains($baseTitle, $seoTitleSuffix)) {
             $finalTitle = trim($baseTitle . ' ' . $seoTitleSuffix);
         }
-        $defaultMetaDescription = \App\Support\AdminSettings::get('seo_meta_description_default', 'Latest articles and insights from our blog.');
-        $defaultOgImage = \App\Support\AdminSettings::get('seo_og_image_default', '');
+        $defaultMetaDescription = \App\Support\SiteSeo::get('meta_description_default', 'Latest articles and insights from our blog.');
+        $defaultOgImage = \App\Support\SiteSeo::get('og_image_default', '');
+        $robotsMeta = \App\Support\SiteSeo::get('robots', 'index, follow');
+        $googleSiteVerification = \App\Support\SiteSeo::get('google_site_verification', '');
     @endphp
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $finalTitle }}</title>
     <meta name="description" content="@yield('description', $defaultMetaDescription)">
+    @if(filled($robotsMeta))
+    <meta name="robots" content="{{ $robotsMeta }}">
+    @endif
+    @if(filled($googleSiteVerification))
+    <meta name="google-site-verification" content="{{ $googleSiteVerification }}">
+    @endif
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-FF4K1DWWT7"></script>

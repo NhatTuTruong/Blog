@@ -19,7 +19,10 @@ class PinterestPostMediaService
     {
         $existing = $this->normalizeStoragePath($item->image_path);
         if ($existing !== null && $this->isJpegAtPath($existing)) {
-            return $existing;
+            $absolute = PublicStorage::absolutePath($existing);
+            if (! app(SocialMediaImageSourceService::class)->isBlockedPlaceholderImage($absolute)) {
+                return $existing;
+            }
         }
 
         if ($existing !== null) {
@@ -58,6 +61,28 @@ class PinterestPostMediaService
         }
 
         return SocialMediaPublicUrl::build($base, $storagePath);
+    }
+
+    /**
+     * Thay ảnh queue item bằng ảnh mặc định (URL cài đặt / default1–3).
+     */
+    public function applyDefaultImageForItem(PinterestQueueItem $item): bool
+    {
+        $this->lastError = null;
+
+        try {
+            $dest = "pinterest-generated/item-{$item->id}-fallback.jpg";
+            $path = app(SocialMediaImageSourceService::class)->applyDefaultJpeg($item->user_id, $dest);
+            $ready = $this->convertUploadToJpeg($path, $item->id) ?? $path;
+
+            $item->update(['image_path' => $ready]);
+
+            return PublicStorage::exists($ready);
+        } catch (\Throwable $e) {
+            $this->lastError = $e->getMessage();
+
+            return false;
+        }
     }
 
     public function mediaAccessToken(PinterestQueueItem $item): string

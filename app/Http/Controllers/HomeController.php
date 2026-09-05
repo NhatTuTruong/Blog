@@ -16,7 +16,7 @@ class HomeController extends Controller
         $selectedCategory = $request->string('cat')->toString();
         $isFiltered = $searchQuery !== '' || $selectedCategory !== '';
 
-        $baseQuery = Blog::query()->published()->with('blogCategory');
+        $baseQuery = Blog::query()->published()->with(['blogCategory', 'blogCategories']);
 
         $applyFilters = function ($query) use ($searchQuery, $selectedCategory) {
             if ($searchQuery !== '') {
@@ -26,7 +26,7 @@ class HomeController extends Controller
                 });
             }
             if ($selectedCategory !== '') {
-                $query->where('category', $selectedCategory);
+                $query->inBlogCategoryName($selectedCategory);
             }
         };
 
@@ -39,7 +39,7 @@ class HomeController extends Controller
 
         if ($isFiltered) {
             $filteredPosts = (clone $baseQuery)->tap($applyFilters)
-                ->orderByDesc('created_at')
+                ->homeOrder()
                 ->limit(24)
                 ->get();
 
@@ -57,16 +57,14 @@ class HomeController extends Controller
         }
 
         $featuredPost = (clone $baseQuery)
-            ->orderByDesc('views_count')
-            ->orderByDesc('created_at')
+            ->homeOrder()
             ->first();
 
         $excludeIds = $featuredPost ? [$featuredPost->id] : [];
 
         $heroRotationPosts = (clone $baseQuery)
             ->when($excludeIds !== [], fn ($q) => $q->whereNotIn('id', $excludeIds))
-            ->orderByDesc('views_count')
-            ->orderByDesc('created_at')
+            ->homeOrder()
             ->limit(5)
             ->get();
 
@@ -74,8 +72,7 @@ class HomeController extends Controller
 
         $trendingPosts = (clone $baseQuery)
             ->when($excludeIds !== [], fn ($q) => $q->whereNotIn('id', $excludeIds))
-            ->orderByDesc('views_count')
-            ->orderByDesc('created_at')
+            ->homeOrder()
             ->limit(5)
             ->get();
 
@@ -87,7 +84,7 @@ class HomeController extends Controller
             ->limit(9)
             ->get();
 
-        $categoryPosts = $this->buildCategoryPosts($featuredCategories, $excludeIds);
+        $categoryPosts = $this->buildCategoryPosts($featuredCategories);
 
         return view('home', [
             'isFiltered' => false,
@@ -109,12 +106,24 @@ class HomeController extends Controller
      */
     protected function buildFeaturedCategories(): Collection
     {
-        $postCounts = Blog::query()
+        $postCounts = BlogCategory::query()
+            ->active()
+            ->withCount([
+                'assignedBlogs as posts_count' => fn ($query) => $query->published(),
+            ])
+            ->pluck('posts_count', 'id');
+
+        $legacyCounts = Blog::query()
             ->published()
             ->whereNotNull('blog_category_id')
+            ->whereDoesntHave('blogCategories')
             ->selectRaw('blog_category_id, COUNT(*) as posts_count')
             ->groupBy('blog_category_id')
             ->pluck('posts_count', 'blog_category_id');
+
+        foreach ($legacyCounts as $categoryId => $count) {
+            $postCounts[$categoryId] = (int) ($postCounts[$categoryId] ?? 0) + (int) $count;
+        }
 
         return BlogCategory::query()
             ->active()
@@ -137,28 +146,31 @@ class HomeController extends Controller
 
     /**
      * @param  Collection<int, array{name: string, slug: string, count: int, url: string, icon: string, color: string}>  $categories
-     * @param  array<int>  $excludeIds
      * @return Collection<int, array{name: string, slug: string, count: int, url: string, icon: string, color: string, posts: Collection}>
      */
-    protected function buildCategoryPosts(Collection $categories, array $excludeIds): Collection
+    protected function buildCategoryPosts(Collection $categories): Collection
     {
-        $baseQuery = Blog::query()->published()->with('blogCategory');
+        $baseQuery = Blog::query()->published()->with(['blogCategory', 'blogCategories']);
 
-        return $categories->take(4)->map(function ($cat) use ($baseQuery, $excludeIds) {
-            $query = (clone $baseQuery)
-                ->whereNotIn('id', $excludeIds)
-                ->orderByDesc('created_at')
-                ->limit(4);
+        return $categories
+            ->filter(fn ($cat) => ($cat['count'] ?? 0) > 0)
+            ->take(4)
+            ->map(function ($cat) use ($baseQuery) {
+                $query = (clone $baseQuery)
+                    ->homeOrder()
+                    ->limit(4);
 
-            if (! empty($cat['id'])) {
-                $query->where('blog_category_id', $cat['id']);
-            } else {
-                $query->where('category', $cat['name']);
-            }
+                if (! empty($cat['id'])) {
+                    $query->inBlogCategory((int) $cat['id']);
+                } else {
+                    $query->inBlogCategoryName($cat['name']);
+                }
 
-            $posts = $query->get();
+                $posts = $query->get();
 
-            return array_merge($cat, ['posts' => $posts]);
-        })->filter(fn ($cat) => $cat['posts']->isNotEmpty())->values();
+                return array_merge($cat, ['posts' => $posts]);
+            })
+            ->filter(fn ($cat) => $cat['posts']->isNotEmpty())
+            ->values();
     }
 }

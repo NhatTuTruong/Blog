@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', 'Cookie Policy - ' . config('app.name'))
-@section('description', 'How we use cookies and similar technologies on our website.')
+@section('title', \App\Support\SiteSeo::pageTitle('cookie'))
+@section('description', \App\Support\SiteSeo::pageDescription('cookie'))
 
 @push('styles')
 <style>

@@ -1,9 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'Blog — ' . config('app.name'))
-@section('description', 'Explore guides, stories and trending articles. Search by topic or browse featured categories.')
+@section('title', \App\Support\SiteSeo::pageTitle('blog'))
+@section('description', \App\Support\SiteSeo::pageDescription('blog'))
 
 @push('styles')
+@include('partials.blog-category-tags-styles')
 <style>
     /* Blog Index Page — matches home page bh- system */
     .blog-index {
@@ -394,32 +395,11 @@
         overflow: hidden;
         position: relative;
     }
-    .bh-card__tag {
-        position: absolute;
-        top: 1rem;
-        left: 1rem;
-        background: var(--bh-accent);
-        color: #fff;
-        padding: 0.35rem 0.75rem;
-        font-size: 0.7rem;
-        font-weight: 700;
-        border-radius: 8px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
     .bh-card__body {
         padding: 1.5rem;
         flex: 1;
         display: flex;
         flex-direction: column;
-    }
-    .bh-card__cat {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--bh-accent);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin-bottom: 0.5rem;
     }
     .bh-card__title {
         font-family: 'Space Grotesk', sans-serif;
@@ -566,10 +546,8 @@
                 @foreach($featuredPosts as $index => $post)
                 <div class="blog-hero__card" style="animation-delay: {{ $index * 0.5 }}s;">
                     <img src="{{ $post->featured_image_url ?? 'https://picsum.photos/seed/' . $post->id . '/400/300' }}" alt="" class="blog-hero__card-img">
+                    @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay', 'compact' => true])
                     <div class="blog-hero__card-body">
-                        @if($post->category)
-                        <div class="blog-hero__card-cat">{{ $post->category }}</div>
-                        @endif
                         <div class="blog-hero__card-title">{{ $post->title }}</div>
                     </div>
                 </div>
@@ -625,13 +603,11 @@
                     <article class="bh-card">
                         <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
                             <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy">
-                            @if($post->category)
-                                <span class="bh-card__tag">{{ $post->category }}</span>
-                            @endif
+                            @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                         </a>
                         <div class="bh-card__body">
-                            @if($post->category && !$post->featured_image_url)
-                                <div class="bh-card__cat">{{ $post->category }}</div>
+                            @if(!$post->featured_image_url)
+                                @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline'])
                             @endif
                             <h3 class="bh-card__title">
                                 <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>

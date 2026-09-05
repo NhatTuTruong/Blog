@@ -195,11 +195,13 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                                     ->placeholder('nike.com')
                                     ->maxLength(255)
                                     ->columnSpan(['default' => 6, 'md' => 2]),
-                                Select::make('blog_category_id')
+                                Select::make('blog_category_ids')
                                     ->label('Danh mục')
                                     ->options($categoryOptions)
+                                    ->multiple()
                                     ->searchable()
                                     ->placeholder('General')
+                                    ->helperText('Có thể chọn nhiều danh mục.')
                                     ->columnSpan(['default' => 6, 'md' => 2]),
                                 TextInput::make('aff_link')
                                     ->label('Link Affiliate')
@@ -211,6 +213,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                                     ->label('Ý tưởng cho AI')
                                     ->rows(2)
                                     ->maxLength(2000)
+                                    ->helperText('AI mặc định viết bằng tiếng Anh. Chỉ đổi ngôn ngữ khi bạn ghi rõ (vd: "viết tiếng Việt", "write in French"). AI sẽ tuân thủ nội dung bạn mô tả ở đây.')
                                     ->columnSpan(['default' => 6, 'md' => 4]),
                                 TagsInput::make('coupon_codes')
                                     ->label('Coupon')
@@ -317,7 +320,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
 
                 $records = [[
                     'brand_domain' => $record->brand_domain,
-                    'blog_category_id' => $record->blog_category_id,
+                    'blog_category_ids' => $record->resolvedCategoryIds(),
                     'content_idea' => $record->content_idea,
                     'aff_link' => $record->aff_link,
                     'coupon_codes' => $record->coupon_codes ?? [],
@@ -379,7 +382,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                         foreach ($records as $record) {
                             $recordsToEnqueue = [[
                                 'brand_domain' => $record->brand_domain,
-                                'blog_category_id' => $record->blog_category_id,
+                                'blog_category_ids' => $record->resolvedCategoryIds(),
                                 'content_idea' => $record->content_idea,
                                 'aff_link' => $record->aff_link,
                                 'coupon_codes' => $record->coupon_codes ?? [],
@@ -843,7 +846,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
         return [
             'featured_image' => null,
             'brand_domain' => '',
-            'blog_category_id' => null,
+            'blog_category_ids' => [],
             'content_idea' => null,
             'aff_link' => null,
             'coupon_codes' => [],
