@@ -308,29 +308,7 @@ class FacebookQueueService
 
     public function publishQueueItem(FacebookQueueItem $item): string
     {
-        $caption = $item->caption;
-        $usedDefaultCaption = (bool) $item->used_default_caption;
-
-        if (! filled($caption)) {
-            $gemini = app(GeminiInstagramService::class);
-            $caption = $gemini->generateCaption(
-                $item->brand_domain,
-                $item->content_idea,
-                $item->aff_link,
-                is_array($item->coupon_codes) ? $item->coupon_codes : [],
-                $item->user_id,
-                GeminiKeyScope::FACEBOOK,
-            );
-            $usedDefaultCaption = $gemini->usedDefaultCaption;
-
-            $item->update([
-                'caption' => $caption,
-                'used_default_caption' => $usedDefaultCaption,
-                'error_message' => $usedDefaultCaption && filled($gemini->lastError)
-                    ? 'AI: '.$gemini->lastError
-                    : null,
-            ]);
-        }
+        $caption = app(GeminiInstagramService::class)->requireCaptionForQueueItem($item, GeminiKeyScope::FACEBOOK);
 
         $item->loadMissing('facebookAccount');
 

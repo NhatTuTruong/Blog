@@ -12,8 +12,6 @@ class GeminiInstagramService
 
     public ?string $lastError = null;
 
-    public bool $usedDefaultCaption = false;
-
     /**
      * @param  array<int, string>  $couponCodes
      */
@@ -24,13 +22,14 @@ class GeminiInstagramService
         array $couponCodes = [],
         ?int $ownerUserId = null,
         string $scope = GeminiKeyScope::INSTAGRAM,
-    ): string {
-        $this->usedDefaultCaption = false;
+    ): ?string {
         $this->lastError = null;
         $couponCodes = array_values(array_filter(array_map('trim', $couponCodes)));
 
         if (! GeminiSettings::hasApiKey($scope, $ownerUserId)) {
-            return $this->useDefaultCaption($affLink, $couponCodes);
+            $this->lastError = 'Chưa cấu hình API key Gemini.';
+
+            return null;
         }
 
         try {
@@ -42,7 +41,59 @@ class GeminiInstagramService
             $this->lastError = $e->getMessage();
         }
 
-        return $this->useDefaultCaption($affLink, $couponCodes);
+        if (! filled($this->lastError)) {
+            $this->lastError = 'AI không tạo được caption.';
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<int, string>  $couponCodes
+     */
+    public function requireCaption(
+        ?string $brandDomain = null,
+        ?string $contentIdea = null,
+        ?string $affLink = null,
+        array $couponCodes = [],
+        ?int $ownerUserId = null,
+        string $scope = GeminiKeyScope::INSTAGRAM,
+    ): string {
+        $caption = $this->generateCaption($brandDomain, $contentIdea, $affLink, $couponCodes, $ownerUserId, $scope);
+        if ($caption === null) {
+            throw new \RuntimeException(
+                'Không tạo được caption AI: '.($this->lastError ?? 'Lỗi không xác định.')
+            );
+        }
+
+        return $caption;
+    }
+
+    /**
+     * @param  InstagramQueueItem|\App\Models\FacebookQueueItem|\App\Models\PinterestQueueItem  $item
+     */
+    public function requireCaptionForQueueItem(object $item, string $scope): string
+    {
+        if (filled($item->caption) && ! (bool) $item->used_default_caption) {
+            return (string) $item->caption;
+        }
+
+        $caption = $this->requireCaption(
+            $item->brand_domain,
+            $item->content_idea,
+            $item->aff_link,
+            is_array($item->coupon_codes) ? $item->coupon_codes : [],
+            $item->user_id,
+            $scope,
+        );
+
+        $item->update([
+            'caption' => $caption,
+            'used_default_caption' => false,
+            'error_message' => null,
+        ]);
+
+        return $caption;
     }
 
     /**
@@ -76,20 +127,6 @@ class GeminiInstagramService
         }
 
         return $this->truncateCaption(trim(implode("\n", $lines)));
-    }
-
-    /**
-     * @param  array<int, string>  $couponCodes
-     */
-    protected function useDefaultCaption(?string $affLink, array $couponCodes): string
-    {
-        $this->usedDefaultCaption = true;
-
-        if (! filled($this->lastError)) {
-            $this->lastError = 'AI không tạo được caption — dùng nội dung mặc định.';
-        }
-
-        return $this->buildDefaultInstagramCaption($affLink, $couponCodes);
     }
 
     /**
