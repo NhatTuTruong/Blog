@@ -63,7 +63,7 @@ class IntegrationSettingsForm
 
         $sections = [
             Section::make('AI Content (Gemini)')
-                ->description('Mỗi phần dùng một API key riêng. Nhập key mới để lưu; "********" giữ key hiện tại; để trống xóa key.')
+                ->description('Mỗi phần ưu tiên dùng key riêng (Auto blog, Instagram, Facebook). Khi key của phần đó lỗi sẽ tự thử key các phần còn lại. Nhập key mới để lưu; "********" giữ key hiện tại; để trống xóa key.')
                 ->schema($geminiKeyFields)
                 ->columns(3),
             Section::make('Apify — Google Images & TikTok')

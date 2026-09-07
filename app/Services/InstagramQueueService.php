@@ -310,9 +310,15 @@ class InstagramQueueService
 
     public function publishQueueItem(InstagramQueueItem $item): string
     {
-        $caption = app(GeminiInstagramService::class)->requireCaptionForQueueItem($item, GeminiKeyScope::INSTAGRAM);
-
         $item->loadMissing('instagramAccount');
+
+        $media = app(InstagramPostImageService::class);
+        if (! filled($item->video_path)) {
+            $media->ensureStoredJpegForItem($item);
+            $item = $item->fresh() ?? $item;
+        }
+
+        $caption = app(GeminiInstagramService::class)->resolveCaptionForQueueItem($item, GeminiKeyScope::INSTAGRAM);
 
         $videoSource = app(SocialMediaVideoSourceService::class);
         if ($videoSource->itemWantsAutoVideo($item)) {

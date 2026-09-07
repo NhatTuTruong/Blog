@@ -338,7 +338,13 @@ class PinterestQueueService
 
     public function publishQueueItem(PinterestQueueItem $item): string
     {
-        $caption = app(GeminiInstagramService::class)->requireCaptionForQueueItem($item, GeminiKeyScope::PINTEREST);
+        $media = app(PinterestPostMediaService::class);
+        if (! filled($item->video_path)) {
+            $media->ensureStoredJpegForItem($item);
+            $item = $item->fresh() ?? $item;
+        }
+
+        $caption = app(GeminiInstagramService::class)->resolveCaptionForQueueItem($item, GeminiKeyScope::PINTEREST);
 
         $item->loadMissing('pinterestAccount');
 

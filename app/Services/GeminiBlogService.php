@@ -555,10 +555,10 @@ PROMPT;
         ?int $ownerUserId = null,
         string $scope = GeminiKeyScope::AUTO_BLOG,
     ): ?array {
-        $apiKeys = GeminiSettings::getApiKeys($scope, $ownerUserId);
+        $apiKeyEntries = GeminiSettings::getApiKeyEntries($scope, $ownerUserId);
         $primaryModel = GeminiSettings::primaryModel($ownerUserId);
 
-        if ($apiKeys === []) {
+        if ($apiKeyEntries === []) {
             $this->lastError = 'Gemini API key cho '.GeminiKeyScope::label($scope).' chưa được cấu hình.';
 
             return null;
@@ -567,7 +567,10 @@ PROMPT;
         $errors = [];
 
         foreach (GeminiSettings::modelsToTry($ownerUserId) as $currentModel) {
-            foreach ($apiKeys as $apiKey) {
+            foreach ($apiKeyEntries as $apiKeyEntry) {
+                $apiKey = $apiKeyEntry['key'];
+                $keyScope = $apiKeyEntry['scope'];
+
                 $attempt = $this->attemptGeminiCallWithRetries(
                     $apiKey,
                     $currentModel,
@@ -584,19 +587,28 @@ PROMPT;
                             'from' => $primaryModel,
                             'to' => $currentModel,
                             'scope' => $scope,
+                            'key_scope' => $keyScope,
+                        ]);
+                    }
+
+                    if ($keyScope !== $scope) {
+                        Log::info('GeminiBlogService: đã dùng API key dự phòng từ phần khác', [
+                            'requested_scope' => $scope,
+                            'used_scope' => $keyScope,
+                            'model' => $currentModel,
                         ]);
                     }
 
                     return $attempt['result'];
                 }
 
-                if (! $this->shouldFallbackToNextModel($attempt['error'], $attempt['retryable'])) {
+                if (! $this->shouldFallbackToNextAttempt($attempt['error'], $attempt['retryable'])) {
                     $this->lastError = $attempt['error'];
 
                     return null;
                 }
 
-                $errors[] = "{$currentModel} / ".GeminiKeyScope::label($scope).': '.$attempt['error'];
+                $errors[] = "{$currentModel} / ".GeminiKeyScope::label($keyScope).': '.$attempt['error'];
                 $this->lastError = $attempt['error'];
             }
         }
@@ -606,7 +618,7 @@ PROMPT;
         return null;
     }
 
-    protected function shouldFallbackToNextModel(string $error, bool $retryable): bool
+    protected function shouldFallbackToNextAttempt(string $error, bool $retryable): bool
     {
         if ($retryable) {
             return true;
@@ -615,10 +627,9 @@ PROMPT;
         $error = strtolower($error);
 
         foreach ([
-            'api key not valid',
-            'invalid api key',
-            'permission denied',
-            'unauthenticated',
+            'response blocked',
+            'response không có parts',
+            'response không có nội dung text',
         ] as $pattern) {
             if (str_contains($error, $pattern)) {
                 return false;

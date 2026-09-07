@@ -6,7 +6,7 @@ class GeminiSettings
 {
     public static function hasApiKey(string $scope, ?int $userId = null): bool
     {
-        return static::getApiKey($scope, $userId) !== null;
+        return static::getApiKeyEntries($scope, $userId) !== [];
     }
 
     public static function getApiKey(string $scope, ?int $userId = null): ?string
@@ -18,9 +18,39 @@ class GeminiSettings
             return $scopedKey;
         }
 
+        if ($scope !== GeminiKeyScope::AUTO_BLOG) {
+            return null;
+        }
+
         $legacyKey = trim((string) ($store->getEncrypted('gemini_api_key') ?? ''));
 
         return $legacyKey !== '' ? $legacyKey : null;
+    }
+
+    /**
+     * Key theo scope, kèm fallback sang các scope khác (bỏ trùng).
+     *
+     * @return array<int, array{key: string, scope: string}>
+     */
+    public static function getApiKeyEntries(string $scope, ?int $userId = null): array
+    {
+        $entries = [];
+        $seen = [];
+
+        foreach (GeminiKeyScope::orderedScopes($scope) as $tryScope) {
+            $key = static::getApiKey($tryScope, $userId);
+            if ($key === null || isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $entries[] = [
+                'key' => $key,
+                'scope' => $tryScope,
+            ];
+        }
+
+        return $entries;
     }
 
     /**
@@ -28,9 +58,10 @@ class GeminiSettings
      */
     public static function getApiKeys(string $scope, ?int $userId = null): array
     {
-        $key = static::getApiKey($scope, $userId);
-
-        return $key !== null ? [$key] : [];
+        return array_map(
+            fn (array $entry): string => $entry['key'],
+            static::getApiKeyEntries($scope, $userId),
+        );
     }
 
     /**

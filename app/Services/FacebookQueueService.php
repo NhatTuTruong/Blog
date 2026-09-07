@@ -308,7 +308,13 @@ class FacebookQueueService
 
     public function publishQueueItem(FacebookQueueItem $item): string
     {
-        $caption = app(GeminiInstagramService::class)->requireCaptionForQueueItem($item, GeminiKeyScope::FACEBOOK);
+        $media = app(FacebookPostMediaService::class);
+        if (! filled($item->video_path)) {
+            $media->ensureStoredJpegForItem($item);
+            $item = $item->fresh() ?? $item;
+        }
+
+        $caption = app(GeminiInstagramService::class)->resolveCaptionForQueueItem($item, GeminiKeyScope::FACEBOOK);
 
         $item->loadMissing('facebookAccount');
 

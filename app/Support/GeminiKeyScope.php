@@ -31,4 +31,35 @@ class GeminiKeyScope
             default => 'Đăng bài viết tự động',
         };
     }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function allScopes(): array
+    {
+        return [
+            self::AUTO_BLOG,
+            self::INSTAGRAM,
+            self::FACEBOOK,
+            self::PINTEREST,
+        ];
+    }
+
+    /**
+     * Scope ưu tiên trước, sau đó các scope còn lại (dùng khi key phần hiện tại lỗi).
+     *
+     * @return array<int, string>
+     */
+    public static function orderedScopes(string $primaryScope): array
+    {
+        $ordered = [$primaryScope];
+
+        foreach (self::allScopes() as $scope) {
+            if ($scope !== $primaryScope) {
+                $ordered[] = $scope;
+            }
+        }
+
+        return $ordered;
+    }
 }
