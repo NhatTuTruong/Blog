@@ -98,7 +98,7 @@ class InstagramImportService
             $field = match (true) {
                 in_array($normalized, ['domain brand', 'brand domain', 'domain', 'brand_domain', 'brand'], true) => 'brand_domain',
                 in_array($normalized, ['noi dung y tuong', 'nội dung ý tưởng', 'nội dung / ý tưởng', 'content idea', 'content_idea', 'content', 'idea', 'y tuong caption', 'ý tưởng caption'], true) => 'content_idea',
-                in_array($normalized, ['Link Affiliate', 'aff link', 'aff_link', 'affiliate', 'aff'], true) => 'aff_link',
+                in_array($normalized, ['link affiliate', 'aff link', 'aff_link', 'affiliate', 'aff'], true) => 'aff_link',
                 in_array($normalized, ['coupon code', 'coupon codes', 'coupon_code', 'coupon_codes', 'coupon', 'coupons'], true) => 'coupon_codes',
                 in_array($normalized, ['media type', 'media_type', 'loai media', 'loại media', 'type'], true) => 'media_type',
                 default => null,
