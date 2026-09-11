@@ -4,10 +4,10 @@ namespace App\Services;
 
 use App\Support\AffiliateContentGuidelines;
 use App\Support\BlogContentSanitizer;
+use App\Support\GeminiHttp;
 use App\Support\GeminiKeyScope;
 use App\Support\GeminiSettings;
 use App\Support\IntegrationSettingsStore;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -729,10 +729,9 @@ PROMPT;
         $connectTimeout = max(10, (int) config('gemini.connect_timeout', 30));
 
         try {
-            $response = Http::connectTimeout($connectTimeout)
+            $response = GeminiHttp::client()
+                ->connectTimeout($connectTimeout)
                 ->timeout($timeout)
-                ->acceptJson()
-                ->asJson()
                 ->post($endpoint.'?key='.urlencode($apiKey), $payload);
         } catch (\Throwable $e) {
             $message = $e->getMessage();

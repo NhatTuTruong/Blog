@@ -18,5 +18,7 @@ return [
     /** Thời gian chờ tối đa mỗi request (giây). Bài blog dài thường cần 90–180s. */
     'timeout' => (int) env('GEMINI_TIMEOUT_SECONDS', 120),
     'connect_timeout' => (int) env('GEMINI_CONNECT_TIMEOUT_SECONDS', 30),
+    /** Ép cURL dùng IPv4 khi gọi generativelanguage.googleapis.com (tránh lỗi location trên IPv6 VPS). */
+    'force_ipv4' => filter_var(env('GEMINI_FORCE_IPV4', true), FILTER_VALIDATE_BOOLEAN),
 ];
 
