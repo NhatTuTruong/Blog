@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Support\BlogCategorySelection;
 use App\Support\BlogContentSanitizer;
@@ -60,6 +61,11 @@ class Blog extends Model
     public function blogCategories(): BelongsToMany
     {
         return $this->belongsToMany(BlogCategory::class, 'blog_blog_category');
+    }
+
+    public function emailUnlocks(): HasMany
+    {
+        return $this->hasMany(BlogPostEmailUnlock::class);
     }
 
     /**

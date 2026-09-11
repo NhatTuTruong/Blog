@@ -647,6 +647,10 @@
             </div>
         </section>
 
+        @if($post->isBlogPost())
+            @include('partials.blog-email-gate', ['post' => $post])
+        @endif
+
         <div class="blog-main-grid">
             <article class="blog-main">
                 <a href="{{ route($post->listingRouteName()) }}" class="blog-back">
@@ -654,27 +658,31 @@
                     <span>Back to all articles</span>
                 </a>
 
-                <div class="blog-content prose">
-                    {!! $post->renderedContent() !!}
+                <div class="blog-gated-shell {{ $post->isBlogPost() ? 'is-locked' : '' }}" id="blog-gated-shell">
+                    <div class="blog-gated-content">
+                        <div class="blog-content prose">
+                            {!! $post->renderedContent() !!}
+                        </div>
+
+                        @if($post->images && count($post->images) > 0)
+                            <div class="blog-side-media">
+                                @foreach($post->images as $img)
+                                    <img src="{{ asset('storage/' . $img) }}" alt="" loading="lazy">
+                                @endforeach
+                            </div>
+                        @endif
+
+                        @if($post->videos && count($post->videos) > 0)
+                            <div class="blog-side-media">
+                                @foreach($post->videos as $video)
+                                    <video controls preload="metadata">
+                                        <source src="{{ asset('storage/' . $video) }}" type="video/mp4">
+                                    </video>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
                 </div>
-
-                @if($post->images && count($post->images) > 0)
-                    <div class="blog-side-media">
-                        @foreach($post->images as $img)
-                            <img src="{{ asset('storage/' . $img) }}" alt="" loading="lazy">
-                        @endforeach
-                    </div>
-                @endif
-
-                @if($post->videos && count($post->videos) > 0)
-                    <div class="blog-side-media">
-                        @foreach($post->videos as $video)
-                            <video controls preload="metadata">
-                                <source src="{{ asset('storage/' . $video) }}" type="video/mp4">
-                            </video>
-                        @endforeach
-                    </div>
-                @endif
             </article>
 
             @if(isset($relatedBlogs) && $relatedBlogs->isNotEmpty())
@@ -696,13 +704,15 @@
         </div>
 
         @if($post->deals->isNotEmpty())
-            @include('partials.deal-cards', [
-                'deals' => $post->deals,
-                'sectionTitle' => 'Coupons & Discount Deals',
-                'showFilters' => false,
-                'sectionId' => 'post-deals',
-                'linkToPost' => false,
-            ])
+            <div class="{{ $post->isBlogPost() ? 'blog-gated-shell blog-gated-shell--hidden-until-unlock is-locked' : '' }}">
+                @include('partials.deal-cards', [
+                    'deals' => $post->deals,
+                    'sectionTitle' => 'Coupons & Discount Deals',
+                    'showFilters' => false,
+                    'sectionId' => 'post-deals',
+                    'linkToPost' => false,
+                ])
+            </div>
         @endif
 
     </div>

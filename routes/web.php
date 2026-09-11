@@ -51,6 +51,10 @@ Route::get('/blogs/{slug}', [App\Http\Controllers\BlogController::class, 'show']
     ->defaults('postType', 'blog')
     ->name('blogs.show')
     ->where('slug', '[a-z0-9\-]+');
+Route::post('/blogs/{slug}/unlock', [App\Http\Controllers\BlogEmailGateController::class, 'store'])
+    ->middleware('throttle:15,1')
+    ->name('blogs.email-unlock')
+    ->where('slug', '[a-z0-9\-]+');
 Route::redirect('/blog', '/blogs', 301);
 Route::get('/blog/{slug}', function (string $slug) {
     return redirect("/blogs/{$slug}", 301);

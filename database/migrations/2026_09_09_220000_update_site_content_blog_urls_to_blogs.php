@@ -75,11 +75,11 @@ return new class extends Migration
             return '/blogs';
         }
 
-        if (preg_match('#^/blog/([^/?#]+)$#', $url, $matches)) {
+        if (preg_match('~^/blog/([^/?#]+)$~', $url, $matches)) {
             return '/blogs/'.$matches[1];
         }
 
-        if (preg_match('#^blog/([^/?#]+)$#', $url, $matches)) {
+        if (preg_match('~^blog/([^/?#]+)$~', $url, $matches)) {
             return '/blogs/'.$matches[1];
         }
 
