@@ -7,7 +7,7 @@
 <style>
     .legal-container { max-width: 800px; margin: 0 auto; padding: 3rem 1.5rem; }
     .legal-container h1 {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: clamp(1.75rem, 4vw, 2.25rem);
         font-weight: 700;
         margin-bottom: 1.5rem;

@@ -17,12 +17,17 @@ class Blog extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const TYPE_REVIEW = 'review';
+
+    public const TYPE_BLOG = 'blog';
+
     protected $fillable = [
         'user_id',
         'blog_category_id',
         'title',
         'category',
         'slug',
+        'post_type',
         'content',
         'featured_image',
         'images',
@@ -55,6 +60,101 @@ class Blog extends Model
     public function blogCategories(): BelongsToMany
     {
         return $this->belongsToMany(BlogCategory::class, 'blog_blog_category');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function postTypeOptions(): array
+    {
+        return [
+            self::TYPE_REVIEW => 'Review',
+            self::TYPE_BLOG => 'Blog',
+        ];
+    }
+
+    public function resolvedPostType(): string
+    {
+        $type = (string) ($this->post_type ?? self::TYPE_REVIEW);
+
+        return array_key_exists($type, self::postTypeOptions()) ? $type : self::TYPE_REVIEW;
+    }
+
+    public function isReview(): bool
+    {
+        return $this->resolvedPostType() === self::TYPE_REVIEW;
+    }
+
+    public function isBlogPost(): bool
+    {
+        return $this->resolvedPostType() === self::TYPE_BLOG;
+    }
+
+    public function postTypeLabel(): string
+    {
+        return self::postTypeOptions()[$this->resolvedPostType()];
+    }
+
+    public function listingRouteName(): string
+    {
+        return $this->isBlogPost() ? 'blogs.index' : 'review.index';
+    }
+
+    public function showRouteName(): string
+    {
+        return $this->isBlogPost() ? 'blogs.show' : 'review.show';
+    }
+
+    public function publicUrl(): string
+    {
+        return route($this->showRouteName(), $this->slug);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function listingMeta(string $postType): array
+    {
+        return match ($postType) {
+            self::TYPE_BLOG => [
+                'seoPage' => 'blog',
+                'label' => 'Comparison Blog',
+                'title' => 'Discover Comparisons That <span class="highlight">Guide</span> You',
+                'subtitle' => 'Browse comparison articles and in-depth buying guides from '.config('app.name').'. Search by topic or filter by category.',
+                'breadcrumb' => 'Blog',
+            ],
+            default => [
+                'seoPage' => 'review',
+                'label' => 'Digital Magazine',
+                'title' => 'Discover Stories That <span class="highlight">Inspire</span> You',
+                'subtitle' => 'Browse all reviews, guides and insights from '.config('app.name').'. Search by topic or filter by category.',
+                'breadcrumb' => 'Review',
+            ],
+        };
+    }
+
+    public function scopeOfType($query, string $postType)
+    {
+        return $query->where('post_type', $postType);
+    }
+
+    public function scopeReviews($query)
+    {
+        return $query->ofType(self::TYPE_REVIEW);
+    }
+
+    public function scopeBlogPosts($query)
+    {
+        return $query->ofType(self::TYPE_BLOG);
+    }
+
+    public function deals(): BelongsToMany
+    {
+        return $this->belongsToMany(BlogDeal::class, 'blog_blog_deal')
+            ->withPivot('sort_order')
+            ->withTimestamps()
+            ->orderBy('blog_blog_deal.sort_order')
+            ->orderBy('blog_deals.id');
     }
 
     /**
@@ -230,7 +330,7 @@ class Blog extends Model
         return static::resolveBlogCategory($this->category);
     }
 
-    /** URL ảnh hiển thị: ảnh bài viết → public/categories/{slug} → ảnh upload danh mục → default */
+    /** URL ảnh hiển thị: ảnh bài viết → public/category-images/{slug} → ảnh upload danh mục → default */
     public function getFeaturedImageUrlAttribute(): string
     {
         if ($this->hasStoredFeaturedImage()) {
@@ -241,17 +341,39 @@ class Blog extends Model
     }
 
     /**
-     * Thư mục ảnh danh mục tĩnh (ưu tiên public/categories).
+     * Thư mục ảnh danh mục tĩnh (ưu tiên public/category-images).
      *
      * @return array<int, string>
      */
     public static function publicCategoryImageDirs(): array
     {
-        return ['categories', 'images/categories'];
+        return ['category-images', 'images/category-images', 'images/categories'];
     }
 
     /**
-     * Ảnh danh mục trong public/categories/{slug}.jpg (hoặc images/categories).
+     * Ảnh danh mục trong một thư mục public cố định, ví dụ images/categories/{slug}.jpg
+     */
+    public static function publicCategoryImageUrlInDir(string $dir, ?string $slug = null, ?string $categoryName = null): ?string
+    {
+        $slug = filled($slug) ? $slug : (filled($categoryName) ? Str::slug($categoryName) : null);
+
+        if (! filled($slug)) {
+            return null;
+        }
+
+        foreach (['webp', 'jpg', 'jpeg', 'png', 'svg', 'gif'] as $ext) {
+            $relative = "{$dir}/{$slug}.{$ext}";
+
+            if (file_exists(public_path($relative))) {
+                return asset($relative);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Ảnh danh mục trong public/category-images/{slug}.webp.
      */
     public static function publicCategoryImageUrl(?string $slug = null, ?string $categoryName = null): ?string
     {
@@ -262,7 +384,7 @@ class Blog extends Model
         }
 
         foreach (static::publicCategoryImageDirs() as $dir) {
-            foreach (['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif'] as $ext) {
+            foreach (['webp', 'jpg', 'jpeg', 'png', 'svg', 'gif'] as $ext) {
                 $relative = "{$dir}/{$slug}.{$ext}";
 
                 if (file_exists(public_path($relative))) {
@@ -274,7 +396,7 @@ class Blog extends Model
         return null;
     }
 
-    /** URL ảnh danh mục: public/categories → upload admin → default.jpg */
+    /** URL ảnh danh mục: public/category-images → upload admin → default.webp */
     public static function categoryImageUrl(?BlogCategory $category = null, ?string $categoryName = null): string
     {
         if ($category) {
@@ -294,20 +416,58 @@ class Blog extends Model
         return static::defaultImageUrl();
     }
 
+    /**
+     * Các đường dẫn ảnh mặc định (WebP), theo thứ tự ưu tiên.
+     *
+     * @return array<int, string>
+     */
+    public static function defaultImageCandidatePaths(): array
+    {
+        return [
+            'images/default.webp',
+            'category-images/default.webp',
+            'images/category-images/default.webp',
+            'images/categories/default.webp',
+        ];
+    }
+
+    /**
+     * Ảnh mặc định dự phòng (admin preview, social queue, v.v.).
+     *
+     * @return array<int, string>
+     */
+    public static function fallbackDefaultImagePaths(): array
+    {
+        return array_merge(static::defaultImageCandidatePaths(), [
+            'images/default-brand.webp',
+            'images/placeholder.webp',
+            'images/instagram/default1.webp',
+            'images/instagram/default2.webp',
+            'images/instagram/default3.webp',
+        ]);
+    }
+
     /** Ảnh mặc định khi bài viết / danh mục không có ảnh riêng. */
     public static function defaultImageUrl(): string
     {
-        foreach ( [
-            'images/default.jpg',
-            'categories/default.jpg',
-            'images/categories/default.jpg',
-        ] as $path) {
+        foreach (static::defaultImageCandidatePaths() as $path) {
             if (file_exists(public_path($path))) {
                 return asset($path);
             }
         }
 
-        return asset('images/default.jpg');
+        return asset('images/default.webp');
+    }
+
+    public static function resolveFallbackDefaultImageUrl(): ?string
+    {
+        foreach (static::fallbackDefaultImagePaths() as $path) {
+            if (is_file(public_path($path))) {
+                return asset($path);
+            }
+        }
+
+        return null;
     }
 
     public static function categoryHasCustomImage(?string $category): bool
@@ -364,6 +524,10 @@ class Blog extends Model
                     $blog->category = $cat->name;
                 }
             }
+
+            if ($blog->priority === null) {
+                $blog->priority = 1;
+            }
         });
 
         static::creating(function (Blog $blog) {
@@ -398,6 +562,8 @@ class Blog extends Model
         $forgetPublicCaches = function (): void {
             Cache::forget('site.sitemap.xml');
             Cache::forget('site.footer.featured_posts');
+            Cache::forget('site.footer.gallery_posts');
+            Cache::forget('site.header.ticker_posts');
         };
 
         static::saved($forgetPublicCaches);

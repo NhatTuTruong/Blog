@@ -74,7 +74,7 @@ class BlogCategoryResource extends Resource
                     ])
                     ->columns(2),
                 Forms\Components\Section::make('Ảnh danh mục')
-                    ->description('Ưu tiên ảnh tĩnh public/categories/{slug}.jpg (theo slug danh mục). Upload bên dưới dùng khi chưa có file trong thư mục đó.')
+                    ->description('Ưu tiên ảnh tĩnh public/category-images/{slug}.webp (theo slug danh mục). Upload bên dưới dùng khi chưa có file trong thư mục đó.')
                     ->schema([
                         Forms\Components\FileUpload::make('image')
                             ->label('Ảnh danh mục (upload)')
@@ -83,7 +83,7 @@ class BlogCategoryResource extends Resource
                             ->disk('public')
                             ->maxSize(5120)
                             ->imageEditor()
-                            ->helperText('Ví dụ: slug «tech» → đặt file public/categories/tech.jpg. Không có file tĩnh và không upload → default.jpg'),
+                            ->helperText('Ví dụ: slug «tech» → đặt file public/category-images/tech.webp. Không có file tĩnh và không upload → default.webp'),
                     ]),
             ]);
     }

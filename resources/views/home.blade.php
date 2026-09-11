@@ -33,12 +33,11 @@
     .bh {
         --bh-ink: #0f172a;
         --bh-muted: #64748b;
-        --bh-light: #f8fafc;
+        --bh-light: #f4f7f5;
         --bh-card: #ffffff;
-        --bh-accent: #2563eb;
-        --bh-accent2: #3b82f6;
+        --bh-accent: #FF8F00;
+        --bh-accent2: #F9A825;
         --bh-border: #e2e8f0;
-        background: var(--bh-card);
         color: var(--bh-ink);
     }
 
@@ -164,7 +163,7 @@
         color: var(--hero-primary-soft);
     }
     .bh-hero__title {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: clamp(2.5rem, 5vw, 3.75rem);
         font-weight: 800;
         line-height: 1.08;
@@ -289,7 +288,7 @@
     }
     .bh-hero__stat strong {
         display: block;
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 1.85rem;
         font-weight: 800;
         color: #f8fafc;
@@ -423,9 +422,6 @@
     .bh-section {
         padding: 4rem 0;
     }
-    .bh-section--alt {
-        background: var(--bh-light);
-    }
     .bh-section__header {
         display: flex;
         justify-content: space-between;
@@ -433,11 +429,24 @@
         margin-bottom: 2rem;
     }
     .bh-section__header h2 {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 1.75rem;
         font-weight: 700;
         margin: 0;
         letter-spacing: -0.02em;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .bh-section__header h2::before {
+        content: '';
+        width: 4px;
+        height: 1.35em;
+        background: var(--bh-accent);
+        border-radius: 2px;
+        flex-shrink: 0;
     }
     .bh-section__header a {
         color: var(--bh-accent);
@@ -584,7 +593,7 @@
         padding: 1.5rem;
     }
     .bh-card__title {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 1.15rem;
         font-weight: 700;
         line-height: 1.4;
@@ -705,7 +714,7 @@
         margin-bottom: 0.35rem;
     }
     .bh-featured__carousel-body .bh-card__title {
-        font-size: 1.5rem;
+        font-size: 2rem;
         -webkit-line-clamp: 2;
         color: #ffffff;
         margin-bottom: 0.5rem;
@@ -782,82 +791,86 @@
         transform: scale(1.1);
     }
 
-    /* Right Sidebar - overlay title on image */
+    /* Right Sidebar — thumb + title rows */
     .bh-featured__sidebar {
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        gap: 0.65rem;
         height: 100%;
         min-height: 500px;
+        background: linear-gradient(135deg, #F9A825 0%, #FF8F00 100%);
+        border-radius: 14px;
+        padding: 0.85rem;
+        border: 1px solid rgba(255, 143, 0, 0.18);
+        box-shadow: 0 8px 24px rgba(255, 143, 0, 0.08);
     }
     .bh-featured__sidebar-item {
         position: relative;
         display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-        padding: 0;
-        background: #0f172a;
-        border-radius: 14px;
-        border: 1px solid var(--bh-border);
+        flex-direction: row;
+        align-items: center;
+        gap: 0.85rem;
+        padding: 0.65rem;
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 143, 0, 0.12);
         text-decoration: none;
         color: inherit;
-        transition: all 0.3s;
+        transition: all 0.25s;
         flex: 1;
         min-height: 0;
         overflow: hidden;
-        isolation: isolate;
     }
     .bh-featured__sidebar-item:hover {
-        border-color: var(--bh-accent);
-        transform: translateX(4px);
-        box-shadow: 0 4px 20px rgba(37, 99, 235, 0.18);
+        border-color: rgba(255, 143, 0, 0.45);
+        background: #FFFBF5;
+        transform: translateX(3px);
+        box-shadow: 0 4px 12px rgba(255, 143, 0, 0.12);
     }
     .bh-featured__sidebar-item img {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
+        position: static;
+        width: 72px;
+        height: 72px;
+        flex-shrink: 0;
         object-fit: cover;
-        border-radius: 0;
+        border-radius: 10px;
         z-index: 0;
     }
     .bh-featured__sidebar-item-body {
         position: relative;
         z-index: 2;
-        flex: 0 0 auto;
+        flex: 1;
         display: flex;
         flex-direction: column;
-        justify-content: flex-end;
-        gap: 0.35rem;
+        justify-content: center;
+        gap: 0.3rem;
         min-width: 0;
-        padding: 0.85rem 1rem 0.95rem;
-        background: linear-gradient(
-            to top,
-            rgba(15, 23, 42, 0.96) 0%,
-            rgba(15, 23, 42, 0.78) 55%,
-            rgba(15, 23, 42, 0.15) 100%
-        );
+        padding: 0;
+        background: none;
     }
-    .bh-featured__sidebar-item .bh-card__cat {
-        color: rgba(255, 255, 255, 0.88);
-        font-size: 0.68rem;
-        margin-bottom: 0.1rem;
+    .bh-featured__sidebar-item .bh-card__cat,
+    .bh-featured__sidebar-item .blog-cat-tag {
+        font-size: 0.62rem;
     }
     .bh-featured__sidebar-item h4 {
-        font-size: 0.92rem;
+        font-size: 0.88rem;
         font-weight: 650;
         line-height: 1.35;
         margin: 0;
-        color: #ffffff;
+        color: #1a2332;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+        text-shadow: none;
     }
-    .bh-featured__sidebar-item span {
-        font-size: 0.72rem;
-        color: rgba(255, 255, 255, 0.78);
+    .bh-featured__sidebar-label {
+        font-size: 1.2rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #FFF;
+        margin: 0 0 0.25rem 0.35rem;
     }
 
     /* Mobile Carousel */
@@ -907,7 +920,7 @@
         transform: translateX(4px);
     }
     .bh-trend__num {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 2rem;
         font-weight: 800;
         color: var(--bh-border);
@@ -978,7 +991,7 @@
         margin: 0 auto;
     }
     .bh-cta h2 {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: clamp(1.75rem, 4vw, 2.5rem);
         font-weight: 800;
         color: #fff;
@@ -1019,7 +1032,7 @@
         border-radius: 20px;
     }
     .bh-empty h2 {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 1.5rem;
         margin: 0 0 0.5rem;
     }
@@ -1115,7 +1128,7 @@
         color: #fff;
     }
     .bh-cat-list__featured-overlay .bh-card__cat {
-        color: #93c5fd;
+        color: #F9A825;
     }
     .bh-cat-list__featured-overlay .bh-card__title {
         color: #fff;
@@ -1246,7 +1259,7 @@
     .bh-cat-zigzag-item:hover .bh-cat-zigzag-item__media img { transform: scale(1.03); }
     .bh-cat-zigzag-item-body { padding: 1rem 0; }
     .bh-cat-zigzag-item-body h3 {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 1.35rem;
         font-weight: 700;
         line-height: 1.3;
@@ -1295,7 +1308,6 @@
     .bh-cat-block--alt {
         margin: 0 -2rem;
         padding: 2rem;
-        background: var(--bh-light);
         border-bottom: none;
     }
     @media (max-width: 768px) {
@@ -1309,24 +1321,15 @@
         z-index: 10;
     }
     .bh-cat-sidebar__inner {
-        background: linear-gradient(165deg, #0f172a 0%, #1e3a8a 55%, #1e40af 100%);
-        border-radius: 20px;
+        background: #ffffff;
+        border-radius: 16px;
         padding: 1.5rem;
+        border: 1px solid rgba(255, 143, 0, 0.18);
         box-shadow:
-            0 24px 48px rgba(15, 23, 42, 0.28),
-            0 0 0 1px rgba(96, 165, 250, 0.25),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            0 12px 32px rgba(255, 143, 0, 0.08),
+            0 2px 8px rgba(15, 20, 25, 0.04);
         overflow: hidden;
         position: relative;
-        max-height: calc(100vh - 6.5rem);
-        overflow-y: auto;
-        scrollbar-width: thin;
-        scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-    }
-    .bh-cat-sidebar__inner::-webkit-scrollbar { width: 4px; }
-    .bh-cat-sidebar__inner::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 4px;
     }
     .bh-cat-sidebar__inner::before {
         content: '';
@@ -1335,7 +1338,7 @@
         right: -30%;
         width: 220px;
         height: 220px;
-        background: radial-gradient(circle, rgba(96, 165, 250, 0.35) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(255, 143, 0, 0.08) 0%, transparent 70%);
         pointer-events: none;
     }
     @media (max-width: 1024px) {
@@ -1348,24 +1351,23 @@
     .bh-cat-sidebar__widget {
         position: relative;
         z-index: 1;
-        background: rgba(255, 255, 255, 0.07);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: #fffaf5;
+        border: 1px solid rgba(255, 143, 0, 0.14);
         border-radius: 14px;
         padding: 1.25rem;
         margin-bottom: 1rem;
-        backdrop-filter: blur(8px);
     }
     .bh-cat-sidebar__widget:last-child { margin-bottom: 0; }
     .bh-cat-sidebar__title {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 0.75rem;
         font-weight: 700;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        color: #93c5fd;
+        color: #0f172a;
         margin: 0 0 1rem;
         padding-bottom: 0.75rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        border-bottom: 1px solid rgba(255, 143, 0, 0.16);
         display: flex;
         align-items: center;
         gap: 0.5rem;
@@ -1375,8 +1377,8 @@
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: #60a5fa;
-        box-shadow: 0 0 10px rgba(96, 165, 250, 0.8);
+        background: #FF8F00;
+        box-shadow: 0 0 8px rgba(255, 143, 0, 0.45);
     }
     .bh-cat-sidebar__cats {
         list-style: none;
@@ -1387,12 +1389,12 @@
     .bh-cat-sidebar__cats a {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
+        justify-content: flex-start;
+        gap: 0.65rem;
         padding: 0.6rem 0.65rem;
         margin: 0 -0.65rem;
         font-size: 0.875rem;
-        color: rgba(255, 255, 255, 0.78);
+        color: #4b5563;
         text-decoration: none;
         border-radius: 8px;
         transition: background 0.15s, color 0.15s, transform 0.15s;
@@ -1400,9 +1402,16 @@
     .bh-cat-sidebar__cats a:hover,
     .bh-cat-sidebar__cats a.active,
     .bh-cat-sidebar__cats a.is-current {
-        color: #fff;
-        background: rgba(37, 99, 235, 0.35);
+        color: #0f172a;
+        background: rgba(255, 143, 0, 0.12);
         transform: translateX(3px);
+    }
+    .bh-cat-sidebar__cat-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        box-shadow: 0 0 6px rgba(255, 143, 0, 0.35);
     }
     .bh-cat-sidebar__cat-name {
         flex: 1;
@@ -1413,18 +1422,19 @@
     }
     .bh-cat-sidebar__cat-count {
         flex-shrink: 0;
+        margin-left: auto;
         font-size: 0.72rem;
         font-weight: 700;
-        background: rgba(255, 255, 255, 0.12);
-        color: #bfdbfe;
+        background: rgba(255, 143, 0, 0.1);
+        color: #c2410c;
         padding: 0.2rem 0.55rem;
         border-radius: 999px;
     }
     .bh-cat-sidebar__cats a:hover .bh-cat-sidebar__cat-count,
     .bh-cat-sidebar__cats a.active .bh-cat-sidebar__cat-count,
     .bh-cat-sidebar__cats a.is-current .bh-cat-sidebar__cat-count {
-        background: rgba(255, 255, 255, 0.22);
-        color: #fff;
+        background: rgba(255, 143, 0, 0.2);
+        color: #9a3412;
     }
     .bh-cat-sidebar__trending {
         list-style: none;
@@ -1436,7 +1446,7 @@
         counter-increment: trend;
         margin: 0;
         padding: 0.65rem 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid rgba(255, 143, 0, 0.12);
     }
     .bh-cat-sidebar__trending li:last-child {
         border-bottom: none;
@@ -1454,26 +1464,26 @@
         transition: background 0.15s;
     }
     .bh-cat-sidebar__trending a:hover {
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 143, 0, 0.08);
     }
     .bh-cat-sidebar__trending a::before {
         content: counter(trend, decimal-leading-zero);
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 0.8rem;
         font-weight: 800;
-        color: rgba(255, 255, 255, 0.25);
+        color: #9ca3af;
         min-width: 1.25rem;
         line-height: 1.4;
         transition: color 0.15s;
     }
-    .bh-cat-sidebar__trending a:hover::before { color: #60a5fa; }
+    .bh-cat-sidebar__trending a:hover::before { color: #FF8F00; }
     .bh-cat-sidebar__trending img {
         width: 52px;
         height: 52px;
         object-fit: cover;
         border-radius: 10px;
         flex-shrink: 0;
-        border: 2px solid rgba(255, 255, 255, 0.15);
+        border: 2px solid rgba(255, 143, 0, 0.16);
     }
     .bh-cat-sidebar__trend-body {
         flex: 1;
@@ -1484,7 +1494,7 @@
         font-size: 0.85rem;
         font-weight: 600;
         line-height: 1.4;
-        color: rgba(255, 255, 255, 0.92);
+        color: #1f2937;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
@@ -1492,12 +1502,40 @@
         transition: color 0.15s;
     }
     .bh-cat-sidebar__trending a:hover .bh-cat-sidebar__trend-title {
-        color: #fff;
+        color: #0f172a;
     }
+    .bh-cat-sidebar__latest {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    .bh-cat-sidebar__latest li {
+        margin: 0;
+        padding: 0.55rem 0;
+        border-bottom: 1px solid rgba(255, 143, 0, 0.12);
+    }
+    .bh-cat-sidebar__latest li:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    .bh-cat-sidebar__latest a {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 500;
+        line-height: 1.45;
+        color: #374151;
+        text-decoration: none;
+        transition: color 0.15s;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .bh-cat-sidebar__latest a:hover { color: #FF8F00; }
     .bh-cat-sidebar__trend-meta {
         display: block;
         font-size: 0.72rem;
-        color: rgba(255, 255, 255, 0.5);
+        color: #6b7280;
         margin-top: 0.25rem;
     }
     @media (max-width: 1024px) {
@@ -1511,86 +1549,78 @@
     @media (max-width: 640px) {
         .bh-cat-sidebar__inner { grid-template-columns: 1fr; }
     }
+
+    /* Popular Posts — dark band */
+    .bh-popular {
+        background: linear-gradient(180deg, #0f1419 0%, #161d27 100%);
+        padding: 3.5rem 0;
+        margin-top: 1rem;
+    }
+    .bh-popular .bh-section__header h2 {
+        color: #fff;
+    }
+    .bh-popular .bh-section__header a {
+        color: var(--bh-accent2);
+    }
+    .bh-popular__grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+    }
+    @media (max-width: 900px) {
+        .bh-popular__grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 560px) {
+        .bh-popular__grid { grid-template-columns: 1fr; }
+    }
+    .bh-popular-card {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        overflow: hidden;
+        text-decoration: none;
+        color: inherit;
+        transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+    }
+    .bh-popular-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(255, 143, 0, 0.35);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    }
+    .bh-popular-card img {
+        width: 100%;
+        aspect-ratio: 16/10;
+        object-fit: cover;
+        display: block;
+    }
+    .bh-popular-card__body {
+        padding: 1.15rem 1.25rem 1.35rem;
+    }
+    .bh-popular-card__title {
+        font-family: 'Poppins', sans-serif;
+        font-size: 1rem;
+        font-weight: 650;
+        line-height: 1.4;
+        color: #fff;
+        margin: 0 0 0.5rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .bh-popular-card__meta {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .bh-hero-featured {
+        padding: 2rem 0 0;
+    }
 </style>
 @endpush
 
 @section('content')
 <div class="bh">
-    {{-- HERO BANNER --}}
-    <section class="bh-hero">
-        <div class="bh-hero__bg" aria-hidden="true">
-            <div class="bh-hero__grid"></div>
-            <div class="bh-hero__aurora bh-hero__aurora--1"></div>
-            <div class="bh-hero__aurora bh-hero__aurora--2"></div>
-            <div class="bh-hero__aurora bh-hero__aurora--3"></div>
-            <div class="bh-hero__noise"></div>
-        </div>
-
-        <div class="bh-hero__content">
-            <div>
-                <div class="bh-hero__label">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 12h10"/></svg>
-                    Digital Magazine
-                </div>
-                <h1 class="bh-hero__title">
-                    Discover Stories That <span class="highlight">Inspire</span> You
-                </h1>
-                <p class="bh-hero__subtitle">
-                    Curated guides, reviews and insights from {{ config('app.name') }}. Explore by topic or search what matters to you.
-                </p>
-
-                <form class="bh-hero__search" action="{{ route('home') }}" method="get">
-                    <input type="search" name="q" value="{{ $searchQuery }}" placeholder="Search articles, guides..." aria-label="Search">
-                    <button type="submit">
-                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        Search
-                    </button>
-                </form>
-
-                <div class="bh-hero__cats">
-                    <a href="{{ route('home') }}" class="bh-hero__cat {{ !request('cat') ? 'active' : '' }}">All</a>
-                    @foreach($featuredCategories->take(6) as $cat)
-                        <a href="{{ $cat['url'] }}" class="bh-hero__cat {{ request('cat') === $cat['name'] ? 'active' : '' }}">
-                            {{ $cat['name'] }}
-                        </a>
-                    @endforeach
-                </div>
-
-                <div class="bh-hero__stats">
-                    <div class="bh-hero__stat">
-                        <strong>{{ number_format($stats['posts']) }}</strong>
-                        <span>Articles</span>
-                    </div>
-                    <div class="bh-hero__stat">
-                        <strong>{{ number_format($stats['categories']) }}</strong>
-                        <span>Topics</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bh-hero__cards">
-                @if($featuredPost)
-                <div class="bh-hero__card">
-                    <img src="{{ $featuredPost->featured_image_url ?? 'https://picsum.photos/seed/' . $featuredPost->id . '/400/300' }}" alt="" class="bh-hero__card-img">
-                    @include('partials.blog-category-tags', ['post' => $featuredPost, 'variant' => 'overlay', 'compact' => true])
-                    <div class="bh-hero__card-body">
-                        <div class="bh-hero__card-title">{{ $featuredPost->title }}</div>
-                    </div>
-                </div>
-                @endif
-                @foreach($latestPosts->take(2) as $post)
-                <div class="bh-hero__card">
-                    <img src="{{ $post->featured_image_url ?? 'https://picsum.photos/seed/' . $post->id . '/400/300' }}" alt="" class="bh-hero__card-img">
-                    @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay', 'compact' => true])
-                    <div class="bh-hero__card-body">
-                        <div class="bh-hero__card-title">{{ $post->title }}</div>
-                    </div>
-                </div>
-                @endforeach
-            </div>
-        </div>
-    </section>
-
     @if($isFiltered)
         {{-- FILTERED RESULTS --}}
         <section class="bh-section">
@@ -1613,7 +1643,7 @@
                     <div class="bh-grid">
                         @foreach($filteredPosts as $post)
                         <article class="bh-card">
-                            <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                            <a href="{{ $post->publicUrl() }}" class="bh-card__media">
                                 <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
                                 @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                             </a>
@@ -1622,7 +1652,7 @@
                                     @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline'])
                                 @endif
                                 <h3 class="bh-card__title">
-                                    <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                    <a href="{{ $post->publicUrl() }}">{{ $post->title }}</a>
                                 </h3>
                                 @if($post->excerpt)
                                     <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
@@ -1649,18 +1679,15 @@
         @php
             $carouselPosts = collect([$featuredPost])->merge($heroRotationPosts ?? collect())->filter();
         @endphp
-        <section class="bh-section">
+        <section class="bh-section bh-hero-featured">
             <div class="bh-wrap">
-                <div class="bh-section__header">
-                    <h2>Featured Story</h2>
-                </div>
                 <div class="bh-featured">
                     {{-- Left: Carousel --}}
                     <div class="bh-featured__carousel" id="featured-carousel">
                         <div class="bh-featured__carousel-track">
                             @foreach($carouselPosts as $index => $post)
                             <div class="bh-featured__carousel-slide {{ $index === 0 ? 'active' : '' }}" data-index="{{ $index }}">
-                                <a href="{{ route('blog.show', $post->slug) }}" class="bh-featured__carousel-slide-link">
+                                <a href="{{ $post->publicUrl() }}" class="bh-featured__carousel-slide-link">
                                     <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="{{ $index === 0 ? 'eager' : 'lazy' }}" decoding="async" @if($index === 0) fetchpriority="high" @endif>
                                     @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                                     <div class="bh-featured__carousel-body">
@@ -1695,15 +1722,15 @@
                         @endif
                     </div>
 
-                    {{-- Right: Sidebar --}}
+                    {{-- Right: Latest sidebar --}}
                     <div class="bh-featured__sidebar">
+                        <p class="bh-featured__sidebar-label">Latest</p>
                         @foreach($carouselPosts->skip(1)->take(4) as $post)
-                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-featured__sidebar-item">
-                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">
-                            @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay', 'compact' => true])
+                        <a href="{{ $post->publicUrl() }}" class="bh-featured__sidebar-item">
+                            <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy" decoding="async">
                             <div class="bh-featured__sidebar-item-body">
                                 <h4>{{ $post->title }}</h4>
-                                <span>{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
+                                <span>{{ $post->created_at?->format('M j, Y') }}</span>
                             </div>
                         </a>
                         @endforeach
@@ -1732,12 +1759,12 @@
                             <div class="bh-cat-block" id="latest-articles">
                                 <div class="bh-section__header">
                                     <h2>Latest Articles</h2>
-                                    <a href="{{ route('blog.index') }}">View all →</a>
+                                    <a href="{{ route('review.index') }}">View all →</a>
                                 </div>
                                 <div class="bh-grid bh-grid--carousel">
                                     @foreach($latestPosts->take(6) as $post)
                                     <article class="bh-card">
-                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                        <a href="{{ $post->publicUrl() }}" class="bh-card__media">
                                             <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
                                             @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                                         </a>
@@ -1746,7 +1773,7 @@
                                                 @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline'])
                                             @endif
                                             <h3 class="bh-card__title">
-                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                                <a href="{{ $post->publicUrl() }}">{{ $post->title }}</a>
                                             </h3>
                                             @if($post->excerpt)
                                                 <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
@@ -1778,7 +1805,7 @@
                                 <div class="bh-cat-magazine">
                                     @foreach($posts->take(5) as $post)
                                     <article class="bh-card">
-                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                        <a href="{{ $post->publicUrl() }}" class="bh-card__media">
                                             <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
                                             @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                                         </a>
@@ -1787,7 +1814,7 @@
                                                 @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline'])
                                             @endif
                                             <h3 class="bh-card__title">
-                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                                <a href="{{ $post->publicUrl() }}">{{ $post->title }}</a>
                                             </h3>
                                             @if($post->excerpt)
                                                 <p class="bh-card__excerpt">{{ $post->excerpt }}</p>
@@ -1804,7 +1831,7 @@
                                 @elseif($layout === 'list')
                                 @php $featured = $posts->first(); @endphp
                                 <div class="bh-cat-list">
-                                    <a href="{{ route('blog.show', $featured->slug) }}" class="bh-cat-list__featured">
+                                    <a href="{{ $featured->publicUrl() }}" class="bh-cat-list__featured">
                                         <img src="{{ $featured->featured_image_url }}" alt="{{ $featured->title }}">
                                         @include('partials.blog-category-tags', ['post' => $featured, 'variant' => 'overlay'])
                                         <div class="bh-cat-list__featured-overlay">
@@ -1816,7 +1843,7 @@
                                     </a>
                                     <div class="bh-cat-list__items">
                                         @foreach($posts->skip(1)->take(4) as $post)
-                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-list__item">
+                                        <a href="{{ $post->publicUrl() }}" class="bh-cat-list__item">
                                             <span class="bh-cat-list__item-thumb">
                                                 <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}">
                                                 @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay', 'compact' => true])
@@ -1834,7 +1861,7 @@
                                 <div class="bh-cat-masonry">
                                     @foreach($posts->take(6) as $post)
                                     <article class="bh-card">
-                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                        <a href="{{ $post->publicUrl() }}" class="bh-card__media">
                                             <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
                                             @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                                         </a>
@@ -1843,7 +1870,7 @@
                                                 @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline'])
                                             @endif
                                             <h3 class="bh-card__title">
-                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                                <a href="{{ $post->publicUrl() }}">{{ $post->title }}</a>
                                             </h3>
                                             <div class="bh-card__meta">
                                                 <span>{{ $post->created_at?->format('M j, Y') }}</span>
@@ -1858,7 +1885,7 @@
                                 <div class="bh-cat-scroll">
                                     @foreach($posts->take(6) as $post)
                                     <article class="bh-card">
-                                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                                        <a href="{{ $post->publicUrl() }}" class="bh-card__media">
                                             <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
                                             @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                                         </a>
@@ -1867,7 +1894,7 @@
                                                 @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline'])
                                             @endif
                                             <h3 class="bh-card__title">
-                                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                                <a href="{{ $post->publicUrl() }}">{{ $post->title }}</a>
                                             </h3>
                                             <div class="bh-card__meta">
                                                 <span>{{ $post->created_at?->format('M j, Y') }}</span>
@@ -1881,7 +1908,7 @@
                                 @elseif($layout === 'zigzag')
                                 <div class="bh-cat-zigzag">
                                     @foreach($posts->take(4) as $post)
-                                    <a href="{{ route('blog.show', $post->slug) }}" class="bh-cat-zigzag-item">
+                                    <a href="{{ $post->publicUrl() }}" class="bh-cat-zigzag-item">
                                         <span class="bh-cat-zigzag-item__media">
                                             <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">
                                             @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
@@ -1911,6 +1938,30 @@
             </div>
         @endif
 
+        {{-- POPULAR POSTS --}}
+        @if(isset($popularPosts) && $popularPosts->isNotEmpty())
+        <section class="bh-popular">
+            <div class="bh-wrap">
+                <div class="bh-section__header">
+                    <h2>Popular Posts</h2>
+                    <a href="{{ route('review.index') }}">View all →</a>
+                </div>
+                <div class="bh-popular__grid">
+                    @foreach($popularPosts as $post)
+                    <a href="{{ $post->publicUrl() }}" class="bh-popular-card">
+                        <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy" decoding="async">
+                        <div class="bh-popular-card__body">
+                            @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline', 'compact' => true])
+                            <h3 class="bh-popular-card__title">{{ $post->title }}</h3>
+                            <span class="bh-popular-card__meta">{{ $post->created_at?->diffForHumans() }} · {{ $post->reading_minutes }} min read</span>
+                        </div>
+                    </a>
+                    @endforeach
+                </div>
+            </div>
+        </section>
+        @endif
+
         {{-- EMPTY --}}
         @if(!$featuredPost && $latestPosts->isEmpty() && $trendingPosts->isEmpty())
         <section class="bh-section">
@@ -1922,17 +1973,6 @@
             </div>
         </section>
         @endif
-
-        {{-- CTA --}}
-        <div class="bh-wrap">
-            <div class="bh-cta">
-                <div class="bh-cta__inner">
-                    <h2>Never miss a story</h2>
-                    <p>Get the latest articles, guides and insights delivered straight to your inbox.</p>
-                    <a href="{{ route('blog.index') }}">Explore all articles →</a>
-                </div>
-            </div>
-        </div>
     @endif
 </div>
 
@@ -2008,26 +2048,40 @@
 })();
 
 (function() {
-    var blocks = document.querySelectorAll('.bh-cat-page-layout__main [id^="cat-"]');
+    var blocks = Array.prototype.slice.call(document.querySelectorAll('.bh-cat-page-layout__main [id^="cat-"]'));
     var links = document.querySelectorAll('[data-cat-anchor]');
     if (!blocks.length || !links.length) return;
 
+    var headerOffset = 120;
+
+    function blockDocumentTop(block) {
+        return block.getBoundingClientRect().top + window.pageYOffset;
+    }
+
     function setActive(slug) {
         links.forEach(function(link) {
-            var isActive = link.getAttribute('data-cat-anchor') === slug;
+            var isActive = slug !== null && link.getAttribute('data-cat-anchor') === slug;
             link.classList.toggle('is-current', isActive);
         });
     }
 
     function onScroll() {
-        var offset = window.scrollY + 120;
+        var scrollPos = window.pageYOffset + headerOffset;
+        var firstBlockTop = blockDocumentTop(blocks[0]);
+
+        if (scrollPos < firstBlockTop - 40) {
+            setActive(null);
+            return;
+        }
+
         var current = null;
         blocks.forEach(function(block) {
-            if (block.offsetTop <= offset) {
+            if (blockDocumentTop(block) <= scrollPos) {
                 current = block.id.replace('cat-', '');
             }
         });
-        if (current) setActive(current);
+
+        setActive(current);
     }
 
     links.forEach(function(link) {

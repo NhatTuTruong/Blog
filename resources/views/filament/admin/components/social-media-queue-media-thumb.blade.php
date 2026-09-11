@@ -24,12 +24,7 @@
 
     // Priority 2: Generic default image
     if (! $previewUrl) {
-        foreach (['images/default.jpg', 'images/placeholder.svg', 'images/default-brand.svg', 'images/instagram/default1.svg'] as $defaultPath) {
-            if (is_file(public_path($defaultPath))) {
-                $previewUrl = asset($defaultPath);
-                break;
-            }
-        }
+        $previewUrl = \App\Models\Blog::resolveFallbackDefaultImageUrl();
     }
 @endphp
 

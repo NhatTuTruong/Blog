@@ -115,6 +115,10 @@ class AdminPanelProvider extends PanelProvider
             )
             ->renderHook(
                 PanelsRenderHook::SCRIPTS_AFTER,
+                fn () => view('components.rich-editor-trix-tools')
+            )
+            ->renderHook(
+                PanelsRenderHook::SCRIPTS_AFTER,
                 fn () => view('components.admin-error-toast')
             );
     }

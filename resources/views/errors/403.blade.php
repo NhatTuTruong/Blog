@@ -6,7 +6,7 @@
 @push('styles')
 <style>
     .error-page { text-align: center; padding: 4rem 1.5rem; max-width: 560px; margin: 0 auto; }
-    .error-page .error-code { font-family: 'Space Grotesk', sans-serif; font-size: 6rem; font-weight: 700; line-height: 1; color: #d97706; margin-bottom: 0.5rem; }
+    .error-page .error-code { font-family: 'Poppins', sans-serif; font-size: 6rem; font-weight: 700; line-height: 1; color: #d97706; margin-bottom: 0.5rem; }
     .error-page .error-title { font-size: 1.5rem; font-weight: 600; color: var(--text); margin-bottom: 0.75rem; }
     .error-page .error-message { color: var(--text-muted); margin-bottom: 2rem; }
     .error-page .error-actions a { display: inline-flex; align-items: center; padding: 0.75rem 1.5rem; background: var(--primary); color: #fff; text-decoration: none; border-radius: var(--radius-sm); font-weight: 500; transition: background 0.2s; }

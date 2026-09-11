@@ -16,7 +16,8 @@ class HomeController extends Controller
         $selectedCategory = $request->string('cat')->toString();
         $isFiltered = $searchQuery !== '' || $selectedCategory !== '';
 
-        $baseQuery = Blog::query()->published()->with(['blogCategory', 'blogCategories']);
+        $publishedQuery = Blog::query()->published()->with(['blogCategory', 'blogCategories']);
+        $reviewQuery = (clone $publishedQuery)->reviews();
 
         $applyFilters = function ($query) use ($searchQuery, $selectedCategory) {
             if ($searchQuery !== '') {
@@ -31,14 +32,14 @@ class HomeController extends Controller
         };
 
         $stats = [
-            'posts' => (clone $baseQuery)->count(),
+            'posts' => (clone $reviewQuery)->count(),
             'categories' => BlogCategory::query()->active()->count(),
         ];
 
         $featuredCategories = $this->buildFeaturedCategories();
 
         if ($isFiltered) {
-            $filteredPosts = (clone $baseQuery)->tap($applyFilters)
+            $filteredPosts = (clone $publishedQuery)->tap($applyFilters)
                 ->homeOrder()
                 ->limit(24)
                 ->get();
@@ -53,16 +54,17 @@ class HomeController extends Controller
                 'featuredPost' => null,
                 'trendingPosts' => collect(),
                 'latestPosts' => collect(),
+                'popularPosts' => collect(),
             ]);
         }
 
-        $featuredPost = (clone $baseQuery)
+        $featuredPost = (clone $reviewQuery)
             ->homeOrder()
             ->first();
 
         $excludeIds = $featuredPost ? [$featuredPost->id] : [];
 
-        $heroRotationPosts = (clone $baseQuery)
+        $heroRotationPosts = (clone $reviewQuery)
             ->when($excludeIds !== [], fn ($q) => $q->whereNotIn('id', $excludeIds))
             ->homeOrder()
             ->limit(5)
@@ -70,7 +72,7 @@ class HomeController extends Controller
 
         $excludeIds = array_merge($excludeIds, $heroRotationPosts->pluck('id')->all());
 
-        $trendingPosts = (clone $baseQuery)
+        $trendingPosts = (clone $reviewQuery)
             ->when($excludeIds !== [], fn ($q) => $q->whereNotIn('id', $excludeIds))
             ->homeOrder()
             ->limit(5)
@@ -78,10 +80,17 @@ class HomeController extends Controller
 
         $excludeIds = array_merge($excludeIds, $trendingPosts->pluck('id')->all());
 
-        $latestPosts = (clone $baseQuery)
+        $latestPosts = (clone $reviewQuery)
             ->when($excludeIds !== [], fn ($q) => $q->whereNotIn('id', $excludeIds))
             ->orderByDesc('created_at')
             ->limit(9)
+            ->get();
+
+        $popularPosts = (clone $reviewQuery)
+            ->when($excludeIds !== [], fn ($q) => $q->whereNotIn('id', $excludeIds))
+            ->orderByDesc('views_count')
+            ->orderByDesc('created_at')
+            ->limit(6)
             ->get();
 
         $categoryPosts = $this->buildCategoryPosts($featuredCategories);
@@ -98,6 +107,7 @@ class HomeController extends Controller
             'heroRotationPosts' => $heroRotationPosts,
             'trendingPosts' => $trendingPosts,
             'latestPosts' => $latestPosts,
+            'popularPosts' => $popularPosts,
         ]);
     }
 
@@ -150,7 +160,7 @@ class HomeController extends Controller
      */
     protected function buildCategoryPosts(Collection $categories): Collection
     {
-        $baseQuery = Blog::query()->published()->with(['blogCategory', 'blogCategories']);
+        $baseQuery = Blog::query()->published()->reviews()->with(['blogCategory', 'blogCategories']);
 
         return $categories
             ->filter(fn ($cat) => ($cat['count'] ?? 0) > 0)

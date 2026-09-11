@@ -39,7 +39,7 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => public_path('storage'),
-            'url' => rtrim(env('APP_URL', 'http://localhost:8000'), '/').'/storage',
+            'url' => rtrim(env('APP_URL', 'https://reexamine-hunchback-theater.ngrok-free.dev'), '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
         ],

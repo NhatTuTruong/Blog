@@ -37,8 +37,26 @@ Route::get('/health', function () {
 })->name('health');
 
 Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
-Route::get('/blog', [App\Http\Controllers\BlogController::class, 'index'])->name('blog.index');
-Route::get('/blog/{slug}', [App\Http\Controllers\BlogController::class, 'show'])->name('blog.show')->where('slug', '[a-z0-9\-]+');
+Route::get('/review', [App\Http\Controllers\BlogController::class, 'index'])
+    ->defaults('postType', 'review')
+    ->name('review.index');
+Route::get('/review/{slug}', [App\Http\Controllers\BlogController::class, 'show'])
+    ->defaults('postType', 'review')
+    ->name('review.show')
+    ->where('slug', '[a-z0-9\-]+');
+Route::get('/blogs', [App\Http\Controllers\BlogController::class, 'index'])
+    ->defaults('postType', 'blog')
+    ->name('blogs.index');
+Route::get('/blogs/{slug}', [App\Http\Controllers\BlogController::class, 'show'])
+    ->defaults('postType', 'blog')
+    ->name('blogs.show')
+    ->where('slug', '[a-z0-9\-]+');
+Route::redirect('/blog', '/blogs', 301);
+Route::get('/blog/{slug}', function (string $slug) {
+    return redirect("/blogs/{$slug}", 301);
+})->where('slug', '[a-z0-9\-]+');
+Route::get('/categories', [App\Http\Controllers\CategoryController::class, 'index'])->name('categories.index');
+Route::get('/deals', [App\Http\Controllers\DealController::class, 'index'])->name('deals.index');
 
 Route::get('/login', function () {
     return redirect('/admin/login');

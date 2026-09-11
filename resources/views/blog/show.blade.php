@@ -2,11 +2,11 @@
 
 @section('title', $post->title)
 @section('description', Str::limit(strip_tags($post->renderedContent()), 160))
-@section('canonical', route('blog.show', $post->slug))
+@section('canonical', $post->publicUrl())
 @section('og_image', \App\Support\SiteSeo::absoluteUrl($post->featured_image_url))
 @section('og_type', 'article')
 @section('og_title', $post->title)
-@section('og_url', route('blog.show', $post->slug))
+@section('og_url', $post->publicUrl())
 
 @push('head')
     <link rel="preload" as="image" href="{{ $post->featured_image_url }}" fetchpriority="high">
@@ -30,7 +30,7 @@
             ],
             'mainEntityOfPage' => [
                 '@type' => 'WebPage',
-                '@id' => route('blog.show', $post->slug),
+                '@id' => $post->publicUrl(),
             ],
         ];
         $breadcrumbSchema = [
@@ -40,14 +40,14 @@
                 [
                     '@type' => 'ListItem',
                     'position' => 1,
-                    'name' => 'Blog',
-                    'item' => route('blog.index'),
+                    'name' => $listingMeta['breadcrumb'] ?? 'Review',
+                    'item' => route($post->listingRouteName()),
                 ],
                 [
                     '@type' => 'ListItem',
                     'position' => 2,
                     'name' => $post->title,
-                    'item' => route('blog.show', $post->slug),
+                    'item' => $post->publicUrl(),
                 ],
             ],
         ];
@@ -55,6 +55,12 @@
     <script type="application/ld+json">{!! json_encode($articleSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
     <script type="application/ld+json">{!! json_encode($breadcrumbSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
 @endpush
+
+@if($post->deals->isNotEmpty())
+@push('styles')
+@include('partials.deal-cards-styles')
+@endpush
+@endif
 
 @push('styles')
 <style>
@@ -64,7 +70,7 @@
         --blog-border: rgba(15, 23, 42, 0.12);
         --blog-text: #0f172a;
         --blog-muted: #64748b;
-        --blog-accent: #2563eb;
+        --blog-accent: #FF8F00;
         --blog-accent-soft: rgba(37, 99, 235, 0.10);
     }
 
@@ -123,7 +129,7 @@
         left: 0;
         right: 0;
         height: 3px;
-        background: linear-gradient(90deg, #2563eb, #60a5fa, #2563eb);
+        background: linear-gradient(90deg, #F9A825, #FF8F00, #EF6C00);
         z-index: 2;
     }
 
@@ -165,7 +171,7 @@
     }
 
     .blog-title {
-        font-family: 'Space Grotesk', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-family: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         font-size: clamp(1.55rem, 2.6vw, 2.15rem);
         font-weight: 800;
         letter-spacing: -0.03em;
@@ -395,7 +401,7 @@
     .blog-content.prose h2,
     .blog-content.prose h3,
     .blog-content.prose h4 {
-        font-family: 'Space Grotesk', system-ui, sans-serif;
+        font-family: 'Poppins', system-ui, sans-serif;
         font-weight: 750;
         letter-spacing: -0.02em;
         margin: 1.75rem 0 0.75rem;
@@ -417,9 +423,50 @@
     }
 
     .blog-content.prose img {
+        width: 100%;
         max-width: 100%;
+        height: auto !important;
+        display: block;
+        margin: 1rem 0;
         border-radius: 0.9rem;
         border: 1px solid var(--blog-border);
+    }
+
+    .blog-content.prose figure {
+        margin: 1.75rem 0;
+        max-width: 100%;
+    }
+
+    .blog-content.prose table,
+    .blog-content.prose .blog-content-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.25rem 0;
+        font-size: 0.92rem;
+        display: block;
+        overflow-x: auto;
+    }
+
+    .blog-content.prose table th,
+    .blog-content.prose table td,
+    .blog-content.prose .blog-content-table th,
+    .blog-content.prose .blog-content-table td {
+        border: 1px solid var(--blog-border);
+        padding: 0.55rem 0.75rem;
+        vertical-align: top;
+        min-width: 4rem;
+    }
+
+    .blog-content.prose table th,
+    .blog-content.prose .blog-content-table th {
+        background: rgba(255, 143, 0, 0.1);
+        font-weight: 700;
+    }
+
+    .blog-content.prose hr {
+        border: 0;
+        border-top: 1px solid var(--blog-border);
+        margin: 1.75rem 0;
     }
 
     .blog-content.prose .blog-inline-image {
@@ -473,7 +520,7 @@
     }
 
     .blog-aside-title {
-        font-family: 'Space Grotesk', system-ui, sans-serif;
+        font-family: 'Poppins', system-ui, sans-serif;
         font-size: 1rem;
         font-weight: 700;
         margin-bottom: 1rem;
@@ -492,7 +539,7 @@
     }
 
     .related-blogs-title {
-        font-family: 'Space Grotesk', system-ui, sans-serif;
+        font-family: 'Poppins', system-ui, sans-serif;
         font-size: 1.1rem;
         font-weight: 700;
         margin-bottom: 1.25rem;
@@ -566,7 +613,7 @@
 
     <div class="blog-shell">
         <div class="blog-breadcrumb">
-            <a href="{{ route('blog.index') }}">Blog</a>
+            <a href="{{ route($post->listingRouteName()) }}">{{ $listingMeta['breadcrumb'] ?? 'Review' }}</a>
             <span>/</span>
             <span>{{ Str::limit($post->title, 48) }}</span>
         </div>
@@ -602,7 +649,7 @@
 
         <div class="blog-main-grid">
             <article class="blog-main">
-                <a href="{{ route('blog.index') }}" class="blog-back">
+                <a href="{{ route($post->listingRouteName()) }}" class="blog-back">
                     <span class="icon">←</span>
                     <span>Back to all articles</span>
                 </a>
@@ -635,7 +682,7 @@
                 <h2 class="blog-aside-title">Related articles</h2>
                 <div class="blog-aside-related">
                     @foreach($relatedBlogs as $related)
-                        <a href="{{ route('blog.show', $related->slug) }}" class="related-blog-card" style="display:block;margin-bottom:0.75rem;">
+                        <a href="{{ $related->publicUrl() }}" class="related-blog-card" style="display:block;margin-bottom:0.75rem;">
                             <img src="{{ $related->featured_image_url }}" alt="{{ $related->title }}" class="related-blog-card-thumb" loading="lazy" decoding="async" width="400" height="250" style="width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px;">
                             <div class="related-blog-card-body" style="padding:0.5rem 0.5rem 0;">
                                 <h3 class="related-blog-card-title">{{ $related->title }}</h3>
@@ -647,6 +694,16 @@
             </aside>
             @endif
         </div>
+
+        @if($post->deals->isNotEmpty())
+            @include('partials.deal-cards', [
+                'deals' => $post->deals,
+                'sectionTitle' => 'Coupons & Discount Deals',
+                'showFilters' => false,
+                'sectionId' => 'post-deals',
+                'linkToPost' => false,
+            ])
+        @endif
 
     </div>
 @endsection

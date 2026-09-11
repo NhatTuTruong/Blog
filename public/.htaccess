@@ -12,6 +12,19 @@
 
     RewriteEngine On
 
+    # Laravel pages (must come before static directory checks)
+    RewriteRule ^categories/?$ index.php [L]
+    RewriteRule ^deals/?$ index.php [L]
+    RewriteRule ^review/?$ index.php [L]
+    RewriteRule ^blogs/?$ index.php [L]
+    RewriteRule ^blog/?$ /blogs [R=301,L]
+    RewriteRule ^blog/(.+)$ /blogs/$1 [R=301,L]
+    RewriteRule ^about/?$ index.php [L]
+    RewriteRule ^contact/?$ index.php [L]
+    RewriteRule ^privacy/?$ index.php [L]
+    RewriteRule ^terms/?$ index.php [L]
+    RewriteRule ^cookie-policy/?$ index.php [L]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

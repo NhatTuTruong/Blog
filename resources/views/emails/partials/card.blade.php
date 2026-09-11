@@ -7,7 +7,7 @@
         <td align="center" style="padding:40px 16px;">
             <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #dbe3ef;border-radius:10px;overflow:hidden;">
                 <tr>
-                    <td style="padding:28px 36px 24px;background-color:#ffffff;border-bottom:3px solid #2563eb;">
+                    <td style="padding:28px 36px 24px;background-color:#ffffff;border-bottom:3px solid #FF8F00;">
                         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                             <tr>
                                 <td style="font-size:22px;font-weight:700;color:#0f172a;letter-spacing:-0.02em;line-height:1.3;">
@@ -31,7 +31,7 @@
                         </p>
                         @if (filled($appUrl))
                             <p style="margin:0;font-size:12px;line-height:1.6;">
-                                <a href="{{ $appUrl }}" style="color:#2563eb;text-decoration:none;">{{ parse_url($appUrl, PHP_URL_HOST) ?: $appUrl }}</a>
+                                <a href="{{ $appUrl }}" style="color:#FF8F00;text-decoration:none;">{{ parse_url($appUrl, PHP_URL_HOST) ?: $appUrl }}</a>
                             </p>
                         @endif
                     </td>

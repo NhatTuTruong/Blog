@@ -320,11 +320,9 @@ class SocialMediaImageSourceService
             return null;
         }
 
-        foreach (['webp', 'jpg', 'jpeg', 'png'] as $extension) {
-            $absolute = $directory.DIRECTORY_SEPARATOR.'default1.'.$extension;
-            if (is_file($absolute)) {
-                return $absolute;
-            }
+        $absolute = $directory.DIRECTORY_SEPARATOR.'default1.webp';
+        if (is_file($absolute)) {
+            return $absolute;
         }
 
         return null;
@@ -365,12 +363,9 @@ class SocialMediaImageSourceService
         }
 
         foreach (['default1', 'default2', 'default3'] as $name) {
-            foreach (['webp', 'jpg', 'jpeg', 'png'] as $extension) {
-                $absolute = $directory.DIRECTORY_SEPARATOR.$name.'.'.$extension;
-                if (is_file($absolute)) {
-                    $paths[] = $absolute;
-                    break;
-                }
+            $absolute = $directory.DIRECTORY_SEPARATOR.$name.'.webp';
+            if (is_file($absolute)) {
+                $paths[] = $absolute;
             }
         }
 

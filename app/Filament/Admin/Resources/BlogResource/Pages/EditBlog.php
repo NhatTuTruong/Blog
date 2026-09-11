@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources\BlogResource\Pages;
 
 use App\Filament\Admin\Resources\BlogResource;
 use App\Filament\Admin\Resources\BlogResource\Concerns\SyncsBlogCategoryMetadata;
+use App\Filament\Admin\Resources\BlogResource\Concerns\SyncsBlogDeals;
 use App\Filament\Concerns\HasBlogFormDraft;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
@@ -12,11 +13,13 @@ class EditBlog extends EditRecord
 {
     use HasBlogFormDraft;
     use SyncsBlogCategoryMetadata;
+    use SyncsBlogDeals;
 
     protected static string $resource = BlogResource::class;
 
     protected function afterSave(): void
     {
+        $this->syncBlogDeals();
         $this->syncBlogCategoryMetadata();
     }
 
@@ -24,7 +27,8 @@ class EditBlog extends EditRecord
     {
         return [
             $this->getFormDraftDiscardAction(),
-            Actions\DeleteAction::make()->label(''),
+            Actions\DeleteAction::make()
+                ->label('Xóa bài viết'),
         ];
     }
 }

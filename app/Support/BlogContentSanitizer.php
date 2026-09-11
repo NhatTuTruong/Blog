@@ -17,8 +17,40 @@ class BlogContentSanitizer
         $html = self::closeListsBeforeBlockElements($html);
         $html = self::removeDuplicateListClosures($html);
         $html = preg_replace("/\n{3,}/", "\n\n", $html) ?? $html;
+        $html = self::normalizeInlineImages($html);
 
         return trim($html);
+    }
+
+    public static function normalizeInlineImages(string $html): string
+    {
+        return preg_replace_callback('/<img\b([^>]*?)\/?>/i', function (array $matches): string {
+            $attrs = $matches[1];
+            $selfClosing = str_ends_with(rtrim($matches[0]), '/>');
+
+            $attrs = preg_replace('/\sheight=(["\'])[^"\']*\1/i', '', $attrs) ?? $attrs;
+            $attrs = preg_replace('/\swidth=(["\'])[^"\']*\1/i', '', $attrs) ?? $attrs;
+
+            $attrs = preg_replace_callback('/\sstyle=(["\'])(.*?)\1/is', function (array $styleMatches): string {
+                $style = $styleMatches[2];
+                $style = preg_replace('/\s*height\s*:\s*[^;]+;?/i', '', $style) ?? $style;
+                $style = preg_replace('/\s*width\s*:\s*[^;]+;?/i', '', $style) ?? $style;
+                $style = trim($style, " \t\n\r\0\x0B;");
+
+                if ($style === '') {
+                    return '';
+                }
+
+                $quote = $styleMatches[1];
+
+                return ' style='.$quote.$style.$quote;
+            }, $attrs) ?? $attrs;
+
+            $attrs = trim($attrs);
+            $suffix = $selfClosing ? ' />' : '>';
+
+            return $attrs === '' ? '<img'.$suffix : '<img '.$attrs.$suffix;
+        }, $html) ?? $html;
     }
 
     public static function looksLikeHtml(string $text): bool

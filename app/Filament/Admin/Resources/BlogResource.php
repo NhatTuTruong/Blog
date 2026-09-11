@@ -78,6 +78,13 @@ class BlogResource extends Resource
                             ->columnSpan(2),
                         Forms\Components\Hidden::make('blog_category_id'),
                         Forms\Components\Hidden::make('category'),
+                        Forms\Components\Select::make('post_type')
+                            ->label('Loại bài viết')
+                            ->options(\App\Models\Blog::postTypeOptions())
+                            ->default(\App\Models\Blog::TYPE_REVIEW)
+                            ->required()
+                            ->native(false)
+                            ->helperText('Review hiển thị tại /review. Blog (so sánh) hiển thị tại /blogs.'),
                         Forms\Components\TextInput::make('slug')
                             ->label('Slug')
                             ->required()
@@ -102,6 +109,7 @@ class BlogResource extends Resource
                             ->minValue(0)
                             ->maxValue(255)
                             ->default(1)
+                            ->dehydrateStateUsing(fn ($state): int => is_numeric($state) && $state !== '' ? (int) $state : 1)
                             ->step(1)
                             ->columnSpan(1),
                     ])
@@ -115,18 +123,21 @@ class BlogResource extends Resource
                                 'bold',
                                 'italic',
                                 'underline',
-                                'strikeThrough',
+                                'strike',
                                 'link',
-                                'image',
-                                'orderedList',
-                                'bulletList',
+                                'h1',
+                                'h2',
+                                'h3',
                                 'blockquote',
                                 'codeBlock',
+                                'bulletList',
+                                'orderedList',
+                                'attachFiles',
                                 'undo',
                                 'redo',
                             ])
                             ->columnSpanFull()
-                            ->extraInputAttributes(['style' => 'min-height: 300px;']),
+                            ->extraInputAttributes(['style' => 'min-height: 360px;']),
                     ]),
                 Forms\Components\Section::make('Ảnh & Video')
                     ->schema([
@@ -135,7 +146,7 @@ class BlogResource extends Resource
                             ->image()
                             ->directory('blogs/featured')
                             ->maxSize(5120)
-                            ->helperText('Để trống sẽ dùng ảnh trong public/categories/{slug-danh-muc}.jpg (ví dụ tech.jpg); không có thì ảnh upload danh mục hoặc default.jpg.'),
+                            ->helperText('Để trống sẽ dùng ảnh trong public/category-images/{slug}.webp (ví dụ tech.webp); không có thì ảnh upload danh mục hoặc default.webp.'),
                         Forms\Components\FileUpload::make('images')
                             ->label('Ảnh bổ sung')
                             ->image()
@@ -153,6 +164,43 @@ class BlogResource extends Resource
                             ->maxSize(102400)
                             ->acceptedFileTypes(['video/mp4', 'video/webm', 'video/ogg'])
                             ->helperText('Hỗ trợ MP4, WebM, OGG (tối đa 5 video)')
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible()
+                    ->collapsed(fn (string $operation) => $operation === 'edit'),
+                Forms\Components\Section::make('Deals / Ưu đãi')
+                    ->description('Tạo hoặc chỉnh sửa deal trực tiếp. Mỗi ô là một deal; bố cục 3 cột. Deal cũng có thể quản lý tập trung tại Quản lý Deal.')
+                    ->schema([
+                        Forms\Components\Repeater::make('deals_data')
+                            ->label('')
+                            ->grid(3)
+                            ->addActionLabel('Thêm deal')
+                            ->reorderable()
+                            ->reorderableWithButtons()
+                            ->collapsible()
+                            ->itemLabel(fn (array $state): string => filled($state['title'] ?? null)
+                                ? (string) $state['title']
+                                : 'Deal mới')
+                            ->schema([
+                                Forms\Components\Hidden::make('id'),
+                                Forms\Components\TextInput::make('title')
+                                    ->label('Tiêu đề')
+                                    ->required()
+                                    ->maxLength(255),
+                                Forms\Components\Textarea::make('description')
+                                    ->label('Mô tả')
+                                    ->rows(3)
+                                    ->maxLength(500),
+                                Forms\Components\TextInput::make('coupon_code')
+                                    ->label('Mã coupon')
+                                    ->maxLength(100)
+                                    ->helperText('Để trống = Discount Deal. Có mã = Coupon Code.'),
+                                Forms\Components\TextInput::make('shop_url')
+                                    ->label('Link cửa hàng')
+                                    ->url()
+                                    ->required()
+                                    ->maxLength(2048),
+                            ])
                             ->columnSpanFull(),
                     ])
                     ->collapsible()
@@ -179,6 +227,12 @@ class BlogResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->limit(40),
+                Tables\Columns\TextColumn::make('post_type')
+                    ->label('Loại')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => \App\Models\Blog::postTypeOptions()[$state ?? \App\Models\Blog::TYPE_REVIEW] ?? 'Review')
+                    ->color(fn (?string $state): string => ($state ?? \App\Models\Blog::TYPE_REVIEW) === \App\Models\Blog::TYPE_BLOG ? 'info' : 'warning')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('category_labels')
                     ->label('Danh mục')
                     ->getStateUsing(fn (Blog $record): string => $record->category_labels)
@@ -217,6 +271,9 @@ class BlogResource extends Resource
                     ->sortable(),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('post_type')
+                    ->label('Loại bài viết')
+                    ->options(\App\Models\Blog::postTypeOptions()),
                 Tables\Filters\SelectFilter::make('blogCategories')
                     ->label('Danh mục')
                     ->relationship('blogCategories', 'name')
@@ -235,7 +292,7 @@ class BlogResource extends Resource
                     ->label('')
                     ->icon('heroicon-o-eye')
                     ->tooltip('Xem trước')
-                    ->url(fn (Blog $record) => route('blog.show', $record->slug))
+                    ->url(fn (Blog $record) => $record->publicUrl())
                     ->openUrlInNewTab(),
                 Tables\Actions\EditAction::make()->label(''),
                 Tables\Actions\ReplicateAction::make()

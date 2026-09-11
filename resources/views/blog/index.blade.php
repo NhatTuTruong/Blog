@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
-@section('title', \App\Support\SiteSeo::pageTitle('blog'))
-@section('description', \App\Support\SiteSeo::pageDescription('blog'))
+@section('title', \App\Support\SiteSeo::pageTitle($listingMeta['seoPage'] ?? 'review'))
+@section('description', \App\Support\SiteSeo::pageDescription($listingMeta['seoPage'] ?? 'review'))
 @section('canonical', url()->current())
 
 @push('styles')
@@ -13,8 +13,8 @@
         --bh-muted: #64748b;
         --bh-light: #f8fafc;
         --bh-card: #ffffff;
-        --bh-accent: #2563eb;
-        --bh-accent2: #3b82f6;
+        --bh-accent: #FF8F00;
+        --bh-accent2: #F9A825;
         --bh-border: #e2e8f0;
         background: var(--bh-card);
         color: var(--bh-ink);
@@ -36,7 +36,7 @@
         position: absolute;
         inset: 0;
         background:
-            radial-gradient(ellipse 80% 60% at 20% 20%, rgba(37, 99, 235, 0.4) 0%, transparent 50%),
+            radial-gradient(ellipse 80% 60% at 20% 20%, rgba(255, 143, 0, 0.35) 0%, transparent 50%),
             radial-gradient(ellipse 60% 50% at 80% 80%, rgba(139, 92, 246, 0.3) 0%, transparent 50%),
             radial-gradient(ellipse 40% 40% at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
     }
@@ -85,10 +85,10 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.5rem 1rem;
-        background: rgba(37, 99, 235, 0.2);
-        border: 1px solid rgba(37, 99, 235, 0.4);
+        background: rgba(255, 143, 0, 0.2);
+        border: 1px solid rgba(255, 143, 0, 0.4);
         border-radius: 999px;
-        color: #60a5fa;
+        color: #F9A825;
         font-size: 0.8rem;
         font-weight: 600;
         margin-bottom: 1.5rem;
@@ -98,7 +98,7 @@
         height: 14px;
     }
     .blog-hero__title {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: clamp(2.5rem, 5vw, 4rem);
         font-weight: 800;
         line-height: 1.1;
@@ -107,7 +107,7 @@
         margin: 0 0 1.25rem;
     }
     .blog-hero__title .highlight {
-        background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #60a5fa 100%);
+        background: linear-gradient(135deg, #F9A825 0%, #FF8F00 50%, #F9A825 100%);
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
@@ -154,7 +154,7 @@
     }
     .blog-hero__search button {
         border: none;
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        background: linear-gradient(135deg, #FF8F00 0%, #EF6C00 100%);
         color: #fff;
         padding: 0.875rem 1.5rem;
         font-weight: 600;
@@ -166,7 +166,7 @@
         transition: all 0.2s;
     }
     .blog-hero__search button:hover {
-        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        background: linear-gradient(135deg, #EF6C00 0%, #FF8F00 100%);
     }
     .blog-hero__search button svg {
         width: 18px;
@@ -182,7 +182,7 @@
     }
     .blog-hero__stat strong {
         display: block;
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 1.75rem;
         font-weight: 800;
         color: #fff;
@@ -248,7 +248,7 @@
     .blog-hero__card-cat {
         font-size: 0.65rem;
         font-weight: 700;
-        color: #60a5fa;
+        color: #F9A825;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         margin-bottom: 0.25rem;
@@ -290,7 +290,7 @@
     .blog-hero__cat:hover,
     .blog-hero__cat.active {
         background: rgba(255, 255, 255, 0.12);
-        border-color: rgba(37, 99, 235, 0.5);
+        border-color: rgba(255, 143, 0, 0.5);
         color: #fff;
         transform: translateY(-2px);
     }
@@ -323,7 +323,7 @@
         margin-bottom: 2rem;
     }
     .bh-section__header h2 {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 1.5rem;
         font-weight: 700;
         margin: 0;
@@ -403,7 +403,7 @@
         flex-direction: column;
     }
     .bh-card__title {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 1.15rem;
         font-weight: 700;
         line-height: 1.4;
@@ -469,7 +469,7 @@
         border-radius: 20px;
     }
     .bh-empty h2 {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Poppins', sans-serif;
         font-size: 1.5rem;
         margin: 0 0 0.5rem;
     }
@@ -509,16 +509,16 @@
             <div class="blog-hero__text">
                 <div class="blog-hero__label">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 12h10"/></svg>
-                    Digital Magazine
+                    {{ $listingMeta['label'] ?? 'Digital Magazine' }}
                 </div>
                 <h1 class="blog-hero__title">
-                    Discover Stories That <span class="highlight">Inspire</span> You
+                    {!! $listingMeta['title'] ?? 'Discover Stories That <span class="highlight">Inspire</span> You' !!}
                 </h1>
                 <p class="blog-hero__subtitle">
-                    Browse all guides, stories and insights from {{ config('app.name') }}. Search by topic or filter by category.
+                    {{ $listingMeta['subtitle'] ?? 'Browse all guides, stories and insights from '.config('app.name').'. Search by topic or filter by category.' }}
                 </p>
 
-                <form class="blog-hero__search" action="{{ route('blog.index') }}" method="get">
+                <form class="blog-hero__search" action="{{ route($listingRoute ?? 'review.index') }}" method="get">
                     <input type="search" name="q" value="{{ $searchQuery ?? '' }}" placeholder="Search articles..." aria-label="Search">
                     <button type="submit">
                         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -567,9 +567,9 @@
                     $baseParams = [];
                     if (!empty($searchQuery)) $baseParams['q'] = $searchQuery;
                 @endphp
-                <a href="{{ route('blog.index', $baseParams) }}" class="blog-hero__cat {{ empty($selectedCategory) ? 'active' : '' }}">All</a>
+                <a href="{{ route($listingRoute ?? 'review.index', $baseParams) }}" class="blog-hero__cat {{ empty($selectedCategory) ? 'active' : '' }}">All</a>
                 @foreach($categories as $cat)
-                    <a href="{{ route('blog.index', array_merge($baseParams, ['category' => $cat])) }}"
+                    <a href="{{ route($listingRoute ?? 'review.index', array_merge($baseParams, ['category' => $cat])) }}"
                        class="blog-hero__cat {{ ($selectedCategory ?? '') === $cat ? 'active' : '' }}">
                         {{ $cat }}
                     </a>
@@ -594,7 +594,7 @@
                         @endif
                         — {{ $posts->count() }} {{ Str::plural('article', $posts->count()) }}
                     </p>
-                    <a href="{{ route('blog.index') }}">Clear filters ×</a>
+                    <a href="{{ route($listingRoute ?? 'review.index') }}">Clear filters ×</a>
                 </div>
             @endif
 
@@ -602,7 +602,7 @@
                 <div class="bh-grid">
                     @foreach($posts as $post)
                     <article class="bh-card">
-                        <a href="{{ route('blog.show', $post->slug) }}" class="bh-card__media">
+                        <a href="{{ $post->publicUrl() }}" class="bh-card__media">
                             <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
                             @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'overlay'])
                         </a>
@@ -611,7 +611,7 @@
                                 @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline'])
                             @endif
                             <h3 class="bh-card__title">
-                                <a href="{{ route('blog.show', $post->slug) }}">{{ $post->title }}</a>
+                                <a href="{{ $post->publicUrl() }}">{{ $post->title }}</a>
                             </h3>
                             @if($post->content)
                                 <p class="bh-card__excerpt">{{ Str::limit(trim(strip_tags($post->content)), 150) }}</p>
@@ -634,7 +634,7 @@
                                 Prev
                             </span>
                         @else
-                            <a href="{{ $posts->previousPageUrl() }}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.6rem 1rem; font-size: 0.875rem; font-weight: 600; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#1e293b'">
+                            <a href="{{ $posts->previousPageUrl() }}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.6rem 1rem; font-size: 0.875rem; font-weight: 600; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#FF8F00';this.style.color='#FF8F00'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#1e293b'">
                                 <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
                                 Prev
                             </a>
@@ -649,25 +649,25 @@
                         @endphp
 
                         @if($left > 1)
-                            <a href="{{ $posts->url(1) }}" style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 500; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">1</a>
+                            <a href="{{ $posts->url(1) }}" style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 500; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#FF8F00';this.style.color='#FF8F00'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">1</a>
                             @if($left > 2)<span style="padding: 0 0.25rem; color: #94a3b8;">...</span>@endif
                         @endif
 
                         @for($i = $left; $i <= $right; $i++)
                             @if($i == $current)
-                                <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 700; color: #fff; background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%); border: 1px solid transparent; border-radius: 8px; box-shadow: 0 2px 4px rgba(37,99,235,0.3);">{{ $i }}</span>
+                                <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 700; color: #fff; background: linear-gradient(135deg, #FF8F00 0%, #F9A825 100%); border: 1px solid transparent; border-radius: 8px; box-shadow: 0 2px 4px rgba(255,143,0,0.3);">{{ $i }}</span>
                             @else
-                                <a href="{{ $posts->url($i) }}" style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 500; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">{{ $i }}</a>
+                                <a href="{{ $posts->url($i) }}" style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 500; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#FF8F00';this.style.color='#FF8F00'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">{{ $i }}</a>
                             @endif
                         @endfor
 
                         @if($right < $last)
                             @if($right < $last - 1)<span style="padding: 0 0.25rem; color: #94a3b8;">...</span>@endif
-                            <a href="{{ $posts->url($last) }}" style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 500; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">{{ $last }}</a>
+                            <a href="{{ $posts->url($last) }}" style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 500; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#FF8F00';this.style.color='#FF8F00'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">{{ $last }}</a>
                         @endif
 
                         @if($posts->hasMorePages())
-                            <a href="{{ $posts->nextPageUrl() }}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.6rem 1rem; font-size: 0.875rem; font-weight: 600; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#1e293b'">
+                            <a href="{{ $posts->nextPageUrl() }}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.6rem 1rem; font-size: 0.875rem; font-weight: 600; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#FF8F00';this.style.color='#FF8F00'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#1e293b'">
                                 Next
                                 <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
                             </a>

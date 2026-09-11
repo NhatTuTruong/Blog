@@ -2,6 +2,9 @@
     $brandDescription = \App\Models\SiteContent::get('footer_brand_description', 'Articles, guides and stories — updated regularly.');
     $columns = \App\Models\SiteContent::get('footer_columns', \App\Models\SiteContent::defaultFooterColumns());
     $copyright = \App\Models\SiteContent::get('footer_copyright', '© ' . date('Y') . ' ' . config('app.name') . '. All rights reserved.');
+    $siteName = (string) config('app.name');
+    $logoFirst = mb_substr($siteName, 0, 1);
+    $logoRest = mb_substr($siteName, 1);
     $normalizeUrl = function ($url) {
         if (empty($url)) {
             return url('/');
@@ -9,41 +12,85 @@
         if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
             return $url;
         }
+
         return url(ltrim($url, '/'));
     };
     $featuredPosts = $footerFeaturedPosts ?? collect();
+    $galleryPosts = $footerGalleryPosts ?? collect();
+    $quickLinks = collect($columns)->first()['links'] ?? [
+        ['label' => 'Home', 'url' => '/'],
+        ['label' => 'Review', 'url' => '/review'],
+        ['label' => 'Blog', 'url' => '/blogs'],
+        ['label' => 'Categories', 'url' => '/categories'],
+        ['label' => 'Deals', 'url' => '/deals'],
+        ['label' => 'About', 'url' => '/about'],
+        ['label' => 'Contact', 'url' => '/contact'],
+    ];
 @endphp
 <footer class="site-footer">
+    <div class="site-footer__accent" aria-hidden="true"></div>
     <div class="footer-inner">
         <div class="footer-grid">
             <div class="footer-brand">
-                <a href="{{ url('/') }}" class="logo font-heading">{{ config('app.name') }}<span>.</span></a>
-                <p>{{ $brandDescription }}</p>
-                @if($instagramUrl = config('app.instagram_url'))
-                <a href="{{ $instagramUrl }}" target="_blank" rel="noopener noreferrer" class="footer-social-link" aria-label="Instagram">
-                    <svg class="footer-social-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" width="22" height="22"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                <a href="{{ url('/') }}" class="site-logo site-logo--footer font-heading" aria-label="{{ $siteName }} home">
+                    <span class="site-logo__mark">{{ $logoFirst }}</span><span class="site-logo__text">{{ $logoRest }}</span>
                 </a>
+                <p>{{ $brandDescription }}</p>
+                @php $footerSocialLinks = \App\Models\SiteContent::visibleSocialLinks(); @endphp
+                @if($footerSocialLinks->isNotEmpty())
+                    <div class="footer-brand__social">
+                        @foreach($footerSocialLinks as $social)
+                        <a href="{{ $social['url'] }}" target="_blank" rel="noopener noreferrer" class="social-icon social-icon--{{ $social['platform'] }}" aria-label="{{ ucfirst($social['platform']) }}">
+                            {!! \App\Models\SiteContent::socialPlatformIcon($social['platform']) !!}
+                        </a>
+                        @endforeach
+                    </div>
                 @endif
             </div>
-            @foreach($columns as $col)
-                <div class="footer-col">
-                    <h4>{{ $col['title'] ?? 'Links' }}</h4>
-                    <ul>
-                        @foreach($col['links'] ?? [] as $link)
-                            <li><a href="{{ $normalizeUrl($link['url'] ?? '/') }}">{{ $link['label'] ?? 'Link' }}</a></li>
-                        @endforeach
-                    </ul>
+
+            <div class="footer-col">
+                <h4>Quick Links</h4>
+                <ul>
+                    @foreach($quickLinks as $link)
+                        <li><a href="{{ $normalizeUrl($link['url'] ?? '/') }}">{{ $link['label'] ?? 'Link' }}</a></li>
+                    @endforeach
+                </ul>
+            </div>
+
+            @if($galleryPosts->isNotEmpty())
+            <div class="footer-col footer-gallery">
+                <h4>Gallery</h4>
+                <div class="footer-gallery__grid">
+                    @foreach($galleryPosts as $post)
+                    <a href="{{ $post->publicUrl() }}" class="footer-gallery__item" title="{{ $post->title }}">
+                        <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy" decoding="async">
+                    </a>
+                    @endforeach
                 </div>
+            </div>
+            @else
+            @foreach(collect($columns)->skip(1)->take(1) as $col)
+            <div class="footer-col">
+                <h4>{{ $col['title'] ?? 'Links' }}</h4>
+                <ul>
+                    @foreach($col['links'] ?? [] as $link)
+                        <li><a href="{{ $normalizeUrl($link['url'] ?? '/') }}">{{ $link['label'] ?? 'Link' }}</a></li>
+                    @endforeach
+                </ul>
+            </div>
             @endforeach
+            @endif
 
             @if($featuredPosts->count() > 0)
             <div class="footer-stories">
-                <h4>Featured Stories</h4>
+                <h4>Recent Posts</h4>
                 @foreach($featuredPosts as $post)
-                <a href="{{ route('blog.show', $post->slug) }}" class="footer-story-item">
+                <a href="{{ $post->publicUrl() }}" class="footer-story-item">
                     <img src="{{ $post->featuredImageUrl }}"
                          alt="{{ $post->title }}"
-                         class="footer-story-thumb">
+                         class="footer-story-thumb"
+                         loading="lazy"
+                         decoding="async">
                     <div class="footer-story-info">
                         @if($post->category)
                         <span class="footer-story-cat">{{ $post->category }}</span>
@@ -55,6 +102,7 @@
             </div>
             @endif
         </div>
+
         <div class="footer-bottom">
             <p>{!! nl2br(e($copyright)) !!}</p>
             <p class="footer-legal-links">

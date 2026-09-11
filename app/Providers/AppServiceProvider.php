@@ -104,8 +104,10 @@ class AppServiceProvider extends ServiceProvider
             // Bỏ qua khi migrate / chưa có DB
         }
 
-        View::composer('partials.site-footer', function ($view): void {
+        View::composer(['partials.site-footer', 'partials.site-header'], function ($view): void {
             $featuredPosts = collect();
+            $galleryPosts = collect();
+            $headerTickerPosts = collect();
 
             try {
                 if (Schema::hasTable('blogs')) {
@@ -116,14 +118,35 @@ class AppServiceProvider extends ServiceProvider
                             ->whereNotNull('featured_image')
                             ->orderByDesc('created_at')
                             ->take(3)
-                            ->get();
+                            ->get(['id', 'title', 'slug', 'post_type', 'featured_image', 'blog_category_id', 'created_at']);
+                    });
+
+                    $galleryPosts = Cache::remember('site.footer.gallery_posts', 900, function () {
+                        return Blog::query()
+                            ->published()
+                            ->whereNotNull('featured_image')
+                            ->orderByDesc('created_at')
+                            ->take(6)
+                            ->get(['id', 'title', 'slug', 'post_type', 'featured_image', 'blog_category_id']);
+                    });
+
+                    $headerTickerPosts = Cache::remember('site.header.ticker_posts', 300, function () {
+                        return Blog::query()
+                            ->published()
+                            ->orderByDesc('created_at')
+                            ->limit(12)
+                            ->get(['id', 'title', 'slug', 'post_type']);
                     });
                 }
             } catch (\Throwable) {
                 // DB chưa sẵn sàng
             }
 
-            $view->with('footerFeaturedPosts', $featuredPosts);
+            $view->with([
+                'footerFeaturedPosts' => $featuredPosts,
+                'footerGalleryPosts' => $galleryPosts,
+                'headerTickerPosts' => $headerTickerPosts,
+            ]);
         });
     }
 }

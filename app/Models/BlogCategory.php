@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\PublicStorage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -42,6 +43,20 @@ class BlogCategory extends Model
     public function getImageUrlAttribute(): string
     {
         return Blog::categoryImageUrl($this);
+    }
+
+    /** Ảnh card danh mục: upload admin → public/images/categories/{slug} → default.webp */
+    public function uploadedOrDefaultImageUrl(): string
+    {
+        if ($this->image && PublicStorage::exists($this->image)) {
+            return PublicStorage::url($this->image);
+        }
+
+        if ($url = Blog::publicCategoryImageUrlInDir('images/categories', $this->slug, $this->name)) {
+            return $url;
+        }
+
+        return Blog::defaultImageUrl();
     }
 
     public static function optionsForSelect(): array

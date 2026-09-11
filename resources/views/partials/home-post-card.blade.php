@@ -1,4 +1,4 @@
-<a href="{{ route('blog.show', $post->slug) }}" class="bh-card">
+<a href="{{ $post->publicUrl() }}" class="bh-card">
     <div class="bh-card__media">
         <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">
     </div>

@@ -47,11 +47,11 @@
                 $previewUrl = $imageUrl;
             }
         }
-        // Second try: from public/categories/{slug}.{ext}
+        // Second try: from public/category-images/{slug}.{ext}
         if (! $previewUrl && ! empty($categoryName)) {
             $categorySlug = ! empty($category?->slug) ? $category->slug : Str::slug($categoryName);
-            foreach (['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif'] as $ext) {
-                foreach (['categories', 'images/categories'] as $dir) {
+            foreach (['webp', 'jpg', 'jpeg', 'png', 'svg', 'gif'] as $ext) {
+                foreach (['category-images', 'images/category-images', 'images/categories'] as $dir) {
                     $categoryImagePath = "{$dir}/{$categorySlug}.{$ext}";
                     if (is_file(public_path($categoryImagePath))) {
                         $previewUrl = asset($categoryImagePath);
@@ -64,12 +64,7 @@
 
     // Priority 4: Generic default image
     if (! $previewUrl) {
-        foreach (['images/default.jpg', 'categories/default.jpg', 'images/categories/default.jpg', 'images/default-brand.svg', 'images/instagram/default1.svg'] as $defaultPath) {
-            if (is_file(public_path($defaultPath))) {
-                $previewUrl = asset($defaultPath);
-                break;
-            }
-        }
+        $previewUrl = \App\Models\Blog::resolveFallbackDefaultImageUrl();
     }
 @endphp
 

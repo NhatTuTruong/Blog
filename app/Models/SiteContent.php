@@ -41,7 +41,10 @@ class SiteContent extends Model
     {
         return [
             ['label' => 'Home', 'url' => '/'],
-            ['label' => 'Blog', 'url' => '/blog'],
+            ['label' => 'Review', 'url' => '/review'],
+            ['label' => 'Blog', 'url' => '/blogs'],
+            ['label' => 'Categories', 'url' => '/categories'],
+            ['label' => 'Deals', 'url' => '/deals'],
             ['label' => 'About', 'url' => '/about'],
             ['label' => 'Contact', 'url' => '/contact'],
         ];
@@ -54,7 +57,10 @@ class SiteContent extends Model
                 'title' => 'Explore',
                 'links' => [
                     ['label' => 'Home', 'url' => '/'],
-                    ['label' => 'Blog', 'url' => '/blog'],
+                    ['label' => 'Review', 'url' => '/review'],
+                    ['label' => 'Blog', 'url' => '/blogs'],
+                    ['label' => 'Categories', 'url' => '/categories'],
+                    ['label' => 'Deals', 'url' => '/deals'],
                     ['label' => 'About', 'url' => '/about'],
                     ['label' => 'Contact', 'url' => '/contact'],
                 ],
@@ -269,9 +275,21 @@ HTML;
                     'title' => $appName.' — Blog & Articles',
                     'description' => 'Discover guides, stories and trending articles. Search by topic or browse featured categories.',
                 ],
+                'review' => [
+                    'title' => 'Review — '.$appName,
+                    'description' => 'Explore reviews, guides and trending articles. Search by topic or browse featured categories.',
+                ],
                 'blog' => [
                     'title' => 'Blog — '.$appName,
-                    'description' => 'Explore guides, stories and trending articles. Search by topic or browse featured categories.',
+                    'description' => 'Explore comparison articles and in-depth buying guides. Search by topic or browse featured categories.',
+                ],
+                'categories' => [
+                    'title' => 'Categories — '.$appName,
+                    'description' => 'Browse all review categories and discover articles by topic.',
+                ],
+                'deals' => [
+                    'title' => 'Coupons & Discount Deals — '.$appName,
+                    'description' => 'Browse coupon codes and discount deals from our latest reviews.',
                 ],
                 'about' => [
                     'title' => 'About Us - '.$appName,

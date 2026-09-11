@@ -64,27 +64,27 @@
     @stack('head')
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@500;600;700&display=swap"></noscript>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"></noscript>
     <style>
         :root {
-            --bg: #ffffff;
+            --bg: #eceae4;
             --surface: #f9fafb;
             --surface-hover: #f3f4f6;
             --text: #111827;
             --text-dark: #111827;
             --text-muted: #6b7280;
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --accent: #2563eb;
-            --accent-hover: #1d4ed8;
+            --primary: #FF8F00;
+            --primary-dark: #EF6C00;
+            --accent: #FF8F00;
+            --accent-hover: #F9A825;
             --border: #e5e7eb;
             --radius: 12px;
             --radius-sm: 8px;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'DM Sans', system-ui, sans-serif;
+            font-family: 'Poppins', system-ui, sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.6;
@@ -92,10 +92,10 @@
             display: flex;
             flex-direction: column;
         }
-        .font-heading { font-family: 'Space Grotesk', sans-serif; }
+        .font-heading { font-family: 'Poppins', sans-serif; }
 
         .logo {
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: 'Poppins', sans-serif;
             font-weight: 700;
             font-size: 1.35rem;
             color: var(--text);
@@ -244,7 +244,7 @@
             width: 48px;
             height: 48px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+            background: linear-gradient(135deg, #F9A825 0%, #FF8F00 100%);
             color: #fff;
             border: none;
             cursor: pointer;
@@ -264,7 +264,7 @@
             transform: translateY(0) scale(1);
         }
         .back-to-top:hover {
-            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+            background: linear-gradient(135deg, #EF6C00 0%, #FF8F00 100%);
             transform: scale(1.1);
         }
         html {

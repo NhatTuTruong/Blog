@@ -10,4 +10,4 @@
 @if(filled($googleSiteVerification ?? null))
 <meta name="google-site-verification" content="{{ $googleSiteVerification }}">
 @endif
-<meta name="theme-color" content="#2563eb">
+<meta name="theme-color" content="#FF8F00">
