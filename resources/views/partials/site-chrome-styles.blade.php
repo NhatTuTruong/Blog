@@ -481,15 +481,35 @@
     .site-nav__dropdown::after {
         display: none;
     }
+    .site-nav__dropdown:hover .site-nav__menu,
+    .site-nav__dropdown:focus-within .site-nav__menu {
+        display: none;
+    }
     .site-nav__dropdown .site-nav__menu {
         position: static;
         transform: none;
-        display: block;
+        display: none;
         box-shadow: none;
         border: 1px solid var(--tr-border-light);
         background: var(--tr-header-soft);
         margin: 0.25rem 0 0.5rem;
         padding: 0.25rem;
+    }
+    .site-nav__dropdown.is-open .site-nav__menu {
+        display: block;
+    }
+    .site-nav__link--has-menu {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .site-nav__link--has-menu svg {
+        flex-shrink: 0;
+        transition: transform 0.2s ease;
+    }
+    .site-nav__dropdown.is-open .site-nav__link--has-menu svg {
+        transform: rotate(180deg);
     }
     .site-topbar__links { gap: 0.75rem; }
 }

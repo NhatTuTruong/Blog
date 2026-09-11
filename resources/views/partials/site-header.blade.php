@@ -97,7 +97,9 @@
                 @foreach ($navLinks as $link)
                     @if($isReviewNav($link) && $blogCategories->isNotEmpty())
                     <div class="site-nav__dropdown">
-                        <a href="{{ $normalizeUrl($link['url'] ?? '/review') }}" class="site-nav__link site-nav__link--has-menu {{ $isActiveNav($link) ? 'is-active' : '' }}">
+                        <a href="{{ $normalizeUrl($link['url'] ?? '/review') }}"
+                            class="site-nav__link site-nav__link--has-menu {{ $isActiveNav($link) ? 'is-active' : '' }}"
+                            aria-expanded="false">
                             {{ strtoupper($link['label'] ?? 'Review') }}
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
                         </a>
@@ -174,10 +176,21 @@
         }
     }
 
+    function closeCategoryDropdowns() {
+        nav.querySelectorAll('.site-nav__dropdown.is-open').forEach(function (dropdown) {
+            dropdown.classList.remove('is-open');
+            var trigger = dropdown.querySelector('.site-nav__link--has-menu');
+            if (trigger) {
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
     function closeMenu() {
         header.classList.remove('site-header--nav-open');
         toggle.setAttribute('aria-expanded', 'false');
         toggle.setAttribute('aria-label', 'Open navigation menu');
+        closeCategoryDropdowns();
     }
 
     function openMenu() {
@@ -199,8 +212,34 @@
         else openMenu();
     });
 
+    nav.querySelectorAll('.site-nav__dropdown').forEach(function (dropdown) {
+        var trigger = dropdown.querySelector('.site-nav__link--has-menu');
+        if (!trigger) {
+            return;
+        }
+
+        trigger.addEventListener('click', function (e) {
+            if (mq.matches) {
+                return;
+            }
+
+            e.preventDefault();
+            var willOpen = !dropdown.classList.contains('is-open');
+            closeCategoryDropdowns();
+            if (willOpen) {
+                dropdown.classList.add('is-open');
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+        });
+    });
+
     nav.querySelectorAll('a').forEach(function (a) {
-        a.addEventListener('click', closeMenu);
+        a.addEventListener('click', function () {
+            if (a.classList.contains('site-nav__link--has-menu') && !mq.matches) {
+                return;
+            }
+            closeMenu();
+        });
     });
 
     document.addEventListener('keydown', function (e) {

@@ -478,7 +478,8 @@
        ================================ */
     @media (max-width: 640px) {
         .bh-grid--carousel,
-        .bh-trending--carousel {
+        .bh-trending--carousel,
+        .bh-popular__grid--carousel {
             display: flex !important;
             overflow-x: auto;
             scroll-snap-type: x mandatory;
@@ -493,11 +494,13 @@
             grid-template-columns: unset !important;
         }
         .bh-grid--carousel::-webkit-scrollbar,
-        .bh-trending--carousel::-webkit-scrollbar {
+        .bh-trending--carousel::-webkit-scrollbar,
+        .bh-popular__grid--carousel::-webkit-scrollbar {
             display: none;
         }
         .bh-grid--carousel > *,
-        .bh-trending--carousel > * {
+        .bh-trending--carousel > *,
+        .bh-popular__grid--carousel > * {
             scroll-snap-align: start;
             flex-shrink: 0;
         }
@@ -515,6 +518,12 @@
         .bh-trending--carousel .bh-trend__num {
             font-size: 1.5rem;
             min-width: 1.5rem;
+        }
+        .bh-popular__grid--carousel .bh-popular-card {
+            width: min(82vw, 320px);
+        }
+        .bh-popular {
+            padding: 2.5rem 0;
         }
         /* Mobile typography fixes */
         .bh-section__header {
@@ -1570,9 +1579,6 @@
     @media (max-width: 900px) {
         .bh-popular__grid { grid-template-columns: repeat(2, 1fr); }
     }
-    @media (max-width: 560px) {
-        .bh-popular__grid { grid-template-columns: 1fr; }
-    }
     .bh-popular-card {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1946,7 +1952,7 @@
                     <h2>Popular Posts</h2>
                     <a href="{{ route('review.index') }}">View all →</a>
                 </div>
-                <div class="bh-popular__grid">
+                <div class="bh-popular__grid bh-popular__grid--carousel">
                     @foreach($popularPosts as $post)
                     <a href="{{ $post->publicUrl() }}" class="bh-popular-card">
                         <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy" decoding="async">
