@@ -3,7 +3,7 @@
 <head>
     @php
         $seoTitleSuffix = \App\Support\SiteSeo::get('title_suffix', '- ' . config('app.name'));
-        $baseTitle = trim($__env->yieldContent('title', config('app.name')));
+        $baseTitle = \App\Support\SiteSeo::plainText(trim($__env->yieldContent('title', config('app.name'))));
         $finalTitle = $baseTitle;
         if ($seoTitleSuffix !== '' && ! str_contains($baseTitle, $seoTitleSuffix)) {
             $finalTitle = trim($baseTitle . ' ' . $seoTitleSuffix);
@@ -11,7 +11,13 @@
         if ($finalTitle === '' || $finalTitle === $seoTitleSuffix) {
             $finalTitle = (string) config('app.name');
         }
+        $finalTitle = \App\Support\SiteSeo::plainText($finalTitle);
         $defaultMetaDescription = \App\Support\SiteSeo::get('meta_description_default', 'Latest articles and insights from our blog.');
+        $pageDescription = \App\Support\SiteSeo::plainText(trim($__env->yieldContent('description', $defaultMetaDescription)));
+        $ogTitleSection = trim($__env->yieldContent('og_title', ''));
+        $ogTitle = $ogTitleSection !== '' ? \App\Support\SiteSeo::plainText($ogTitleSection) : $finalTitle;
+        $ogDescriptionSection = trim($__env->yieldContent('og_description', ''));
+        $ogDescription = $ogDescriptionSection !== '' ? \App\Support\SiteSeo::plainText($ogDescriptionSection) : $pageDescription;
         $defaultOgImage = \App\Support\SiteSeo::get('og_image_default', '');
         $robotsMeta = \App\Support\SiteSeo::get('robots', 'index, follow');
         $googleSiteVerification = \App\Support\SiteSeo::get('google_site_verification', '');
@@ -25,20 +31,20 @@
     @yield('head')
     @hasSection('og_image')
     <meta property="og:type" content="@yield('og_type', 'website')">
-    <meta property="og:title" content="@yield('og_title', $finalTitle)">
-    <meta property="og:description" content="@yield('og_description', trim($__env->yieldContent('description', $defaultMetaDescription)))">
+    <meta property="og:title" content="{{ $ogTitle }}">
+    <meta property="og:description" content="{{ $ogDescription }}">
     <meta property="og:url" content="@yield('og_url', url()->current())">
     <meta property="og:image" content="@yield('og_image')">
     <meta property="og:site_name" content="{{ config('app.name') }}">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="@yield('og_title', $finalTitle)">
-    <meta name="twitter:description" content="@yield('og_description', trim($__env->yieldContent('description', $defaultMetaDescription)))">
+    <meta name="twitter:title" content="{{ $ogTitle }}">
+    <meta name="twitter:description" content="{{ $ogDescription }}">
     <meta name="twitter:image" content="@yield('og_image')">
     
     @else
     <meta property="og:type" content="website">
     <meta property="og:title" content="{{ $finalTitle }}">
-    <meta property="og:description" content="@yield('description', $defaultMetaDescription)">
+    <meta property="og:description" content="{{ $pageDescription }}">
     <meta property="og:url" content="{{ url()->current() }}">
     @if(!empty($defaultOgImage))
     <meta property="og:image" content="{{ $defaultOgImage }}">
@@ -46,7 +52,7 @@
     <meta property="og:site_name" content="{{ config('app.name') }}">
     <meta name="twitter:card" content="{{ !empty($defaultOgImage) ? 'summary_large_image' : 'summary' }}">
     <meta name="twitter:title" content="{{ $finalTitle }}">
-    <meta name="twitter:description" content="@yield('description', $defaultMetaDescription)">
+    <meta name="twitter:description" content="{{ $pageDescription }}">
     @if(!empty($defaultOgImage))
     <meta name="twitter:image" content="{{ $defaultOgImage }}">
     @endif

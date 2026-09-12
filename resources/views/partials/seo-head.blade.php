@@ -1,6 +1,6 @@
 @php
     $canonicalUrl = trim($__env->yieldContent('canonical', url()->current()));
-    $pageDescription = trim($__env->yieldContent('description', $defaultMetaDescription ?? ''));
+    $pageDescription = $pageDescription ?? \App\Support\SiteSeo::plainText(trim($__env->yieldContent('description', $defaultMetaDescription ?? '')));
 @endphp
 <link rel="canonical" href="{{ $canonicalUrl }}">
 <meta name="description" content="{{ $pageDescription }}">

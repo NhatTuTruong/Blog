@@ -15,7 +15,44 @@ class SiteSeo
             $stored = self::legacySettings();
         }
 
-        return array_replace_recursive($defaults, $stored);
+        return self::decodePlainTextStrings(array_replace_recursive($defaults, $stored));
+    }
+
+    /** Chuỗi SEO lưu dạng plain text; decode entity tránh hiển thị &amp; trên &lt;title&gt;. */
+    public static function plainText(?string $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        $decoded = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        if ($decoded !== $value && str_contains($decoded, '&')) {
+            $again = html_entity_decode($decoded, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            if ($again !== $decoded) {
+                return $again;
+            }
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function decodePlainTextStrings(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            if (is_string($value)) {
+                $data[$key] = self::plainText($value);
+            } elseif (is_array($value)) {
+                $data[$key] = self::decodePlainTextStrings($value);
+            }
+        }
+
+        return $data;
     }
 
     /**

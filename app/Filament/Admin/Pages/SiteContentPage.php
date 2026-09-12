@@ -256,7 +256,11 @@ class SiteContentPage extends Page implements HasForms
         SiteContent::set('page_about_us', $data['page_about_us'] ?? '');
         SiteContent::set('page_contact', $data['page_contact'] ?? '');
         SiteContent::set('page_privacy', $data['page_privacy'] ?? '');
-        SiteContent::set('seo_settings', $data['seo_settings'] ?? SiteContent::defaultSeoSettings());
+        $seoSettings = $data['seo_settings'] ?? SiteContent::defaultSeoSettings();
+        if (is_array($seoSettings)) {
+            $seoSettings = SiteSeo::decodePlainTextStrings($seoSettings);
+        }
+        SiteContent::set('seo_settings', $seoSettings);
 
         Notification::make()
             ->title('Đã lưu nội dung trang, SEO, Header, Footer và các trang.')

@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', $post->title)
+@section('title', \App\Support\SiteSeo::plainText($post->title))
 @section('description', Str::limit(strip_tags($post->renderedContent()), 160))
 @section('canonical', $post->publicUrl())
 @section('og_image', \App\Support\SiteSeo::absoluteUrl($post->featured_image_url))
 @section('og_type', 'article')
-@section('og_title', $post->title)
+@section('og_title', \App\Support\SiteSeo::plainText($post->title))
 @section('og_url', $post->publicUrl())
 
 @push('head')
