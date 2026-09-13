@@ -28,6 +28,10 @@
             <dd class="mt-0.5">{{ $record->category_name ?? $record->blogCategory?->name ?? 'General' }}</dd>
         </div>
         <div>
+            <dt class="font-medium text-gray-500 dark:text-gray-400">Loại bài viết</dt>
+            <dd class="mt-0.5">{{ $record->postTypeLabel() }}</dd>
+        </div>
+        <div>
             <dt class="font-medium text-gray-500 dark:text-gray-400">Batch</dt>
             <dd class="mt-0.5 break-all font-mono text-xs">{{ $record->batch_id ?? '—' }}</dd>
         </div>
@@ -76,6 +80,32 @@
         <div>
             <dt class="font-medium text-gray-500 dark:text-gray-400">Coupon</dt>
             <dd class="mt-0.5">{{ $coupons }}</dd>
+        </div>
+    @endif
+
+    @if (is_array($record->deals_data) && count($record->deals_data) > 0)
+        <div>
+            <dt class="font-medium text-gray-500 dark:text-gray-400">Deals ({{ count($record->deals_data) }})</dt>
+            <dd class="mt-2 space-y-2">
+                @foreach ($record->deals_data as $deal)
+                    <div class="rounded-lg border border-gray-200 p-3 dark:border-white/10">
+                        <div class="font-medium">{{ $deal['title'] ?? '—' }}</div>
+                        @if (filled($deal['description'] ?? null))
+                            <div class="mt-1 text-gray-600 dark:text-gray-300">{{ $deal['description'] }}</div>
+                        @endif
+                        @if (filled($deal['coupon_code'] ?? null))
+                            <div class="mt-1 font-mono text-xs">Mã: {{ $deal['coupon_code'] }}</div>
+                        @endif
+                        @if (filled($deal['shop_url'] ?? null))
+                            <div class="mt-1 break-all text-xs">
+                                <a href="{{ $deal['shop_url'] }}" target="_blank" rel="noopener" class="text-primary-600 hover:underline">
+                                    {{ $deal['shop_url'] }}
+                                </a>
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
+            </dd>
         </div>
     @endif
 

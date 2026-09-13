@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
@@ -26,6 +27,19 @@ class BlogDeal extends Model
             ->withTimestamps()
             ->orderBy('blog_blog_deal.sort_order')
             ->orderBy('blogs.id');
+    }
+
+    /**
+     * Trang /deals: thứ tự cao hơn trước; bằng nhau thì mới tạo trước.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeOrderedForListing(Builder $query): Builder
+    {
+        return $query
+            ->orderByDesc('sort_order')
+            ->orderByDesc('created_at');
     }
 
     public function isCouponDeal(): bool

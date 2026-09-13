@@ -5,7 +5,10 @@ namespace App\Services;
 use App\Models\AutoBlogQueueItem;
 use App\Models\Blog;
 use App\Models\User;
+use App\Services\BlogDealsSyncService;
 use App\Support\AdminSettings;
+use App\Support\FilamentFileUploadState;
+use App\Support\PublicStorage;
 use App\Support\BlogCategorySelection;
 use App\Support\GeminiKeyScope;
 use App\Support\GeminiSettings;
@@ -177,6 +180,15 @@ class AutoBlogQueueService
                 ->values()
                 ->all();
 
+            $postType = trim((string) ($record['post_type'] ?? Blog::TYPE_REVIEW));
+            if (! array_key_exists($postType, Blog::postTypeOptions())) {
+                $postType = Blog::TYPE_REVIEW;
+            }
+
+            $dealsData = app(BlogDealsSyncService::class)->normalizeDealsData(
+                is_array($record['deals_data'] ?? null) ? $record['deals_data'] : []
+            );
+
             AutoBlogQueueItem::query()->create([
                 'batch_id' => $batchId,
                 'user_id' => $user?->id,
@@ -185,9 +197,11 @@ class AutoBlogQueueService
                 'blog_category_id' => $primaryCategoryId,
                 'blog_category_ids' => $categoryIds !== [] ? $categoryIds : null,
                 'category_name' => $categoryName,
+                'post_type' => $postType,
                 'content_idea' => filled($record['content_idea'] ?? null) ? trim((string) $record['content_idea']) : null,
                 'aff_link' => filled($record['aff_link'] ?? null) ? trim((string) $record['aff_link']) : null,
                 'coupon_codes' => $couponCodes !== [] ? $couponCodes : null,
+                'deals_data' => $dealsData !== [] ? $dealsData : null,
                 'image_path' => $this->normalizeRecordImagePath($record['featured_image'] ?? $record['image_path'] ?? null),
                 'status' => AutoBlogQueueItem::STATUS_PENDING,
                 'scheduled_at' => $baseTime->copy()->addMinutes($index * $interval),
@@ -303,6 +317,7 @@ class AutoBlogQueueService
             'blog_category_id' => $categoryIds[0] ?? $item->blog_category_id,
             'title' => $result['title'],
             'category' => $categoryLabel,
+            'post_type' => $item->resolvedPostType(),
             'content' => $imageResult['content'],
             'featured_image' => $featuredImage,
             'is_published' => true,
@@ -311,6 +326,10 @@ class AutoBlogQueueService
 
         if ($categoryIds !== []) {
             $blog->syncBlogCategories($categoryIds);
+        }
+
+        if (is_array($item->deals_data) && $item->deals_data !== []) {
+            app(BlogDealsSyncService::class)->sync($blog, $item->deals_data);
         }
 
         return $blog;
@@ -325,9 +344,13 @@ class AutoBlogQueueService
             $path = $path[array_key_first($path)] ?? null;
         }
 
-        $path = trim((string) $path);
+        $path = FilamentFileUploadState::extractSinglePath($path);
 
-        return $path !== '' ? $path : null;
+        if (blank($path)) {
+            return null;
+        }
+
+        return PublicStorage::syncUploadedPath($path);
     }
 
     /**

@@ -6,7 +6,10 @@ use App\Exports\AutoBlogTemplateExport;
 use App\Filament\Admin\Resources\BlogResource;
 use App\Models\AutoBlogQueueItem;
 use App\Models\AutoBlogSavedList;
+use App\Models\Blog;
 use App\Models\BlogCategory;
+use App\Support\FilamentFileUploadState;
+use App\Support\PublicStorage;
 use App\Services\AutoBlogImportService;
 use App\Services\AutoBlogQueueService;
 use App\Services\AutoBlogSavedListService;
@@ -121,7 +124,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
         return $form
             ->schema([
                 Section::make('Nguồn dữ liệu')
-                    ->description('Chọn danh sách đã lưu (tự tải) hoặc upload Excel. File sẽ được import khi bạn nhấn «Đăng bài» hoặc «Import file».')
+                    ->description('Chọn danh sách đã lưu (tự tải) hoặc upload Excel/CSV. Mỗi bài: điền thông tin bài ở dòng đầu (Domain, Loại bài, …); thêm deal ở các dòng tiếp theo — chỉ cần điền cột Deal, để trống cột bài viết. Tải file mẫu để xem ví dụ.')
                     ->schema([
                         Grid::make(12)
                             ->schema([
@@ -167,19 +170,28 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                             ]),
                     ]),
                 Section::make('Chi tiết bài viết')
-                    ->description('Ưu tiên ảnh upload; không có thì Apify Google Images (domain brand); lỗi Apify → random ảnh default1–3.')
+                    ->description('Ảnh đại diện: upload trên form hoặc để trống — hệ thống lấy ảnh qua Apify Google Images (domain brand); lỗi Apify → random ảnh default1–3.')
                     ->schema([
                         Repeater::make('records')
                             ->label('')
-                            ->columns(6)
+                            ->columns(12)
                             ->defaultItems(1)
                             ->collapsible()
                             ->collapsed()
                             ->cloneable()
                             ->addActionLabel('Thêm dòng')
-                            ->itemLabel(fn (array $state): ?string => filled($state['brand_domain'] ?? null)
-                                ? (string) $state['brand_domain']
-                                : (filled($state['featured_image'] ?? null) ? 'Có ảnh' : 'Dòng mới'))
+                            ->itemLabel(function (array $state): ?string {
+                                if (! filled($state['brand_domain'] ?? null)) {
+                                    return filled($state['featured_image'] ?? null) ? 'Có ảnh' : 'Dòng mới';
+                                }
+
+                                $label = (string) $state['brand_domain'];
+                                $type = (string) ($state['post_type'] ?? Blog::TYPE_REVIEW);
+                                $typeLabel = Blog::postTypeOptions()[$type] ?? 'Review';
+                                $dealsCount = count(is_array($state['deals_data'] ?? null) ? $state['deals_data'] : []);
+
+                                return $label.' · '.$typeLabel.($dealsCount > 0 ? " · {$dealsCount} deal" : '');
+                            })
                             ->schema([
                                 FileUpload::make('featured_image')
                                     ->label('Ảnh đại diện (tùy chọn)')
@@ -188,7 +200,13 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                                     ->directory('auto-blog-uploads')
                                     ->visibility('public')
                                     ->maxSize(5120)
-                                    ->fetchFileInformation(false)
+                                    ->deletable(true)
+                                    ->afterStateHydrated(function (FileUpload $component, string | array | null $state): void {
+                                        FilamentFileUploadState::hydrateFeaturedImageField($component, $state);
+                                    })
+                                    ->deleteUploadedFileUsing(function (string $file): void {
+                                        PublicStorage::delete($file);
+                                    })
                                     ->columnSpan(['default' => 6, 'md' => 2]),
                                 TextInput::make('brand_domain')
                                     ->label('Domain')
@@ -202,7 +220,14 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                                     ->searchable()
                                     ->placeholder('General')
                                     ->helperText('Có thể chọn nhiều danh mục.')
-                                    ->columnSpan(['default' => 6, 'md' => 2]),
+                                    ->columnSpan(['default' => 12, 'md' => 2]),
+                                Select::make('post_type')
+                                    ->label('Loại bài viết')
+                                    ->options(Blog::postTypeOptions())
+                                    ->default(Blog::TYPE_REVIEW)
+                                    ->required()
+                                    ->native(false)
+                                    ->columnSpan(['default' => 12, 'md' => 2]),
                                 TextInput::make('aff_link')
                                     ->label('Link Affiliate')
                                     ->url()
@@ -218,7 +243,20 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                                 TagsInput::make('coupon_codes')
                                     ->label('Coupon')
                                     ->placeholder('Enter')
-                                    ->columnSpan(['default' => 6, 'md' => 2]),
+                                    ->columnSpan(['default' => 12, 'md' => 2]),
+                                Repeater::make('deals_data')
+                                    ->label('Deals / Ưu đãi')
+                                    ->schema($this->dealFieldsSchema())
+                                    ->grid(3)
+                                    ->addActionLabel('Thêm deal')
+                                    ->reorderable()
+                                    ->reorderableWithButtons()
+                                    ->collapsible()
+                                    ->collapsed()
+                                    ->itemLabel(fn (array $state): string => filled($state['title'] ?? null)
+                                        ? (string) $state['title']
+                                        : 'Deal mới')
+                                    ->columnSpanFull(),
                             ]),
                     ]),
             ])
@@ -242,9 +280,13 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                     ->label('Domain')
                     ->searchable()
                     ->limit(30)
-                    ->description(fn (AutoBlogQueueItem $record): string => $record->category_name
-                        ?? $record->blogCategory?->name
-                        ?? 'General'),
+                    ->description(fn (AutoBlogQueueItem $record): string => collect([
+                        $record->postTypeLabel(),
+                        $record->category_name ?? $record->blogCategory?->name ?? 'General',
+                        is_array($record->deals_data) && count($record->deals_data) > 0
+                            ? count($record->deals_data).' deal'
+                            : null,
+                    ])->filter()->implode(' · ')),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Trạng thái')
                     ->badge()
@@ -321,9 +363,11 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                 $records = [[
                     'brand_domain' => $record->brand_domain,
                     'blog_category_ids' => $record->resolvedCategoryIds(),
+                    'post_type' => $record->resolvedPostType(),
                     'content_idea' => $record->content_idea,
                     'aff_link' => $record->aff_link,
                     'coupon_codes' => $record->coupon_codes ?? [],
+                    'deals_data' => $record->deals_data ?? [],
                     'featured_image' => $record->image_path,
                 ]];
 
@@ -383,9 +427,11 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
                             $recordsToEnqueue = [[
                                 'brand_domain' => $record->brand_domain,
                                 'blog_category_ids' => $record->resolvedCategoryIds(),
+                                'post_type' => $record->resolvedPostType(),
                                 'content_idea' => $record->content_idea,
                                 'aff_link' => $record->aff_link,
                                 'coupon_codes' => $record->coupon_codes ?? [],
+                                'deals_data' => $record->deals_data ?? [],
                                 'featured_image' => $record->image_path,
                             ]];
 
@@ -659,7 +705,7 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
         $this->loadedSavedListName = $list->name;
 
         $this->form->fill([
-            'records' => $records,
+            'records' => FilamentFileUploadState::normalizeRecordsFeaturedImage($records),
             'import_file' => null,
             'saved_list_id' => $list->id,
         ]);
@@ -847,9 +893,36 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
             'featured_image' => null,
             'brand_domain' => '',
             'blog_category_ids' => [],
+            'post_type' => Blog::TYPE_REVIEW,
             'content_idea' => null,
             'aff_link' => null,
             'coupon_codes' => [],
+            'deals_data' => [],
+        ];
+    }
+
+    /**
+     * @return array<int, \Filament\Forms\Components\Component>
+     */
+    protected function dealFieldsSchema(): array
+    {
+        return [
+            TextInput::make('title')
+                ->label('Tiêu đề')
+                ->required()
+                ->maxLength(255),
+            Textarea::make('description')
+                ->label('Mô tả')
+                ->rows(3)
+                ->maxLength(500),
+            TextInput::make('coupon_code')
+                ->label('Mã coupon')
+                ->maxLength(100)
+                ->helperText('Để trống = Discount Deal. Có mã = Coupon Code.'),
+            TextInput::make('shop_url')
+                ->label('Link cửa hàng')
+                ->url()
+                ->maxLength(2048),
         ];
     }
 
@@ -901,7 +974,9 @@ class AutoBlogPublish extends Page implements HasForms, HasTable
             ->all();
 
         $this->form->fill([
-            'records' => array_values(array_merge($existing, $items)),
+            'records' => FilamentFileUploadState::normalizeRecordsFeaturedImage(
+                array_values(array_merge($existing, $items))
+            ),
             'import_file' => null,
         ]);
 

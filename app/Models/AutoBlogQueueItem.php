@@ -23,9 +23,11 @@ class AutoBlogQueueItem extends Model
         'blog_category_id',
         'blog_category_ids',
         'category_name',
+        'post_type',
         'content_idea',
         'aff_link',
         'coupon_codes',
+        'deals_data',
         'image_path',
         'status',
         'scheduled_at',
@@ -36,6 +38,7 @@ class AutoBlogQueueItem extends Model
 
     protected $casts = [
         'coupon_codes' => 'array',
+        'deals_data' => 'array',
         'blog_category_ids' => 'array',
         'scheduled_at' => 'datetime',
         'processed_at' => 'datetime',
@@ -74,6 +77,18 @@ class AutoBlogQueueItem extends Model
         }
 
         return filled($this->blog_category_id) ? [(int) $this->blog_category_id] : [];
+    }
+
+    public function resolvedPostType(): string
+    {
+        $type = (string) ($this->post_type ?? Blog::TYPE_REVIEW);
+
+        return array_key_exists($type, Blog::postTypeOptions()) ? $type : Blog::TYPE_REVIEW;
+    }
+
+    public function postTypeLabel(): string
+    {
+        return Blog::postTypeOptions()[$this->resolvedPostType()];
     }
 
     public function statusLabel(): string

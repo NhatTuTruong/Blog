@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources\BlogResource\Concerns;
 
 use App\Models\BlogDeal;
+use App\Services\BlogDealsSyncService;
 
 trait SyncsBlogDeals
 {
@@ -56,54 +57,12 @@ trait SyncsBlogDeals
 
     protected function syncBlogDeals(): void
     {
-        $dealsData = $this->pendingDealsData;
-
         $blog = $this->record?->fresh();
 
         if (! $blog) {
             return;
         }
 
-        $sync = [];
-        $sortOrder = 0;
-
-        foreach ($dealsData as $item) {
-            if (! is_array($item)) {
-                continue;
-            }
-
-            $title = trim((string) ($item['title'] ?? ''));
-            $shopUrl = trim((string) ($item['shop_url'] ?? ''));
-
-            if ($title === '' && $shopUrl === '') {
-                continue;
-            }
-
-            $attributes = [
-                'title' => $title,
-                'description' => filled($item['description'] ?? null)
-                    ? trim((string) $item['description'])
-                    : null,
-                'coupon_code' => filled($item['coupon_code'] ?? null)
-                    ? trim((string) $item['coupon_code'])
-                    : null,
-                'shop_url' => $shopUrl,
-                'sort_order' => $sortOrder,
-            ];
-
-            $dealId = isset($item['id']) && filled($item['id']) ? (int) $item['id'] : null;
-            $deal = $dealId ? BlogDeal::query()->find($dealId) : null;
-
-            if ($deal) {
-                $deal->update($attributes);
-            } else {
-                $deal = BlogDeal::query()->create($attributes);
-            }
-
-            $sync[$deal->id] = ['sort_order' => $sortOrder];
-            $sortOrder++;
-        }
-
-        $blog->deals()->sync($sync);
+        app(BlogDealsSyncService::class)->sync($blog, $this->pendingDealsData);
     }
 }

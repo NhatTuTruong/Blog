@@ -22,8 +22,7 @@ class DealController extends Controller
             ->when($filter === 'discount', fn ($query) => $query->where(function ($inner) {
                 $inner->whereNull('coupon_code')->orWhere('coupon_code', '');
             }))
-            ->orderBy('sort_order')
-            ->orderByDesc('updated_at')
+            ->orderedForListing()
             ->paginate(24)
             ->withQueryString();
 

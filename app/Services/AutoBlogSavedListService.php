@@ -4,7 +4,11 @@ namespace App\Services;
 
 use App\Models\AutoBlogSavedList;
 use App\Models\User;
+use App\Models\Blog;
+use App\Services\BlogDealsSyncService;
 use App\Support\BlogCategorySelection;
+use App\Support\FilamentFileUploadState;
+use App\Support\PublicStorage;
 use Illuminate\Support\Collection;
 
 class AutoBlogSavedListService
@@ -103,17 +107,28 @@ class AutoBlogSavedListService
                     ->values()
                     ->all();
 
-                $featuredImage = $record['featured_image'] ?? null;
-                if (is_array($featuredImage)) {
-                    $featuredImage = $featuredImage[array_key_first($featuredImage)] ?? null;
+                $featuredImage = FilamentFileUploadState::extractSinglePath($record['featured_image'] ?? null);
+
+                $postType = trim((string) ($record['post_type'] ?? Blog::TYPE_REVIEW));
+                if (! array_key_exists($postType, Blog::postTypeOptions())) {
+                    $postType = Blog::TYPE_REVIEW;
                 }
 
+                $dealsData = app(BlogDealsSyncService::class)->normalizeDealsData(
+                    is_array($record['deals_data'] ?? null) ? $record['deals_data'] : []
+                );
+
+                $featuredImage = filled($featuredImage)
+                    ? PublicStorage::syncUploadedPath(trim((string) $featuredImage))
+                    : null;
+
                 return [
-                    'featured_image' => filled($featuredImage) ? trim((string) $featuredImage) : null,
+                    'featured_image' => $featuredImage,
                     'brand_domain' => trim((string) $record['brand_domain']),
                     'blog_category_ids' => BlogCategorySelection::normalizeIds(
                         $record['blog_category_ids'] ?? $record['blog_category_id'] ?? null
                     ),
+                    'post_type' => $postType,
                     'content_idea' => filled($record['content_idea'] ?? null)
                         ? trim((string) $record['content_idea'])
                         : null,
@@ -121,6 +136,7 @@ class AutoBlogSavedListService
                         ? trim((string) $record['aff_link'])
                         : null,
                     'coupon_codes' => $couponCodes,
+                    'deals_data' => $dealsData,
                 ];
             })
             ->values();
