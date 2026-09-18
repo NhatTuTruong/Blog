@@ -18,8 +18,144 @@ class BlogContentSanitizer
         $html = self::removeDuplicateListClosures($html);
         $html = preg_replace("/\n{3,}/", "\n\n", $html) ?? $html;
         $html = self::normalizeInlineImages($html);
+        $html = self::normalizeInlineVideos($html);
 
         return trim($html);
+    }
+
+    public static function normalizeInlineVideos(string $html): string
+    {
+        $html = preg_replace_callback(
+            '/<figure\b[^>]*class="[^"]*attachment[^"]*"[^>]*>([\s\S]*?)<\/figure>/is',
+            function (array $matches): string {
+                $inner = $matches[1];
+                $href = self::extractVideoHrefFromAttachmentHtml($matches[0], $inner);
+
+                if ($href === null) {
+                    return $matches[0];
+                }
+
+                return self::buildInlineVideoHtml($href);
+            },
+            $html
+        ) ?? $html;
+
+        $html = preg_replace_callback(
+            '/<a\b[^>]*href=(["\'])([^"\']+)\1[^>]*>.*?<\/a>/is',
+            function (array $matches): string {
+                if (! self::isVideoUrl($matches[2])) {
+                    return $matches[0];
+                }
+
+                return self::buildInlineVideoHtml($matches[2]);
+            },
+            $html
+        ) ?? $html;
+
+        return preg_replace_callback('/<video\b([^>]*)>/i', function (array $matches): string {
+            $attrs = $matches[1];
+
+            if (! preg_match('/\bcontrols\b/i', $attrs)) {
+                $attrs .= ' controls';
+            }
+
+            if (! preg_match('/\bplaysinline\b/i', $attrs)) {
+                $attrs .= ' playsinline';
+            }
+
+            if (! preg_match('/\bpreload=/i', $attrs)) {
+                $attrs .= ' preload="metadata"';
+            }
+
+            if (preg_match('/\bclass=(["\'])(.*?)\1/i', $attrs, $classMatches)) {
+                $quote = $classMatches[1];
+                $classes = trim($classMatches[2].' blog-inline-video__player');
+
+                $attrs = preg_replace(
+                    '/\bclass=(["\']).*?\1/i',
+                    'class='.$quote.$classes.$quote,
+                    $attrs
+                ) ?? $attrs;
+            } else {
+                $attrs .= ' class="blog-inline-video__player"';
+            }
+
+            return '<video'.rtrim($attrs).'>';
+        }, $html) ?? $html;
+    }
+
+    protected static function isVideoUrl(string $url): bool
+    {
+        $path = parse_url(html_entity_decode(trim($url), ENT_QUOTES | ENT_HTML5, 'UTF-8'), PHP_URL_PATH) ?? $url;
+
+        return (bool) preg_match('/\.(mp4|webm|ogg|mov|m4v)(?:$|[?#])/i', $path);
+    }
+
+    protected static function videoMimeType(string $url): string
+    {
+        $path = parse_url(html_entity_decode(trim($url), ENT_QUOTES | ENT_HTML5, 'UTF-8'), PHP_URL_PATH) ?? $url;
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        return match ($extension) {
+            'webm' => 'video/webm',
+            'ogg' => 'video/ogg',
+            'mov' => 'video/quicktime',
+            'm4v' => 'video/mp4',
+            default => 'video/mp4',
+        };
+    }
+
+    protected static function normalizeMediaUrl(string $url): string
+    {
+        $url = html_entity_decode(trim($url), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        if (preg_match('#^https?://#i', $url)) {
+            return $url;
+        }
+
+        $path = preg_replace('#^(?:/)?storage/#', '', $url) ?? $url;
+        $path = PublicStorage::normalizePath($path);
+
+        if ($path !== '' && PublicStorage::exists($path)) {
+            return PublicStorage::url($path);
+        }
+
+        return $url;
+    }
+
+    protected static function extractVideoHrefFromAttachmentHtml(string $figureHtml, string $innerHtml): ?string
+    {
+        if (preg_match('/\bdata-trix-attachment=(["\'])(.*?)\1/is', $figureHtml, $dataMatches)) {
+            $payload = html_entity_decode($dataMatches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $data = json_decode($payload, true);
+
+            if (is_array($data)) {
+                foreach (['url', 'href'] as $key) {
+                    if (! empty($data[$key]) && self::isVideoUrl((string) $data[$key])) {
+                        return (string) $data[$key];
+                    }
+                }
+            }
+        }
+
+        if (preg_match('/<a\b[^>]*href=(["\'])([^"\']+)\1/i', $innerHtml, $anchorMatches)
+            && self::isVideoUrl($anchorMatches[2])) {
+            return $anchorMatches[2];
+        }
+
+        return null;
+    }
+
+    protected static function buildInlineVideoHtml(string $href): string
+    {
+        $src = htmlspecialchars(self::normalizeMediaUrl($href), ENT_QUOTES, 'UTF-8');
+        $mime = htmlspecialchars(self::videoMimeType($href), ENT_QUOTES, 'UTF-8');
+
+        return '<figure class="blog-inline-video">'
+            .'<video class="blog-inline-video__player" controls preload="metadata" playsinline src="'.$src.'">'
+            .'<source src="'.$src.'" type="'.$mime.'">'
+            .'</video>'
+            .'</figure>';
     }
 
     public static function normalizeInlineImages(string $html): string

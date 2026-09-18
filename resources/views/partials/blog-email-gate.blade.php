@@ -120,8 +120,8 @@
 @push('scripts')
 <script>
 (function () {
-    var storageKey = 'blog_email_unlock_v1';
-    var postId = {{ (int) $post->id }};
+    var storageKey = 'blog_email_unlock_v2';
+    var legacyStorageKey = 'blog_email_unlock_v1';
     var unlockUrl = @json(route('blogs.email-unlock', $post->slug));
     var shells = document.querySelectorAll('.blog-gated-shell');
     var modal = document.getElementById('blog-email-gate-modal');
@@ -134,23 +134,29 @@
         return;
     }
 
-    function readUnlocks() {
+    function readUnlocks(key) {
         try {
-            return JSON.parse(localStorage.getItem(storageKey) || '{}');
+            return JSON.parse(localStorage.getItem(key) || '{}');
         } catch (e) {
             return {};
         }
     }
 
     function isUnlocked() {
-        var map = readUnlocks();
+        var map = readUnlocks(storageKey);
 
-        return !!map[String(postId)];
+        if (map.unlocked) {
+            return true;
+        }
+
+        var legacy = readUnlocks(legacyStorageKey);
+
+        return Object.keys(legacy).length > 0;
     }
 
     function persistUnlock() {
-        var map = readUnlocks();
-        map[String(postId)] = Date.now();
+        var map = readUnlocks(storageKey);
+        map.unlocked = Date.now();
         localStorage.setItem(storageKey, JSON.stringify(map));
     }
 

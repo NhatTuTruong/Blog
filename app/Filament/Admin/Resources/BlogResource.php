@@ -6,6 +6,8 @@ use App\Filament\Admin\Resources\BlogResource\Pages;
 use App\Models\Blog;
 use App\Models\User;
 use App\Support\BlogCategorySelection;
+use App\Support\PublicStorage;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -136,6 +138,17 @@ class BlogResource extends Resource
                                 'undo',
                                 'redo',
                             ])
+                            ->fileAttachmentsDirectory('blog-content')
+                            ->fileAttachmentsDisk('public')
+                            ->saveUploadedFileAttachmentsUsing(function (TemporaryUploadedFile $file): string {
+                                return PublicStorage::storeUploadedFile($file, 'blog-content', $file->hashName());
+                            })
+                            ->getUploadedAttachmentUrlUsing(function (string $file): ?string {
+                                $path = PublicStorage::syncUploadedPath($file);
+
+                                return $path ? PublicStorage::url($path) : null;
+                            })
+                            ->helperText('Chèn video bằng nút đính kèm file — trên bài viết sẽ hiển thị trình phát video, bấm play xem ngay trên blog.')
                             ->columnSpanFull()
                             ->extraInputAttributes(['style' => 'min-height: 360px;']),
                     ]),

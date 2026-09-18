@@ -474,6 +474,22 @@
         text-align: center;
     }
 
+    .blog-content.prose .blog-inline-video {
+        margin: 1.75rem 0;
+    }
+
+    .blog-content.prose .blog-inline-video__player,
+    .blog-content.prose video {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        border-radius: 0.9rem;
+        border: 1px solid var(--blog-border);
+        background: #000;
+        aspect-ratio: 16 / 9;
+        object-fit: contain;
+    }
+
     .blog-content.prose .blog-inline-image img {
         width: 100%;
         height: auto;
