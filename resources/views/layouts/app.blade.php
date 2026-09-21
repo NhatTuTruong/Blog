@@ -21,6 +21,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $finalTitle }}</title>
     @include('partials.seo-head')
+    @include('partials.site-head-meta-tags')
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     @yield('head')
     @hasSection('og_image')

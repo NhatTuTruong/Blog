@@ -47,6 +47,46 @@ class SiteContent extends Model
         ];
     }
 
+    /**
+     * @return array<int, array{enabled?: bool, name: string, content: string}>
+     */
+    public static function defaultHeaderMetaTags(): array
+    {
+        return [
+            [
+                'enabled' => true,
+                'name' => 'partnerboostverifycode',
+                'content' => '32dc01246faccb7f5b3cad5016dd5033',
+            ],
+        ];
+    }
+
+    /**
+     * Meta bổ sung trong &lt;head&gt; (PartnerBoost, xác minh affiliate, …).
+     *
+     * @return array<int, array{name: string, content: string}>
+     */
+    public static function headerMetaTags(): array
+    {
+        $tags = self::get('header_meta_tags', self::defaultHeaderMetaTags());
+
+        if (! is_array($tags)) {
+            return self::defaultHeaderMetaTags();
+        }
+
+        return collect($tags)
+            ->filter(fn (mixed $tag): bool => is_array($tag)
+                && ($tag['enabled'] ?? true)
+                && filled(trim((string) ($tag['name'] ?? '')))
+                && filled(trim((string) ($tag['content'] ?? ''))))
+            ->map(fn (array $tag): array => [
+                'name' => trim((string) $tag['name']),
+                'content' => trim((string) $tag['content']),
+            ])
+            ->values()
+            ->all();
+    }
+
     public static function defaultFooterColumns(): array
     {
         return [

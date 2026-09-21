@@ -67,6 +67,7 @@ class SiteContentPage extends Page implements HasForms
             'page_contact' => SiteContent::get('page_contact', SiteContent::defaultPageContact()),
             'page_privacy' => SiteContent::get('page_privacy', SiteContent::defaultPagePrivacy()),
             'seo_settings' => SiteSeo::settings(),
+            'header_meta_tags' => SiteContent::get('header_meta_tags', SiteContent::defaultHeaderMetaTags()),
         ]);
     }
 
@@ -124,6 +125,35 @@ class SiteContentPage extends Page implements HasForms
                         Tabs\Tab::make('SEO')
                             ->icon('heroicon-o-magnifying-glass')
                             ->schema($this->seoFormSchema()),
+                        Tabs\Tab::make('Bổ sung')
+                            ->icon('heroicon-o-code-bracket')
+                            ->schema([
+                                Section::make('Meta thẻ trong &lt;head&gt;')
+                                    ->description('Các thẻ meta bổ sung trên mọi trang công khai (ví dụ PartnerBoost verify). Chỉ dùng thuộc tính name và content.')
+                                    ->schema([
+                                        Repeater::make('header_meta_tags')
+                                            ->label('')
+                                            ->addActionLabel('Thêm meta tag')
+                                            ->itemLabel(fn (array $state): ?string => filled($state['name'] ?? null)
+                                                ? (string) $state['name']
+                                                : 'Meta mới')
+                                            ->schema([
+                                                Toggle::make('enabled')
+                                                    ->label('Hiển thị')
+                                                    ->default(true),
+                                                TextInput::make('name')
+                                                    ->label('Thuộc tính name')
+                                                    ->required()
+                                                    ->maxLength(255)
+                                                    ->placeholder('partnerboostverifycode'),
+                                                TextInput::make('content')
+                                                    ->label('Thuộc tính content')
+                                                    ->required()
+                                                    ->maxLength(500),
+                                            ])
+                                            ->columnSpanFull(),
+                                    ]),
+                            ]),
                         Tabs\Tab::make('Footer')
                             ->icon('heroicon-o-squares-2x2')
                             ->schema([
@@ -257,6 +287,7 @@ class SiteContentPage extends Page implements HasForms
         SiteContent::set('page_contact', $data['page_contact'] ?? '');
         SiteContent::set('page_privacy', $data['page_privacy'] ?? '');
         SiteContent::set('seo_settings', $data['seo_settings'] ?? SiteContent::defaultSeoSettings());
+        SiteContent::set('header_meta_tags', $data['header_meta_tags'] ?? SiteContent::defaultHeaderMetaTags());
 
         Notification::make()
             ->title('Đã lưu nội dung trang, SEO, Header, Footer và các trang.')
