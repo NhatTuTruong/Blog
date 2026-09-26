@@ -68,8 +68,8 @@
         outline: none;
     }
     .blog-gate-modal__input:focus {
-        border-color: #FF8F00;
-        box-shadow: 0 0 0 3px rgba(255, 143, 0, 0.2);
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
     }
     .blog-gate-modal__submit {
         border: none;
@@ -79,7 +79,7 @@
         font-size: 0.95rem;
         color: #fff;
         cursor: pointer;
-        background: linear-gradient(135deg, #F9A825 0%, #FF8F00 100%);
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     }
     .blog-gate-modal__submit:disabled {
         opacity: 0.65;

@@ -13,8 +13,8 @@
         --bh-muted: #64748b;
         --bh-light: #f8fafc;
         --bh-card: #ffffff;
-        --bh-accent: #FF8F00;
-        --bh-accent2: #F9A825;
+        --bh-accent: #2563eb;
+        --bh-accent2: #3b82f6;
         --bh-border: #e2e8f0;
         background: var(--bh-card);
         color: var(--bh-ink);
@@ -36,7 +36,7 @@
         position: absolute;
         inset: 0;
         background:
-            radial-gradient(ellipse 80% 60% at 20% 20%, rgba(255, 143, 0, 0.35) 0%, transparent 50%),
+            radial-gradient(ellipse 80% 60% at 20% 20%, rgba(37, 99, 235, 0.35) 0%, transparent 50%),
             radial-gradient(ellipse 60% 50% at 80% 80%, rgba(139, 92, 246, 0.3) 0%, transparent 50%),
             radial-gradient(ellipse 40% 40% at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
     }
@@ -85,10 +85,10 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.5rem 1rem;
-        background: rgba(255, 143, 0, 0.2);
-        border: 1px solid rgba(255, 143, 0, 0.4);
+        background: rgba(37, 99, 235, 0.2);
+        border: 1px solid rgba(37, 99, 235, 0.4);
         border-radius: 999px;
-        color: #F9A825;
+        color: #3b82f6;
         font-size: 0.8rem;
         font-weight: 600;
         margin-bottom: 1.5rem;
@@ -107,7 +107,7 @@
         margin: 0 0 1.25rem;
     }
     .blog-hero__title .highlight {
-        background: linear-gradient(135deg, #F9A825 0%, #FF8F00 50%, #F9A825 100%);
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #3b82f6 100%);
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
@@ -154,7 +154,7 @@
     }
     .blog-hero__search button {
         border: none;
-        background: linear-gradient(135deg, #FF8F00 0%, #EF6C00 100%);
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
         color: #fff;
         padding: 0.875rem 1.5rem;
         font-weight: 600;
@@ -166,7 +166,7 @@
         transition: all 0.2s;
     }
     .blog-hero__search button:hover {
-        background: linear-gradient(135deg, #EF6C00 0%, #FF8F00 100%);
+        background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
     }
     .blog-hero__search button svg {
         width: 18px;
@@ -248,7 +248,7 @@
     .blog-hero__card-cat {
         font-size: 0.65rem;
         font-weight: 700;
-        color: #F9A825;
+        color: #3b82f6;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         margin-bottom: 0.25rem;
@@ -290,7 +290,7 @@
     .blog-hero__cat:hover,
     .blog-hero__cat.active {
         background: rgba(255, 255, 255, 0.12);
-        border-color: rgba(255, 143, 0, 0.5);
+        border-color: rgba(37, 99, 235, 0.5);
         color: #fff;
         transform: translateY(-2px);
     }
@@ -634,7 +634,7 @@
                                 Prev
                             </span>
                         @else
-                            <a href="{{ $posts->previousPageUrl() }}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.6rem 1rem; font-size: 0.875rem; font-weight: 600; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#FF8F00';this.style.color='#FF8F00'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#1e293b'">
+                            <a href="{{ $posts->previousPageUrl() }}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.6rem 1rem; font-size: 0.875rem; font-weight: 600; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#1e293b'">
                                 <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
                                 Prev
                             </a>
@@ -649,25 +649,25 @@
                         @endphp
 
                         @if($left > 1)
-                            <a href="{{ $posts->url(1) }}" style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 500; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#FF8F00';this.style.color='#FF8F00'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">1</a>
+                            <a href="{{ $posts->url(1) }}" style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 500; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">1</a>
                             @if($left > 2)<span style="padding: 0 0.25rem; color: #94a3b8;">...</span>@endif
                         @endif
 
                         @for($i = $left; $i <= $right; $i++)
                             @if($i == $current)
-                                <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 700; color: #fff; background: linear-gradient(135deg, #FF8F00 0%, #F9A825 100%); border: 1px solid transparent; border-radius: 8px; box-shadow: 0 2px 4px rgba(255,143,0,0.3);">{{ $i }}</span>
+                                <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 700; color: #fff; background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%); border: 1px solid transparent; border-radius: 8px; box-shadow: 0 2px 4px rgba(37,99,235,0.3);">{{ $i }}</span>
                             @else
-                                <a href="{{ $posts->url($i) }}" style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 500; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#FF8F00';this.style.color='#FF8F00'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">{{ $i }}</a>
+                                <a href="{{ $posts->url($i) }}" style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 500; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">{{ $i }}</a>
                             @endif
                         @endfor
 
                         @if($right < $last)
                             @if($right < $last - 1)<span style="padding: 0 0.25rem; color: #94a3b8;">...</span>@endif
-                            <a href="{{ $posts->url($last) }}" style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 500; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#FF8F00';this.style.color='#FF8F00'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">{{ $last }}</a>
+                            <a href="{{ $posts->url($last) }}" style="display: inline-flex; align-items: center; justify-content: center; min-width: 40px; padding: 0.6rem; font-size: 0.875rem; font-weight: 500; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#64748b'">{{ $last }}</a>
                         @endif
 
                         @if($posts->hasMorePages())
-                            <a href="{{ $posts->nextPageUrl() }}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.6rem 1rem; font-size: 0.875rem; font-weight: 600; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#FF8F00';this.style.color='#FF8F00'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#1e293b'">
+                            <a href="{{ $posts->nextPageUrl() }}" style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.6rem 1rem; font-size: 0.875rem; font-weight: 600; color: #1e293b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#1e293b'">
                                 Next
                                 <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
                             </a>

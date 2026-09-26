@@ -12,7 +12,7 @@
     }
     .cat-page__hero {
         background: #fff;
-        border-bottom: 2px solid rgba(255, 143, 0, 0.2);
+        border-bottom: 2px solid rgba(37, 99, 235, 0.2);
         padding: 2.25rem 1.5rem;
     }
     .cat-page__hero-inner {
@@ -20,11 +20,11 @@
         max-width: 1280px;
         margin: 0 auto;
         background: #fff;
-        border: 1px solid rgba(255, 143, 0, 0.22);
-        border-left: 4px solid #FF8F00;
+        border: 1px solid rgba(37, 99, 235, 0.22);
+        border-left: 4px solid #2563eb;
         border-radius: 16px;
         padding: 2rem 2.25rem;
-        box-shadow: 0 8px 32px rgba(255, 143, 0, 0.07);
+        box-shadow: 0 8px 32px rgba(37, 99, 235, 0.07);
         overflow: hidden;
     }
     .cat-page__hero-inner::before {
@@ -34,7 +34,7 @@
         right: -5%;
         width: 220px;
         height: 220px;
-        background: radial-gradient(circle, rgba(255, 143, 0, 0.07) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.07) 0%, transparent 70%);
         pointer-events: none;
     }
     .cat-page__label {
@@ -47,9 +47,9 @@
         font-weight: 700;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: #EF6C00;
-        background: rgba(255, 143, 0, 0.08);
-        border: 1px solid rgba(255, 143, 0, 0.35);
+        color: #1d4ed8;
+        background: rgba(37, 99, 235, 0.08);
+        border: 1px solid rgba(37, 99, 235, 0.35);
         border-radius: 999px;
         padding: 0.38rem 0.9rem;
         margin-bottom: 1rem;
@@ -59,8 +59,8 @@
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        background: #FF8F00;
-        box-shadow: 0 0 0 3px rgba(255, 143, 0, 0.2);
+        background: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
     }
     .cat-page__title {
         position: relative;
@@ -119,14 +119,14 @@
     }
     .cat-card:hover {
         transform: translateY(-3px);
-        border-color: rgba(255, 143, 0, 0.45);
-        box-shadow: 0 10px 24px rgba(255, 143, 0, 0.12);
+        border-color: rgba(37, 99, 235, 0.45);
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.12);
     }
     .cat-card__image {
         aspect-ratio: 4 / 3;
         overflow: hidden;
         background: #f8fafc;
-        border-bottom: 1px solid rgba(255, 143, 0, 0.1);
+        border-bottom: 1px solid rgba(37, 99, 235, 0.1);
     }
     .cat-card__image img {
         width: 100%;
@@ -165,7 +165,7 @@
         text-align: center;
         padding: 3rem 1rem;
         color: #64748b;
-        border: 1px dashed rgba(255, 143, 0, 0.25);
+        border: 1px dashed rgba(37, 99, 235, 0.25);
         border-radius: 14px;
         background: #FFFBF5;
     }

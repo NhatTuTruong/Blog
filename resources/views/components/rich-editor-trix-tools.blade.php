@@ -29,7 +29,7 @@
     }
     trix-editor table th,
     .fi-fo-rich-editor-editor table th {
-        background: rgba(255, 143, 0, 0.12);
+        background: rgba(37, 99, 235, 0.12);
         font-weight: 600;
     }
 </style>

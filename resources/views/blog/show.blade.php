@@ -70,7 +70,7 @@
         --blog-border: rgba(15, 23, 42, 0.12);
         --blog-text: #0f172a;
         --blog-muted: #64748b;
-        --blog-accent: #FF8F00;
+        --blog-accent: #2563eb;
         --blog-accent-soft: rgba(37, 99, 235, 0.10);
     }
 
@@ -129,7 +129,7 @@
         left: 0;
         right: 0;
         height: 3px;
-        background: linear-gradient(90deg, #F9A825, #FF8F00, #EF6C00);
+        background: linear-gradient(90deg, #3b82f6, #2563eb, #1d4ed8);
         z-index: 2;
     }
 
@@ -459,7 +459,7 @@
 
     .blog-content.prose table th,
     .blog-content.prose .blog-content-table th {
-        background: rgba(255, 143, 0, 0.1);
+        background: rgba(37, 99, 235, 0.1);
         font-weight: 700;
     }
 

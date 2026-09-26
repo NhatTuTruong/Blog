@@ -35,8 +35,8 @@
         --bh-muted: #64748b;
         --bh-light: #f4f7f5;
         --bh-card: #ffffff;
-        --bh-accent: #FF8F00;
-        --bh-accent2: #F9A825;
+        --bh-accent: #2563eb;
+        --bh-accent2: #3b82f6;
         --bh-border: #e2e8f0;
         color: var(--bh-ink);
     }
@@ -60,7 +60,7 @@
         --hero-primary-muted: #93c5fd;
         --hero-glow: rgba(37, 99, 235, 0.35);
         position: relative;
-        min-height: 72vh;
+        min-height: min(520px, 58vh);
         display: flex;
         align-items: center;
         overflow: hidden;
@@ -430,23 +430,40 @@
     }
     .bh-section__header h2 {
         font-family: 'Poppins', sans-serif;
-        font-size: 1.75rem;
+        font-size: 1.65rem;
         font-weight: 700;
         margin: 0;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.03em;
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
+        gap: 0.65rem;
+        text-transform: none;
     }
     .bh-section__header h2::before {
         content: '';
-        width: 4px;
-        height: 1.35em;
-        background: var(--bh-accent);
-        border-radius: 2px;
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        background: linear-gradient(135deg, var(--bh-accent2), var(--bh-accent));
         flex-shrink: 0;
+    }
+    .bh-section__header h2[data-kicker] {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+    }
+    .bh-section__header h2[data-kicker]::before {
+        content: attr(data-kicker);
+        width: auto;
+        height: auto;
+        border-radius: 0;
+        background: none;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--bh-accent);
+        line-height: 1;
     }
     .bh-section__header a {
         color: var(--bh-accent);
@@ -574,15 +591,31 @@
     }
     .bh-card {
         background: var(--bh-card);
-        border-radius: 16px;
+        border-radius: 20px;
         overflow: hidden;
         border: 1px solid var(--bh-border);
-        transition: all 0.3s ease;
+        transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+        position: relative;
+    }
+    .bh-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--bh-accent), var(--bh-accent2));
+        opacity: 0;
+        transition: opacity 0.28s ease;
     }
     .bh-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
-        border-color: transparent;
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px -16px rgba(37, 99, 235, 0.22);
+        border-color: rgba(37, 99, 235, 0.2);
+    }
+    .bh-card:hover::after {
+        opacity: 1;
     }
     .bh-card__img {
         width: 100%;
@@ -807,11 +840,11 @@
         gap: 0.65rem;
         height: 100%;
         min-height: 500px;
-        background: linear-gradient(135deg, #F9A825 0%, #FF8F00 100%);
-        border-radius: 14px;
-        padding: 0.85rem;
-        border: 1px solid rgba(255, 143, 0, 0.18);
-        box-shadow: 0 8px 24px rgba(255, 143, 0, 0.08);
+        background: #f8fafc;
+        border-radius: 18px;
+        padding: 1rem;
+        border: 1px solid var(--bh-border);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
     }
     .bh-featured__sidebar-item {
         position: relative;
@@ -822,7 +855,7 @@
         padding: 0.65rem;
         background: #fff;
         border-radius: 12px;
-        border: 1px solid rgba(255, 143, 0, 0.12);
+        border: 1px solid rgba(37, 99, 235, 0.12);
         text-decoration: none;
         color: inherit;
         transition: all 0.25s;
@@ -831,10 +864,10 @@
         overflow: hidden;
     }
     .bh-featured__sidebar-item:hover {
-        border-color: rgba(255, 143, 0, 0.45);
-        background: #FFFBF5;
+        border-color: rgba(37, 99, 235, 0.45);
+        background: #eff6ff;
         transform: translateX(3px);
-        box-shadow: 0 4px 12px rgba(255, 143, 0, 0.12);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
     }
     .bh-featured__sidebar-item img {
         position: static;
@@ -874,12 +907,12 @@
         text-shadow: none;
     }
     .bh-featured__sidebar-label {
-        font-size: 1.2rem;
-        font-weight: 800;
-        letter-spacing: 0.12em;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: #FFF;
-        margin: 0 0 0.25rem 0.35rem;
+        color: var(--bh-muted);
+        margin: 0 0 0.35rem 0.35rem;
     }
 
     /* Mobile Carousel */
@@ -1137,7 +1170,7 @@
         color: #fff;
     }
     .bh-cat-list__featured-overlay .bh-card__cat {
-        color: #F9A825;
+        color: #3b82f6;
     }
     .bh-cat-list__featured-overlay .bh-card__title {
         color: #fff;
@@ -1318,6 +1351,8 @@
         margin: 0 -2rem;
         padding: 2rem;
         border-bottom: none;
+        background: rgba(255, 255, 255, 0.65);
+        border-radius: 20px;
     }
     @media (max-width: 768px) {
         .bh-cat-block--alt { margin: 0 -1rem; padding: 1.5rem 1rem; }
@@ -1333,9 +1368,9 @@
         background: #ffffff;
         border-radius: 16px;
         padding: 1.5rem;
-        border: 1px solid rgba(255, 143, 0, 0.18);
+        border: 1px solid rgba(37, 99, 235, 0.18);
         box-shadow:
-            0 12px 32px rgba(255, 143, 0, 0.08),
+            0 12px 32px rgba(37, 99, 235, 0.08),
             0 2px 8px rgba(15, 20, 25, 0.04);
         overflow: hidden;
         position: relative;
@@ -1347,7 +1382,7 @@
         right: -30%;
         width: 220px;
         height: 220px;
-        background: radial-gradient(circle, rgba(255, 143, 0, 0.08) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, transparent 70%);
         pointer-events: none;
     }
     @media (max-width: 1024px) {
@@ -1361,7 +1396,7 @@
         position: relative;
         z-index: 1;
         background: #fffaf5;
-        border: 1px solid rgba(255, 143, 0, 0.14);
+        border: 1px solid rgba(37, 99, 235, 0.14);
         border-radius: 14px;
         padding: 1.25rem;
         margin-bottom: 1rem;
@@ -1376,7 +1411,7 @@
         color: #0f172a;
         margin: 0 0 1rem;
         padding-bottom: 0.75rem;
-        border-bottom: 1px solid rgba(255, 143, 0, 0.16);
+        border-bottom: 1px solid rgba(37, 99, 235, 0.16);
         display: flex;
         align-items: center;
         gap: 0.5rem;
@@ -1386,8 +1421,8 @@
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: #FF8F00;
-        box-shadow: 0 0 8px rgba(255, 143, 0, 0.45);
+        background: #2563eb;
+        box-shadow: 0 0 8px rgba(37, 99, 235, 0.45);
     }
     .bh-cat-sidebar__cats {
         list-style: none;
@@ -1412,7 +1447,7 @@
     .bh-cat-sidebar__cats a.active,
     .bh-cat-sidebar__cats a.is-current {
         color: #0f172a;
-        background: rgba(255, 143, 0, 0.12);
+        background: rgba(37, 99, 235, 0.12);
         transform: translateX(3px);
     }
     .bh-cat-sidebar__cat-dot {
@@ -1420,7 +1455,7 @@
         height: 8px;
         border-radius: 50%;
         flex-shrink: 0;
-        box-shadow: 0 0 6px rgba(255, 143, 0, 0.35);
+        box-shadow: 0 0 6px rgba(37, 99, 235, 0.35);
     }
     .bh-cat-sidebar__cat-name {
         flex: 1;
@@ -1434,7 +1469,7 @@
         margin-left: auto;
         font-size: 0.72rem;
         font-weight: 700;
-        background: rgba(255, 143, 0, 0.1);
+        background: rgba(37, 99, 235, 0.1);
         color: #c2410c;
         padding: 0.2rem 0.55rem;
         border-radius: 999px;
@@ -1442,7 +1477,7 @@
     .bh-cat-sidebar__cats a:hover .bh-cat-sidebar__cat-count,
     .bh-cat-sidebar__cats a.active .bh-cat-sidebar__cat-count,
     .bh-cat-sidebar__cats a.is-current .bh-cat-sidebar__cat-count {
-        background: rgba(255, 143, 0, 0.2);
+        background: rgba(37, 99, 235, 0.2);
         color: #9a3412;
     }
     .bh-cat-sidebar__trending {
@@ -1455,7 +1490,7 @@
         counter-increment: trend;
         margin: 0;
         padding: 0.65rem 0;
-        border-bottom: 1px solid rgba(255, 143, 0, 0.12);
+        border-bottom: 1px solid rgba(37, 99, 235, 0.12);
     }
     .bh-cat-sidebar__trending li:last-child {
         border-bottom: none;
@@ -1473,7 +1508,7 @@
         transition: background 0.15s;
     }
     .bh-cat-sidebar__trending a:hover {
-        background: rgba(255, 143, 0, 0.08);
+        background: rgba(37, 99, 235, 0.08);
     }
     .bh-cat-sidebar__trending a::before {
         content: counter(trend, decimal-leading-zero);
@@ -1485,14 +1520,14 @@
         line-height: 1.4;
         transition: color 0.15s;
     }
-    .bh-cat-sidebar__trending a:hover::before { color: #FF8F00; }
+    .bh-cat-sidebar__trending a:hover::before { color: #2563eb; }
     .bh-cat-sidebar__trending img {
         width: 52px;
         height: 52px;
         object-fit: cover;
         border-radius: 10px;
         flex-shrink: 0;
-        border: 2px solid rgba(255, 143, 0, 0.16);
+        border: 2px solid rgba(37, 99, 235, 0.16);
     }
     .bh-cat-sidebar__trend-body {
         flex: 1;
@@ -1521,7 +1556,7 @@
     .bh-cat-sidebar__latest li {
         margin: 0;
         padding: 0.55rem 0;
-        border-bottom: 1px solid rgba(255, 143, 0, 0.12);
+        border-bottom: 1px solid rgba(37, 99, 235, 0.12);
     }
     .bh-cat-sidebar__latest li:last-child {
         border-bottom: none;
@@ -1540,7 +1575,7 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
-    .bh-cat-sidebar__latest a:hover { color: #FF8F00; }
+    .bh-cat-sidebar__latest a:hover { color: #2563eb; }
     .bh-cat-sidebar__trend-meta {
         display: block;
         font-size: 0.72rem;
@@ -1559,17 +1594,18 @@
         .bh-cat-sidebar__inner { grid-template-columns: 1fr; }
     }
 
-    /* Popular Posts — dark band */
+    /* Popular Posts — light band */
     .bh-popular {
-        background: linear-gradient(180deg, #0f1419 0%, #161d27 100%);
-        padding: 3.5rem 0;
-        margin-top: 1rem;
+        background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+        padding: 3.5rem 0 4rem;
+        margin-top: 0;
+        border-top: 1px solid var(--bh-border);
     }
     .bh-popular .bh-section__header h2 {
-        color: #fff;
+        color: var(--bh-ink);
     }
     .bh-popular .bh-section__header a {
-        color: var(--bh-accent2);
+        color: var(--bh-accent);
     }
     .bh-popular__grid {
         display: grid;
@@ -1580,18 +1616,19 @@
         .bh-popular__grid { grid-template-columns: repeat(2, 1fr); }
     }
     .bh-popular-card {
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px;
+        background: #fff;
+        border: 1px solid var(--bh-border);
+        border-radius: 18px;
         overflow: hidden;
         text-decoration: none;
         color: inherit;
         transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
     }
     .bh-popular-card:hover {
         transform: translateY(-4px);
-        border-color: rgba(255, 143, 0, 0.35);
-        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+        border-color: rgba(37, 99, 235, 0.35);
+        box-shadow: 0 16px 40px rgba(37, 99, 235, 0.12);
     }
     .bh-popular-card img {
         width: 100%;
@@ -1607,7 +1644,7 @@
         font-size: 1rem;
         font-weight: 650;
         line-height: 1.4;
-        color: #fff;
+        color: var(--bh-ink);
         margin: 0 0 0.5rem;
         display: -webkit-box;
         -webkit-line-clamp: 2;
@@ -1616,11 +1653,36 @@
     }
     .bh-popular-card__meta {
         font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.5);
+        color: var(--bh-muted);
     }
 
+    .bh-section--alt {
+        background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 45%, #f8fafc 100%);
+        border-block: 1px solid var(--bh-border);
+    }
+
+    .bh-trending-strip {
+        padding: 2rem 0 2.5rem;
+        border-bottom: 1px solid var(--bh-border);
+    }
     .bh-hero-featured {
-        padding: 2rem 0 0;
+        padding: 0 0 1.5rem;
+        margin-top: -2.75rem;
+        position: relative;
+        z-index: 4;
+    }
+    .bh-hero-featured .bh-section__header {
+        margin-bottom: 1.25rem;
+    }
+    .bh-hero-featured .bh-featured__carousel {
+        border-radius: 22px;
+        box-shadow: 0 28px 64px -12px rgba(15, 23, 42, 0.28);
+    }
+    @media (max-width: 900px) {
+        .bh-hero-featured {
+            margin-top: 0;
+            padding-top: 1.5rem;
+        }
     }
 </style>
 @endpush
@@ -1680,6 +1742,72 @@
             </div>
         </section>
     @else
+        @php
+            $homeMeta = \App\Models\Blog::listingMeta(\App\Models\Blog::TYPE_REVIEW);
+            $heroPreviewPosts = collect([$featuredPost ?? null])
+                ->merge($heroRotationPosts ?? collect())
+                ->filter()
+                ->take(3);
+        @endphp
+
+        {{-- HERO --}}
+        <section class="bh-hero" aria-label="Welcome">
+            <div class="bh-hero__bg" aria-hidden="true">
+                <div class="bh-hero__grid"></div>
+                <div class="bh-hero__aurora bh-hero__aurora--1"></div>
+                <div class="bh-hero__aurora bh-hero__aurora--2"></div>
+                <div class="bh-hero__aurora bh-hero__aurora--3"></div>
+                <div class="bh-hero__noise"></div>
+            </div>
+            <div class="bh-hero__content">
+                <div class="bh-hero__main">
+                    <span class="bh-hero__label">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        {{ $homeMeta['label'] }}
+                    </span>
+                    <h1 class="bh-hero__title">{!! $homeMeta['title'] !!}</h1>
+                    <p class="bh-hero__subtitle">{{ $homeMeta['subtitle'] }}</p>
+                    <form class="bh-hero__search" action="{{ route('home') }}" method="get" role="search">
+                        <input type="search" name="q" value="" placeholder="Search reviews, guides, topics…" autocomplete="off">
+                        <button type="submit">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                            Search
+                        </button>
+                    </form>
+                    @if($featuredCategories->isNotEmpty())
+                    <nav class="bh-hero__cats" aria-label="Topics">
+                        @foreach($featuredCategories->take(7) as $cat)
+                            <a href="{{ $cat['url'] }}" class="bh-hero__cat">{{ $cat['name'] }}</a>
+                        @endforeach
+                    </nav>
+                    @endif
+                    <div class="bh-hero__stats">
+                        <div class="bh-hero__stat">
+                            <strong>{{ number_format($stats['posts'] ?? 0) }}</strong>
+                            <span>Articles</span>
+                        </div>
+                        <div class="bh-hero__stat">
+                            <strong>{{ number_format($stats['categories'] ?? 0) }}</strong>
+                            <span>Topics</span>
+                        </div>
+                    </div>
+                </div>
+                @if($heroPreviewPosts->isNotEmpty())
+                <div class="bh-hero__cards" aria-hidden="true">
+                    @foreach($heroPreviewPosts as $previewPost)
+                    <article class="bh-hero__card">
+                        <img class="bh-hero__card-img" src="{{ $previewPost->featured_image_url }}" alt="" loading="lazy" decoding="async">
+                        <div class="bh-hero__card-body">
+                            <div class="bh-hero__card-cat">{{ $previewPost->blogCategory?->name ?? 'Review' }}</div>
+                            <div class="bh-hero__card-title">{{ $previewPost->title }}</div>
+                        </div>
+                    </article>
+                    @endforeach
+                </div>
+                @endif
+            </div>
+        </section>
+
         {{-- FEATURED --}}
         @if($featuredPost || (isset($heroRotationPosts) && $heroRotationPosts->isNotEmpty()))
         @php
@@ -1687,6 +1815,9 @@
         @endphp
         <section class="bh-section bh-hero-featured">
             <div class="bh-wrap">
+                <div class="bh-section__header">
+                    <h2 data-kicker="Spotlight">Editor's picks</h2>
+                </div>
                 <div class="bh-featured">
                     {{-- Left: Carousel --}}
                     <div class="bh-featured__carousel" id="featured-carousel">
@@ -1746,6 +1877,32 @@
         </section>
         @endif
 
+        @if($trendingPosts->isNotEmpty())
+        <section class="bh-section bh-trending-strip">
+            <div class="bh-wrap">
+                <div class="bh-section__header">
+                    <h2 data-kicker="Trending">What people read</h2>
+                    <a href="{{ route('review.index') }}">All reviews →</a>
+                </div>
+                <div class="bh-trending bh-trending--carousel">
+                    @foreach($trendingPosts as $index => $post)
+                    <a href="{{ $post->publicUrl() }}" class="bh-trend">
+                        <span class="bh-trend__num">{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</span>
+                        @if($post->featured_image_url)
+                        <img class="bh-trend__img" src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy" decoding="async">
+                        @endif
+                        <span class="bh-trend__body">
+                            @include('partials.blog-category-tags', ['post' => $post, 'variant' => 'inline', 'compact' => true])
+                            <span class="bh-trend__title">{{ $post->title }}</span>
+                            <span class="bh-trend__meta">{{ $post->created_at?->format('M j, Y') }} · {{ $post->reading_minutes }} min</span>
+                        </span>
+                    </a>
+                    @endforeach
+                </div>
+            </div>
+        </section>
+        @endif
+
         {{-- LATEST + CATEGORY POSTS — single sticky sidebar --}}
         @php
             $showCategoryZone = $latestPosts->isNotEmpty()
@@ -1764,7 +1921,7 @@
                             @if($latestPosts->isNotEmpty())
                             <div class="bh-cat-block" id="latest-articles">
                                 <div class="bh-section__header">
-                                    <h2>Latest Articles</h2>
+                                    <h2 data-kicker="Fresh">Latest articles</h2>
                                     <a href="{{ route('review.index') }}">View all →</a>
                                 </div>
                                 <div class="bh-grid bh-grid--carousel">
@@ -1949,7 +2106,7 @@
         <section class="bh-popular">
             <div class="bh-wrap">
                 <div class="bh-section__header">
-                    <h2>Popular Posts</h2>
+                    <h2 data-kicker="Readers love">Popular posts</h2>
                     <a href="{{ route('review.index') }}">View all →</a>
                 </div>
                 <div class="bh-popular__grid bh-popular__grid--carousel">

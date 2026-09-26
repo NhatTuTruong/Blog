@@ -15,7 +15,7 @@
                     <a href="{{ $cat['url'] }}"
                        data-cat-anchor="{{ $cat['slug'] }}"
                        class="{{ filled($selectedCategory) && $selectedCategory === $cat['name'] ? 'active' : '' }}">
-                        <span class="bh-cat-sidebar__cat-dot" style="background-color: {{ $cat['color'] ?? '#FF8F00' }}"></span>
+                        <span class="bh-cat-sidebar__cat-dot" style="background-color: {{ $cat['color'] ?? '#2563eb' }}"></span>
                         <span class="bh-cat-sidebar__cat-name">{{ $cat['name'] }}</span>
                         <span class="bh-cat-sidebar__cat-count">{{ $cat['count'] }}</span>
                     </a>

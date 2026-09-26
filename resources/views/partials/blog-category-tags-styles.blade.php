@@ -34,7 +34,7 @@
         flex: 0 0 auto;
         padding: 0.32rem 0.7rem;
         border-radius: 999px;
-        background: var(--bh-accent, #FF8F00);
+        background: var(--bh-accent, #2563eb);
         color: #fff;
         font-size: 0.62rem;
         font-weight: 700;
@@ -55,7 +55,7 @@
         box-shadow: none;
     }
     .bh-card__tag:nth-child(4n + 1) { background: #ec4899; }
-    .bh-card__tag:nth-child(4n + 2) { background: #FF8F00; }
+    .bh-card__tag:nth-child(4n + 2) { background: #2563eb; }
     .bh-card__tag:nth-child(4n + 3) { background: #d97706; }
     .bh-card__tag:nth-child(4n + 4) { background: #dc2626; }
     .bh-card__tags--compact .bh-card__tag {

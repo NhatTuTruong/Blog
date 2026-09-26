@@ -80,10 +80,10 @@
             --text: #111827;
             --text-dark: #111827;
             --text-muted: #6b7280;
-            --primary: #FF8F00;
-            --primary-dark: #EF6C00;
-            --accent: #FF8F00;
-            --accent-hover: #F9A825;
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --accent: #2563eb;
+            --accent-hover: #3b82f6;
             --border: #e5e7eb;
             --radius: 12px;
             --radius-sm: 8px;
@@ -250,7 +250,7 @@
             width: 48px;
             height: 48px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #F9A825 0%, #FF8F00 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
             color: #fff;
             border: none;
             cursor: pointer;
@@ -270,7 +270,7 @@
             transform: translateY(0) scale(1);
         }
         .back-to-top:hover {
-            background: linear-gradient(135deg, #EF6C00 0%, #FF8F00 100%);
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
             transform: scale(1.1);
         }
         html {

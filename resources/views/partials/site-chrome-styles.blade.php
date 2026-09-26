@@ -1,14 +1,14 @@
 <style>
 :root {
-    --tr-accent-dark: #EF6C00;
-    --tr-accent: #FF8F00;
-    --tr-accent-mid: #F57C00;
-    --tr-accent-light: #F9A825;
-    --tr-accent-soft: rgba(255, 143, 0, 0.12);
-    --tr-accent-border: rgba(255, 143, 0, 0.35);
+    --tr-accent-dark: #1d4ed8;
+    --tr-accent: #2563eb;
+    --tr-accent-mid: #2563eb;
+    --tr-accent-light: #3b82f6;
+    --tr-accent-soft: rgba(37, 99, 235, 0.12);
+    --tr-accent-border: rgba(37, 99, 235, 0.35);
     --tr-header-bg: #ffffff;
-    --tr-header-soft: #FFF8F0;
-    --tr-header-warm: #FFF3E0;
+    --tr-header-soft: #f0f5ff;
+    --tr-header-warm: #eff6ff;
     --tr-text: #374151;
     --tr-text-muted: #bdbdbd;
     --tr-border-light: #fdecd0;
@@ -30,13 +30,13 @@
     border: 0;
 }
 
-/* ===== HEADER (white + orange) ===== */
+/* ===== HEADER (white + accent) ===== */
 .site-header {
     position: sticky;
     top: 0;
     z-index: 200;
     background: var(--tr-header-bg);
-    box-shadow: 0 2px 16px rgba(255, 143, 0, 0.08);
+    box-shadow: 0 2px 16px rgba(37, 99, 235, 0.08);
 }
 
 .site-topbar {
@@ -93,7 +93,7 @@
 .site-navbar {
     background: var(--tr-header-bg);
     border-bottom: 3px solid transparent;
-    border-image: linear-gradient(90deg, #F9A825, #FF8F00, #EF6C00) 1;
+    border-image: linear-gradient(90deg, #3b82f6, #2563eb, #1d4ed8) 1;
 }
 .site-navbar__inner {
     max-width: 1280px;
@@ -167,7 +167,7 @@
     right: 0.85rem;
     bottom: 0.2rem;
     height: 2px;
-    background: linear-gradient(90deg, var(--tr-accent) 0%, var(--tr-accent-hover, #F9A825) 100%);
+    background: linear-gradient(90deg, var(--tr-accent) 0%, var(--tr-accent-hover, #3b82f6) 100%);
     border-radius: 2px;
     transform: scaleX(0);
     transform-origin: left center;
@@ -216,7 +216,7 @@
     border: 1px solid var(--tr-border-light);
     border-radius: 12px;
     padding: 0.45rem;
-    box-shadow: 0 12px 32px rgba(255, 143, 0, 0.12);
+    box-shadow: 0 12px 32px rgba(37, 99, 235, 0.12);
     z-index: 52;
 }
 .site-nav__menu a {
@@ -252,7 +252,7 @@
 }
 .site-search:focus-within {
     border-color: var(--tr-accent);
-    box-shadow: 0 0 0 3px rgba(255, 143, 0, 0.15);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 .site-search input {
     flex: 1;
@@ -267,7 +267,7 @@
 .site-search input::placeholder { color: #9ca3af; }
 .site-search button {
     border: none;
-    background: linear-gradient(135deg, #F9A825 0%, #FF8F00 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     color: #fff;
     padding: 0.45rem 0.7rem;
     margin: 4px;
@@ -276,11 +276,11 @@
     display: flex;
     align-items: center;
     transition: filter 0.2s, box-shadow 0.2s;
-    box-shadow: 0 2px 8px rgba(255, 143, 0, 0.25);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 .site-search button:hover {
     filter: brightness(1.05);
-    box-shadow: 0 3px 12px rgba(255, 143, 0, 0.35);
+    box-shadow: 0 3px 12px rgba(37, 99, 235, 0.35);
 }
 
 .site-ticker {
@@ -304,10 +304,10 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #fff;
-    background: linear-gradient(135deg, #F9A825 0%, #FF8F00 100%);
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     padding: 0.28rem 0.6rem;
     border-radius: 5px;
-    box-shadow: 0 2px 6px rgba(255, 143, 0, 0.25);
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
 }
 .site-ticker__viewport {
     flex: 1;
@@ -345,7 +345,7 @@
 }
 .site-ticker__sep {
     flex: 0 0 auto;
-    color: rgba(255, 143, 0, 0.45);
+    color: rgba(37, 99, 235, 0.45);
     font-size: 0.75rem;
     white-space: nowrap;
     user-select: none;
@@ -437,7 +437,7 @@
         border-radius: 9px;
     }
     .site-header--search-open .site-header__search-toggle {
-        background: linear-gradient(135deg, #F9A825 0%, #FF8F00 100%);
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
         color: #fff;
         border-color: transparent;
     }
@@ -530,7 +530,7 @@
 }
 .site-footer__accent {
     height: 4px;
-    background: linear-gradient(90deg, #F9A825 0%, #FF8F00 50%, #EF6C00 100%);
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
 }
 .site-footer .footer-inner {
     max-width: 1280px;
