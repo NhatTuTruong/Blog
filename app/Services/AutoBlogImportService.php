@@ -167,8 +167,11 @@ class AutoBlogImportService
      */
     protected function finalizeArticleRecord(array $record): array
     {
-        $record['deals_data'] = app(BlogDealsSyncService::class)->normalizeDealsData(
-            is_array($record['deals_data'] ?? null) ? $record['deals_data'] : []
+        $record['deals_data'] = app(BlogDealsSyncService::class)->buildDealsPayload(
+            is_array($record['deals_data'] ?? null) ? $record['deals_data'] : [],
+            is_array($record['coupon_codes'] ?? null) ? $record['coupon_codes'] : [],
+            filled($record['aff_link'] ?? null) ? (string) $record['aff_link'] : null,
+            (string) ($record['brand_domain'] ?? ''),
         );
 
         return $record;

@@ -9,8 +9,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Support\BlogCategorySelection;
+use App\Support\BlogContentAffiliateLayout;
 use App\Support\BlogContentSanitizer;
 use App\Support\PublicStorage;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -161,6 +163,34 @@ class Blog extends Model
             ->withTimestamps()
             ->orderBy('blog_blog_deal.sort_order')
             ->orderBy('blog_deals.id');
+    }
+
+    /**
+     * Deals attached to this post that include a coupon code.
+     *
+     * @return Collection<int, BlogDeal>
+     */
+    public function couponDeals(): Collection
+    {
+        return $this->deals->filter(fn (BlogDeal $deal): bool => $deal->isCouponDeal())->values();
+    }
+
+    /**
+     * Deals without coupon codes (discount-only rows).
+     *
+     * @return Collection<int, BlogDeal>
+     */
+    public function discountDeals(): Collection
+    {
+        return $this->deals->reject(fn (BlogDeal $deal): bool => $deal->isCouponDeal())->values();
+    }
+
+    /**
+     * @return array{before: string, after: string, aff_url: ?string}
+     */
+    public function renderedContentAffiliateParts(): array
+    {
+        return BlogContentAffiliateLayout::splitAfterFirstPromoLink($this->renderedContent());
     }
 
     /**

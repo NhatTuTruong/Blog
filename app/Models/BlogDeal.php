@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\CouponDescriptionGenerator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -50,6 +51,15 @@ class BlogDeal extends Model
     public function typeLabel(): string
     {
         return $this->isCouponDeal() ? 'Coupon Codes' : 'Discount Deals';
+    }
+
+    public function couponBlurb(): string
+    {
+        return CouponDescriptionGenerator::forCouponDeal(
+            (int) $this->id,
+            (string) $this->coupon_code,
+            $this->description
+        );
     }
 
     public function primaryPublishedBlog(): ?Blog

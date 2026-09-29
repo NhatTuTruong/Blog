@@ -114,8 +114,11 @@ class AutoBlogSavedListService
                     $postType = Blog::TYPE_REVIEW;
                 }
 
-                $dealsData = app(BlogDealsSyncService::class)->normalizeDealsData(
-                    is_array($record['deals_data'] ?? null) ? $record['deals_data'] : []
+                $dealsData = app(BlogDealsSyncService::class)->buildDealsPayload(
+                    is_array($record['deals_data'] ?? null) ? $record['deals_data'] : [],
+                    $couponCodes,
+                    filled($record['aff_link'] ?? null) ? trim((string) $record['aff_link']) : null,
+                    trim((string) $record['brand_domain']),
                 );
 
                 $featuredImage = filled($featuredImage)

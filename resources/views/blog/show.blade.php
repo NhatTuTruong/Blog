@@ -56,7 +56,7 @@
     <script type="application/ld+json">{!! json_encode($breadcrumbSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
 @endpush
 
-@if($post->deals->isNotEmpty())
+@if($post->discountDeals()->isNotEmpty())
 @push('styles')
 @include('partials.deal-cards-styles')
 @endpush
@@ -618,6 +618,117 @@
         font-size: 0.8rem;
         color: var(--blog-muted);
     }
+
+    .blog-coupon-codes {
+        margin: 1.25rem 0 1.75rem;
+        padding: 1.15rem 1.25rem;
+        border-radius: 14px;
+        border: 1px solid rgba(37, 99, 235, 0.22);
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.06) 0%, rgba(59, 130, 246, 0.04) 100%);
+        box-shadow: 0 8px 24px rgba(37, 99, 235, 0.08);
+    }
+    .blog-coupon-codes__head {
+        margin-bottom: 0.85rem;
+    }
+    .blog-coupon-codes__icon {
+        font-size: 1.1rem;
+        margin-right: 0.35rem;
+    }
+    .blog-coupon-codes__title {
+        display: inline;
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin: 0;
+        color: var(--blog-text);
+        letter-spacing: -0.02em;
+    }
+    .blog-coupon-codes__hint {
+        margin: 0.35rem 0 0;
+        font-size: 0.8rem;
+        color: var(--blog-muted);
+        line-height: 1.45;
+    }
+    .blog-coupon-codes__list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+    }
+    .blog-coupon-codes__chip {
+        width: 100%;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.85rem 1rem;
+        padding: 0.8rem 1rem;
+        border-radius: 12px;
+        border: 1px dashed rgba(37, 99, 235, 0.45);
+        background: #fff;
+        cursor: pointer;
+        text-align: left;
+        font: inherit;
+        color: inherit;
+        transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+    }
+    .blog-coupon-codes__chip:hover {
+        border-color: var(--blog-accent);
+        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.12);
+        transform: translateY(-1px);
+    }
+    .blog-coupon-codes__chip.is-copied {
+        border-color: #16a34a;
+        border-style: solid;
+        background: rgba(22, 163, 74, 0.06);
+    }
+    .blog-coupon-codes__chip-value {
+        flex-shrink: 0;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--blog-accent);
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+    }
+    .blog-coupon-codes__chip-desc {
+        font-size: 0.82rem;
+        line-height: 1.45;
+        color: var(--blog-muted);
+        min-width: 0;
+    }
+    .blog-coupon-codes__chip-action {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--blog-accent);
+        padding: 0.35rem 0.65rem;
+        border-radius: 999px;
+        background: var(--blog-accent-soft);
+    }
+    .blog-coupon-codes__chip.is-copied .blog-coupon-codes__chip-value {
+        color: #16a34a;
+    }
+    .blog-coupon-codes__chip.is-copied .blog-coupon-codes__chip-action {
+        color: #16a34a;
+        background: rgba(22, 163, 74, 0.12);
+    }
+    @media (max-width: 520px) {
+        .blog-coupon-codes__chip {
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto auto;
+        }
+        .blog-coupon-codes__chip-desc {
+            grid-column: 1 / -1;
+        }
+        .blog-coupon-codes__chip-action {
+            grid-row: 1;
+            grid-column: 2;
+            justify-self: end;
+        }
+    }
 </style>
 @endpush
 
@@ -625,6 +736,14 @@
     @php
         $wordCount = str_word_count(strip_tags($post->renderedContent()));
         $readingMinutes = max(1, (int) ceil($wordCount / 220));
+        $contentParts = $post->renderedContentAffiliateParts();
+        $couponDeals = $post->couponDeals();
+        $discountDeals = $post->discountDeals();
+        $contentLeading = $contentParts['before'];
+        $contentRest = $contentParts['after'];
+        if ($contentLeading === '' && $contentRest === '') {
+            $contentRest = $post->renderedContent();
+        }
     @endphp
 
     <div class="blog-shell">
@@ -677,7 +796,17 @@
                 <div class="blog-gated-shell {{ $post->isBlogPost() ? 'is-locked' : '' }}" id="blog-gated-shell">
                     <div class="blog-gated-content">
                         <div class="blog-content prose">
-                            {!! $post->renderedContent() !!}
+                            @if($contentLeading !== '')
+                                {!! $contentLeading !!}
+                            @endif
+
+                            @if($couponDeals->isNotEmpty())
+                                @include('partials.blog-post-coupon-codes', ['couponDeals' => $couponDeals])
+                            @endif
+
+                            @if($contentRest !== '')
+                                {!! $contentRest !!}
+                            @endif
                         </div>
 
                         @if($post->images && count($post->images) > 0)
@@ -719,11 +848,11 @@
             @endif
         </div>
 
-        @if($post->deals->isNotEmpty())
+        @if($discountDeals->isNotEmpty())
             <div class="{{ $post->isBlogPost() ? 'blog-gated-shell blog-gated-shell--hidden-until-unlock is-locked' : '' }}">
                 @include('partials.deal-cards', [
-                    'deals' => $post->deals,
-                    'sectionTitle' => 'Coupons & Discount Deals',
+                    'deals' => $discountDeals,
+                    'sectionTitle' => 'Discount Deals',
                     'showFilters' => false,
                     'sectionId' => 'post-deals',
                     'linkToPost' => false,
