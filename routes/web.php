@@ -61,6 +61,10 @@ Route::post('/admin/blog/upload-image', [App\Http\Controllers\BlogImageUploadCon
     ->middleware(['web', 'auth'])
     ->name('blog.upload-image');
 
+Route::post('/admin/blog/upload-media', [App\Http\Controllers\BlogContentMediaUploadController::class, 'upload'])
+    ->middleware(['web', 'auth'])
+    ->name('blog.upload-media');
+
 Route::middleware(['web', 'auth'])->prefix('admin/received-emails')->group(function () {
     Route::get('{receivedEmail}/attachments/{attachment}', [App\Http\Controllers\ReceivedEmailAttachmentController::class, 'show'])
         ->name('admin.received-emails.attachments.show');

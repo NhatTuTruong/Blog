@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources;
 use App\Filament\Admin\Resources\BlogResource\Pages;
 use App\Models\Blog;
 use App\Models\User;
+use App\Filament\Admin\Support\BlogRichEditor;
 use App\Support\BlogCategorySelection;
 use Filament\Facades\Filament;
 use Filament\Forms;
@@ -108,25 +109,10 @@ class BlogResource extends Resource
                     ->columns(3),
                 Forms\Components\Section::make('Nội dung')
                     ->schema([
-                        Forms\Components\RichEditor::make('content')
-                            ->label('Nội dung')
-                            ->live(debounce: 2000)
-                            ->toolbarButtons([
-                                'bold',
-                                'italic',
-                                'underline',
-                                'strikeThrough',
-                                'link',
-                                'image',
-                                'orderedList',
-                                'bulletList',
-                                'blockquote',
-                                'codeBlock',
-                                'undo',
-                                'redo',
-                            ])
-                            ->columnSpanFull()
-                            ->extraInputAttributes(['style' => 'min-height: 300px;']),
+                        BlogRichEditor::configure(
+                            Forms\Components\RichEditor::make('content')
+                                ->label('Nội dung')
+                        )->columnSpanFull(),
                     ]),
                 Forms\Components\Section::make('Ảnh & Video')
                     ->schema([
@@ -152,7 +138,7 @@ class BlogResource extends Resource
                             ->maxFiles(5)
                             ->maxSize(102400)
                             ->acceptedFileTypes(['video/mp4', 'video/webm', 'video/ogg'])
-                            ->helperText('Hỗ trợ MP4, WebM, OGG (tối đa 5 video)')
+                            ->helperText('Video phụ lưu riêng (sidebar bài viết). Để nhúng video ngay trong nội dung, dùng nút ▶ trên thanh công cụ editor.')
                             ->columnSpanFull(),
                     ])
                     ->collapsible()

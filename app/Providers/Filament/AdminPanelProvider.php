@@ -110,8 +110,12 @@ class AdminPanelProvider extends PanelProvider
                 fn () => view('components.filament-file-upload-fouc-fix')
             )
             ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn () => view('components.rich-editor-blog-trix-config')
+            )
+            ->renderHook(
                 PanelsRenderHook::SCRIPTS_AFTER,
-                fn () => view('components.rich-editor-paste-normalize')
+                fn () => view('components.rich-editor-blog-extensions')
             )
             ->renderHook(
                 PanelsRenderHook::SCRIPTS_AFTER,

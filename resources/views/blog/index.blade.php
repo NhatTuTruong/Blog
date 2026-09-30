@@ -313,9 +313,6 @@
     .bh-section {
         padding: 3rem 0;
     }
-    .bh-section--alt {
-        background: var(--bh-light);
-    }
     .bh-section__header {
         display: flex;
         justify-content: space-between;

@@ -2,16 +2,18 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     @php
-        $seoTitleSuffix = \App\Support\SiteSeo::get('title_suffix', '- ' . config('app.name'));
-        $baseTitle = trim($__env->yieldContent('title', config('app.name')));
+        $siteName = \App\Support\SiteSeo::plainText((string) config('app.name'));
+        $seoTitleSuffix = \App\Support\SiteSeo::plainText((string) \App\Support\SiteSeo::get('title_suffix', '- '.$siteName));
+        $baseTitle = \App\Support\SiteSeo::plainText(trim($__env->yieldContent('title', $siteName)));
         $finalTitle = $baseTitle;
         if ($seoTitleSuffix !== '' && ! str_contains($baseTitle, $seoTitleSuffix)) {
-            $finalTitle = trim($baseTitle . ' ' . $seoTitleSuffix);
+            $finalTitle = trim($baseTitle.' '.$seoTitleSuffix);
         }
         if ($finalTitle === '' || $finalTitle === $seoTitleSuffix) {
-            $finalTitle = (string) config('app.name');
+            $finalTitle = $siteName;
         }
-        $defaultMetaDescription = \App\Support\SiteSeo::get('meta_description_default', 'Latest articles and insights from our blog.');
+        $finalTitle = \App\Support\SiteSeo::plainText($finalTitle);
+        $defaultMetaDescription = \App\Support\SiteSeo::plainText((string) \App\Support\SiteSeo::get('meta_description_default', 'Latest articles and insights from our blog.'));
         $defaultOgImage = \App\Support\SiteSeo::get('og_image_default', '');
         $robotsMeta = \App\Support\SiteSeo::get('robots', 'index, follow');
         $googleSiteVerification = \App\Support\SiteSeo::get('google_site_verification', '');
@@ -30,7 +32,7 @@
     <meta property="og:description" content="@yield('og_description', trim($__env->yieldContent('description', $defaultMetaDescription)))">
     <meta property="og:url" content="@yield('og_url', url()->current())">
     <meta property="og:image" content="@yield('og_image')">
-    <meta property="og:site_name" content="{{ config('app.name') }}">
+    <meta property="og:site_name" content="{{ $siteName }}">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="@yield('og_title', $finalTitle)">
     <meta name="twitter:description" content="@yield('og_description', trim($__env->yieldContent('description', $defaultMetaDescription)))">
@@ -44,7 +46,7 @@
     @if(!empty($defaultOgImage))
     <meta property="og:image" content="{{ $defaultOgImage }}">
     @endif
-    <meta property="og:site_name" content="{{ config('app.name') }}">
+    <meta property="og:site_name" content="{{ $siteName }}">
     <meta name="twitter:card" content="{{ !empty($defaultOgImage) ? 'summary_large_image' : 'summary' }}">
     <meta name="twitter:title" content="{{ $finalTitle }}">
     <meta name="twitter:description" content="@yield('description', $defaultMetaDescription)">
@@ -56,7 +58,7 @@
         $organizationSchema = [
             '@context' => 'https://schema.org',
             '@type' => 'Organization',
-            'name' => config('app.name'),
+            'name' => $siteName,
             'url' => config('app.url'),
             'description' => $defaultMetaDescription,
         ];
@@ -69,7 +71,7 @@
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@500;600;700&display=swap"></noscript>
     <style>
         :root {
-            --bg: #ffffff;
+            --bg: #ecebe7;
             --surface: #f9fafb;
             --surface-hover: #f3f4f6;
             --text: #111827;

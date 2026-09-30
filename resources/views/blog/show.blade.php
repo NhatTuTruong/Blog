@@ -392,6 +392,7 @@
         white-space: inherit;
     }
 
+    .blog-content.prose h1,
     .blog-content.prose h2,
     .blog-content.prose h3,
     .blog-content.prose h4 {
@@ -403,8 +404,27 @@
         color: var(--blog-text);
     }
 
+    .blog-content.prose h1 { font-size: 1.55rem; }
     .blog-content.prose h2 { font-size: 1.25rem; }
     .blog-content.prose h3 { font-size: 1.05rem; }
+
+    .blog-content.prose .blog-fs-sm { font-size: 0.875em; }
+    .blog-content.prose .blog-fs-lg { font-size: 1.125em; }
+    .blog-content.prose .blog-fs-xl { font-size: 1.35em; }
+
+    .blog-content.prose .blog-inline-video {
+        margin: 1.75rem 0;
+    }
+
+    .blog-content.prose .blog-inline-video video {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-width: 100%;
+        border-radius: 0.9rem;
+        border: 1px solid var(--blog-border);
+        background: #0f172a;
+    }
 
     .blog-content.prose p { margin: 0.9rem 0; }
     .blog-content.prose ul,
@@ -417,9 +437,40 @@
     }
 
     .blog-content.prose img {
+        display: block;
         max-width: 100%;
+        width: auto;
+        height: auto;
         border-radius: 0.9rem;
         border: 1px solid var(--blog-border);
+    }
+
+    .blog-content.prose figure.attachment img {
+        width: 100%;
+        height: auto;
+    }
+
+    .blog-content.prose figcaption.attachment__caption,
+    .blog-content.prose figcaption.blog-media-label,
+    .blog-content.prose .attachment__metadata {
+        display: none !important;
+    }
+
+    .blog-content.prose figure.attachment {
+        margin: 1.25rem 0;
+    }
+
+    .blog-content.prose figure.attachment a {
+        display: block;
+        line-height: 0;
+    }
+
+    .blog-content.prose figure.attachment--file a,
+    .blog-content.prose figure.attachment a[href*=".mp4"]:not(:has(img)),
+    .blog-content.prose figure.attachment a[href*=".webm"]:not(:has(img)),
+    .blog-content.prose figure.attachment a[href*=".ogg"]:not(:has(img)),
+    .blog-content.prose figure.blog-inline-video > a {
+        display: none !important;
     }
 
     .blog-content.prose .blog-inline-image {

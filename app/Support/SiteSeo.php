@@ -52,21 +52,30 @@ class SiteSeo
         return $value;
     }
 
+    public static function plainText(string $value): string
+    {
+        return html_entity_decode(trim($value), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
     public static function pageTitle(string $page): string
     {
         $title = trim((string) self::get("pages.{$page}.title", ''));
 
-        return $title !== '' ? $title : (string) config('app.name');
+        return $title !== ''
+            ? self::plainText($title)
+            : self::plainText((string) config('app.name'));
     }
 
     public static function pageDescription(string $page): string
     {
         $description = trim((string) self::get("pages.{$page}.description", ''));
 
-        return $description !== '' ? $description : (string) self::get(
-            'meta_description_default',
-            'Latest articles and insights from our blog.'
-        );
+        return $description !== ''
+            ? self::plainText($description)
+            : self::plainText((string) self::get(
+                'meta_description_default',
+                'Latest articles and insights from our blog.'
+            ));
     }
 
     public static function absoluteUrl(?string $url): ?string
