@@ -199,11 +199,11 @@ class EmailTemplateResource extends Resource
                     ->color('success')
                     ->url(fn (EmailTemplate $record): string => SendTemplatedEmailPage::urlWithTemplate($record->id)),
                 Tables\Actions\EditAction::make()->label(''),
-                Tables\Actions\DeleteAction::make()->label(''),
+                Tables\Actions\DeleteAction::make()->label('')->tooltip('Xóa'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()->label(''),
+                    Tables\Actions\DeleteBulkAction::make()->label('Xóa đã chọn'),
                 ]),
             ]);
     }

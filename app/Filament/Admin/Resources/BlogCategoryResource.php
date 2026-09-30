@@ -132,11 +132,11 @@ class BlogCategoryResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label(''),
-                Tables\Actions\DeleteAction::make()->label(''),
+                Tables\Actions\DeleteAction::make()->label('')->tooltip('Xóa'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()->label(''),
+                    Tables\Actions\DeleteBulkAction::make()->label('Xóa đã chọn'),
                 ]),
             ]);
     }

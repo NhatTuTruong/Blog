@@ -17,7 +17,7 @@
     <div class="footer-inner">
         <div class="footer-grid">
             <div class="footer-brand">
-                <a href="{{ url('/') }}" class="logo font-heading">{{ config('app.name') }}<span>.</span></a>
+                <x-site-text-logo variant="footer" class="logo" />
                 <p>{{ $brandDescription }}</p>
                 @if($instagramUrl = config('app.instagram_url'))
                 <a href="{{ $instagramUrl }}" target="_blank" rel="noopener noreferrer" class="footer-social-link" aria-label="Instagram">

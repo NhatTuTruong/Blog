@@ -19,18 +19,65 @@
     justify-content: space-between;
     gap: 0.75rem 1rem;
 }
-.site-header .logo {
-    font-family: 'Space Grotesk', 'DM Sans', system-ui, sans-serif;
-    font-weight: 700;
-    font-size: 1.35rem;
-    color: #0f172a !important;
-    text-decoration: none;
-    letter-spacing: -0.03em;
+.site-header .logo.site-text-logo {
     flex: 1 1 auto;
     min-width: 0;
 }
-.site-header .logo span {
-    color: #2563eb !important;
+
+/* Text logo — editorial mark (first letter accent + tilted square) */
+.site-text-logo {
+    position: relative;
+    display: inline-flex;
+    align-items: baseline;
+    text-decoration: none;
+    font-family: 'Space Grotesk', 'DM Sans', system-ui, sans-serif;
+    font-weight: 800;
+    font-size: 1.35rem;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    padding-top: 0.35rem;
+    padding-left: 0.15rem;
+    transition: opacity 0.2s ease;
+}
+.site-text-logo:hover {
+    opacity: 0.92;
+}
+.site-text-logo__accent {
+    position: absolute;
+    top: 0.05rem;
+    left: -0.05rem;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 0.2rem;
+    background: linear-gradient(145deg, #ffedd5 0%, #fed7aa 100%);
+    transform: rotate(18deg);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+    pointer-events: none;
+}
+.site-text-logo__text {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: baseline;
+}
+.site-text-logo__first {
+    font-size: 1.12em;
+    font-weight: 800;
+    color: #f97316;
+    letter-spacing: -0.06em;
+}
+.site-text-logo--header .site-text-logo__rest {
+    color: #1e293b;
+}
+.site-text-logo--footer .site-text-logo__first {
+    color: #fb923c;
+}
+.site-text-logo--footer .site-text-logo__rest {
+    color: #f8fafc;
+}
+.site-text-logo--footer .site-text-logo__accent {
+    background: linear-gradient(145deg, rgba(251, 146, 60, 0.35) 0%, rgba(254, 215, 170, 0.25) 100%);
+    box-shadow: none;
 }
 .site-header__actions {
     display: flex;
@@ -224,13 +271,9 @@
     .site-footer .footer-brand { grid-column: 1 / -1; }
     .site-footer .footer-stories { grid-column: 1 / -1; }
 }
-.site-footer .footer-brand .logo {
-    font-family: 'Space Grotesk', 'DM Sans', sans-serif;
+.site-footer .footer-brand .logo.site-text-logo {
     font-size: 1.25rem;
-    font-weight: 700;
-    color: #fff !important;
 }
-.site-footer .footer-brand .logo span { color: #60a5fa !important; }
 .site-footer .footer-brand p {
     margin-top: 0.875rem;
     color: #94a3b8;

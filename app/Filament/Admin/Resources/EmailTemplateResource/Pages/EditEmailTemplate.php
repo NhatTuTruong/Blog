@@ -24,7 +24,7 @@ class EditEmailTemplate extends EditRecord
                 ->tooltip('Gửi email')
                 ->color('success')
                 ->url(SendTemplatedEmail::urlWithTemplate($this->record->getKey())),
-            Actions\DeleteAction::make()->label(''),
+            Actions\DeleteAction::make()->label('Xóa'),
         ];
     }
 }

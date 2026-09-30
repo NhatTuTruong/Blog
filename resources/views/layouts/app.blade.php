@@ -97,15 +97,16 @@
         }
         .font-heading { font-family: 'Space Grotesk', sans-serif; }
 
-        .logo {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 700;
-            font-size: 1.35rem;
-            color: var(--text);
+        .site-text-logo {
+            position: relative;
+            display: inline-flex;
+            align-items: baseline;
             text-decoration: none;
-            letter-spacing: -0.02em;
+            font-weight: 800;
+            letter-spacing: -0.04em;
         }
-        .logo span { color: var(--accent); }
+        .site-text-logo__first { color: #f97316; }
+        .site-text-logo__rest { color: var(--text); }
 
         /* Main */
         main { flex: 1; }

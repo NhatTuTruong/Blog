@@ -45,7 +45,7 @@ class EditUser extends EditRecord
                         ->persistent()
                         ->send();
                 }),
-            Actions\DeleteAction::make()->label(''),
+            Actions\DeleteAction::make()->label('Xóa'),
         ];
     }
 

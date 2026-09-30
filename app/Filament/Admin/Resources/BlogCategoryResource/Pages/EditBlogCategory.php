@@ -13,7 +13,7 @@ class EditBlogCategory extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make()->label(''),
+            Actions\DeleteAction::make()->label('Xóa'),
         ];
     }
 }

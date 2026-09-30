@@ -43,7 +43,7 @@ class ViewReceivedEmail extends ViewRecord
                         ->success()
                         ->send();
                 }),
-            Actions\DeleteAction::make()->label(''),
+            Actions\DeleteAction::make()->label('Xóa'),
         ];
     }
 }

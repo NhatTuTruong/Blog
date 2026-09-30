@@ -14,7 +14,7 @@
 @endphp
 <header class="site-header">
     <div class="header-inner">
-        <a href="{{ url('/') }}" class="logo font-heading">{{ config('app.name') }}<span>.</span></a>
+        <x-site-text-logo variant="header" class="logo" />
         <div class="site-header__actions">
             @if($socialLinks->isNotEmpty())
             <div class="site-header__social">

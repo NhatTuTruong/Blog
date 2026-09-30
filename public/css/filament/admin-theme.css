@@ -280,6 +280,16 @@
     background-color: rgb(var(--admin-sidebar)) !important;
 }
 
+.dark .fi-btn.fi-btn-color-danger,
+[data-fi-theme='dark'] .fi-btn.fi-btn-color-danger {
+    color: #fff !important;
+}
+
+.dark .fi-btn.fi-btn-color-danger .fi-btn-label,
+[data-fi-theme='dark'] .fi-btn.fi-btn-color-danger .fi-btn-label {
+    color: inherit !important;
+}
+
 /* ── Badges (status pills) ──────────────────────────────────── */
 .dark .fi-badge,
 [data-fi-theme='dark'] .fi-badge {

@@ -247,15 +247,15 @@ class BlogResource extends Resource
                         $data['is_published'] = false; // Mặc định là bản nháp khi sao chép
                         return $data;
                     }),
-                Tables\Actions\DeleteAction::make()->label(''),
-                Tables\Actions\RestoreAction::make()->label(''),
-                Tables\Actions\ForceDeleteAction::make()->label(''),
+                Tables\Actions\DeleteAction::make()->label('')->tooltip('Xóa'),
+                Tables\Actions\RestoreAction::make()->label('')->tooltip('Khôi phục'),
+                Tables\Actions\ForceDeleteAction::make()->label('')->tooltip('Xóa vĩnh viễn'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()->label(''),
-                    Tables\Actions\RestoreBulkAction::make()->label(''),
-                    Tables\Actions\ForceDeleteBulkAction::make()->label(''),
+                    Tables\Actions\DeleteBulkAction::make()->label('Xóa đã chọn'),
+                    Tables\Actions\RestoreBulkAction::make()->label('Khôi phục'),
+                    Tables\Actions\ForceDeleteBulkAction::make()->label('Xóa vĩnh viễn'),
                 ]),
             ]);
     }
