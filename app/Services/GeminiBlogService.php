@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Support\AffiliateContentGuidelines;
 use App\Support\BlogContentSanitizer;
+use App\Support\BrandAffiliateLinker;
 use App\Support\GeminiKeyScope;
 use App\Support\GeminiSettings;
 use App\Support\IntegrationSettingsStore;
@@ -229,6 +230,7 @@ PROMPT;
             $ctaUrl,
             $siteUrl,
             $brandLabel,
+            $host,
         );
         $result['content'] = BlogContentSanitizer::sanitize($result['content']);
 
@@ -356,12 +358,17 @@ PROMPT;
         return BlogContentSanitizer::sanitize($text);
     }
 
-    protected function formatBrandPromoContent(string $html, string $ctaUrl, string $siteUrl, string $brandLabel): string
-    {
+    protected function formatBrandPromoContent(
+        string $html,
+        string $ctaUrl,
+        string $siteUrl,
+        string $brandLabel,
+        string $domainHost,
+    ): string {
         $html = $this->stripInlinePromoLinks($html, $ctaUrl, $siteUrl);
         $html = $this->removeMarkdownArtifacts($html);
 
-        return $this->injectBrandPromoLinkBlocks($html, $ctaUrl, $brandLabel);
+        return BrandAffiliateLinker::linkMentions($html, $ctaUrl, $brandLabel, $domainHost);
     }
 
     protected function removeMarkdownArtifacts(string $html): string
@@ -438,25 +445,6 @@ PROMPT;
             },
             $html
         ) ?? $html;
-    }
-
-    protected function injectBrandPromoLinkBlocks(string $html, string $ctaUrl, string $brandLabel): string
-    {
-        $ctaUrlEsc = htmlspecialchars($ctaUrl, ENT_QUOTES, 'UTF-8');
-        $brandEsc = htmlspecialchars($brandLabel, ENT_QUOTES, 'UTF-8');
-        $linkAttrs = 'href="'.$ctaUrlEsc.'" rel="nofollow sponsored" target="_blank"';
-
-        $openBlock = '<p><a '.$linkAttrs.'><strong>Visit '.$brandEsc.' — Shop now</strong></a></p>';
-        $closeBlock = '<p><a '.$linkAttrs.'><strong>Get the deal at '.$brandEsc.' →</strong></a></p>';
-
-        if (preg_match('/<\/h1>/i', $html, $match, PREG_OFFSET_CAPTURE)) {
-            $position = $match[0][1] + strlen($match[0][0]);
-            $html = substr($html, 0, $position)."\n".$openBlock.substr($html, $position);
-        } else {
-            $html = $openBlock."\n".$html;
-        }
-
-        return rtrim($html)."\n".$closeBlock;
     }
 
     public static function normalizeDomain(string $input): ?string

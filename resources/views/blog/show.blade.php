@@ -408,9 +408,12 @@
     .blog-content.prose h2 { font-size: 1.25rem; }
     .blog-content.prose h3 { font-size: 1.05rem; }
 
-    .blog-content.prose .blog-fs-sm { font-size: 0.875em; }
-    .blog-content.prose .blog-fs-lg { font-size: 1.125em; }
-    .blog-content.prose .blog-fs-xl { font-size: 1.35em; }
+    .blog-content.prose .blog-fs-sm,
+    .blog-content.prose p.blog-fs-sm { font-size: 0.875em; }
+    .blog-content.prose .blog-fs-lg,
+    .blog-content.prose p.blog-fs-lg { font-size: 1.125em; }
+    .blog-content.prose .blog-fs-xl,
+    .blog-content.prose p.blog-fs-xl { font-size: 1.35em; }
 
     .blog-content.prose .blog-inline-video {
         margin: 1.75rem 0;

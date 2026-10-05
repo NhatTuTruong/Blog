@@ -34,6 +34,6 @@ class BlogRichEditor
                 'style' => 'min-height: 420px;',
                 'data-blog-content-editor' => 'true',
             ])
-            ->helperText('H1–H3 trên toolbar; thêm P (đoạn văn), Tx (xóa định dạng), ▶ video nhúng, ảnh qua nút đính kèm. Video hiển thị trực tiếp trên trang đọc.');
+            ->helperText('H1–H3; P, Aa+pt (bôi đen → nhập cỡ/▾ chọn cỡ → Enter hoặc Áp), ▶ video, ảnh. Không bôi đen: áp dụng cỡ cho đoạn <p> tại con trỏ.');
     }
 }
