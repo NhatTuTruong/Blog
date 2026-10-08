@@ -602,7 +602,22 @@ class Blog extends Model
             Cache::forget('site.header.ticker_posts');
         };
 
-        static::saved($forgetPublicCaches);
-        static::deleted($forgetPublicCaches);
+        $refreshSitemap = function (): void {
+            try {
+                app(\App\Support\SitemapGenerator::class)->writeToPublic();
+            } catch (\Throwable) {
+                Cache::forget('site.sitemap.xml');
+            }
+        };
+
+        static::saved(function () use ($forgetPublicCaches, $refreshSitemap): void {
+            $forgetPublicCaches();
+            $refreshSitemap();
+        });
+
+        static::deleted(function () use ($forgetPublicCaches, $refreshSitemap): void {
+            $forgetPublicCaches();
+            $refreshSitemap();
+        });
     }
 }
