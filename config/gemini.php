@@ -12,6 +12,8 @@ return [
         'gemini-2.5-flash-lite',
         'gemini-3.1-flash-lite',
         'gemini-3.5-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.8-flash',
     ],
     /** Model hỗ trợ sinh ảnh (dùng cho blog auto: nội dung + ảnh đại diện 1 request) */
     'model_image' => env('GEMINI_MODEL_IMAGE', 'gemini-2.5-flash-image'),
