@@ -1666,22 +1666,31 @@
         border-bottom: 1px solid var(--bh-border);
     }
     .bh-hero-featured {
-        padding: 0 0 1.5rem;
-        margin-top: -2.75rem;
+        padding: 1.75rem 0 1.5rem;
         position: relative;
         z-index: 4;
+        background: var(--bh-bg, #fff);
     }
     .bh-hero-featured .bh-section__header {
-        margin-bottom: 1.25rem;
+        margin-bottom: 1.75rem;
+        position: relative;
+        z-index: 2;
     }
     .bh-hero-featured .bh-featured__carousel {
         border-radius: 22px;
         box-shadow: 0 28px 64px -12px rgba(15, 23, 42, 0.28);
     }
+    @media (min-width: 901px) {
+        .bh-hero-featured {
+            padding-top: 2rem;
+        }
+    }
     @media (max-width: 900px) {
         .bh-hero-featured {
-            margin-top: 0;
             padding-top: 1.5rem;
+        }
+        .bh-hero-featured .bh-featured {
+            margin-top: 0;
         }
     }
 </style>
@@ -1966,7 +1975,7 @@
 
                                 @if($layout === 'magazine')
                                 <div class="bh-cat-magazine">
-                                    @foreach($posts->take(5) as $post)
+                                    @foreach($posts->take(7) as $post)
                                     <article class="bh-card">
                                         <a href="{{ $post->publicUrl() }}" class="bh-card__media">
                                             <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
@@ -2005,7 +2014,7 @@
                                         </div>
                                     </a>
                                     <div class="bh-cat-list__items">
-                                        @foreach($posts->skip(1)->take(4) as $post)
+                                        @foreach($posts->skip(1)->take(6) as $post)
                                         <a href="{{ $post->publicUrl() }}" class="bh-cat-list__item">
                                             <span class="bh-cat-list__item-thumb">
                                                 <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}">
@@ -2022,7 +2031,7 @@
 
                                 @elseif($layout === 'masonry')
                                 <div class="bh-cat-masonry">
-                                    @foreach($posts->take(6) as $post)
+                                    @foreach($posts->take(7) as $post)
                                     <article class="bh-card">
                                         <a href="{{ $post->publicUrl() }}" class="bh-card__media">
                                             <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
@@ -2046,7 +2055,7 @@
 
                                 @elseif($layout === 'scroll')
                                 <div class="bh-cat-scroll">
-                                    @foreach($posts->take(6) as $post)
+                                    @foreach($posts->take(7) as $post)
                                     <article class="bh-card">
                                         <a href="{{ $post->publicUrl() }}" class="bh-card__media">
                                             <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" class="bh-card__img" loading="lazy" decoding="async">
@@ -2070,7 +2079,7 @@
 
                                 @elseif($layout === 'zigzag')
                                 <div class="bh-cat-zigzag">
-                                    @foreach($posts->take(4) as $post)
+                                    @foreach($posts->take(7) as $post)
                                     <a href="{{ $post->publicUrl() }}" class="bh-cat-zigzag-item">
                                         <span class="bh-cat-zigzag-item__media">
                                             <img src="{{ $post->featured_image_url }}" alt="{{ $post->title }}" loading="lazy">

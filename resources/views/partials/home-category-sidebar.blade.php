@@ -1,7 +1,6 @@
 @php
-    $sidebarCategories = isset($categoryPosts) && $categoryPosts->isNotEmpty()
-        ? $categoryPosts
-        : $featuredCategories->take(8);
+    $sidebarCategories = $sidebarCategories
+        ?? (isset($categoryPosts) && $categoryPosts->isNotEmpty() ? $categoryPosts : ($featuredCategories ?? collect()));
     $selectedCategory = $selectedCategory ?? request('cat', '');
 @endphp
 <aside class="bh-cat-sidebar">
