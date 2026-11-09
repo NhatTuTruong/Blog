@@ -167,14 +167,15 @@ class AutoBlogContentImageService
         $absolutePath = PublicStorage::absolutePath($storagePath);
         PublicStorage::ensureDirectory(dirname(str_replace('\\', '/', $storagePath)));
 
-        $saved = false;
+        $saved = $downloader->downloadRemoteImageAsWebp($imageUrl, $absolutePath);
 
-        if ($downloader->downloadRemoteImageAsWebp($imageUrl, $absolutePath)) {
-            $saved = true;
-        } else {
+        if (! $saved) {
             $jpegAbsolute = preg_replace('/\.webp$/i', '.jpg', $absolutePath);
             if (is_string($jpegAbsolute) && $jpegAbsolute !== ''
-                && $downloader->downloadRemoteImageAsJpeg($imageUrl, $jpegAbsolute)) {
+                && $downloader->downloadRemoteImageAsJpeg($imageUrl, $jpegAbsolute)
+                && $downloader->convertFileToWebp($jpegAbsolute, $absolutePath)
+                && is_file($absolutePath)) {
+                @unlink($jpegAbsolute);
                 $saved = true;
             }
         }
@@ -190,7 +191,7 @@ class AutoBlogContentImageService
             return null;
         }
 
-        $savedPath = $this->resolveSavedStoragePath($storagePath);
+        $savedPath = PublicStorage::exists($storagePath) ? $storagePath : null;
 
         if ($savedPath === null) {
             return null;
@@ -207,28 +208,9 @@ class AutoBlogContentImageService
         return $savedPath;
     }
 
-    protected function resolveSavedStoragePath(string $storagePath): ?string
-    {
-        if (PublicStorage::exists($storagePath)) {
-            return $storagePath;
-        }
-
-        $jpegPath = preg_replace('/\.webp$/i', '.jpg', $storagePath);
-        if (is_string($jpegPath) && $jpegPath !== '' && PublicStorage::exists($jpegPath)) {
-            return $jpegPath;
-        }
-
-        return null;
-    }
-
     protected function getAttemptStoragePath(int $queueItemId, int $attemptIndex): string
     {
         return "blogs/auto-generated/content-{$queueItemId}-{$attemptIndex}.webp";
-    }
-
-    protected function getFeaturedStoragePath(int $queueItemId): string
-    {
-        return "blogs/auto-generated/item-{$queueItemId}.webp";
     }
 
     protected function buildImageHtml(string $storagePath, int $index): string

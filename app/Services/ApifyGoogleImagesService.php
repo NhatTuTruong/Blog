@@ -96,7 +96,11 @@ class ApifyGoogleImagesService
         $downloader = app(SocialMediaImageSourceService::class);
 
         foreach ($imageUrls as $index => $imageUrl) {
-            if ($downloader->downloadRemoteImageAsJpeg($imageUrl, $destAbsolute)) {
+            $saved = str_ends_with(strtolower($destAbsolute), '.webp')
+                ? $downloader->downloadRemoteImageAsWebp($imageUrl, $destAbsolute)
+                : $downloader->downloadRemoteImageAsJpeg($imageUrl, $destAbsolute);
+
+            if ($saved) {
                 Log::info('ApifyGoogleImagesService selected image', [
                     'query' => $query,
                     'orientation' => $orientation,

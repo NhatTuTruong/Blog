@@ -34,12 +34,15 @@ class SocialMediaImageSourceService
                 ? $apify->downloadRandomQualityImageForQuery($query, $userId, $destAbsolute, $orientation, $topCandidates)
                 : $apify->downloadLargestImageForQuery($query, $userId, $destAbsolute, $orientation);
 
-            if ($success && ! $this->isBlockedPlaceholderImage($destAbsolute)) {
-                return $destStoragePath;
+            $savedAbsolute = $this->resolveSavedAbsolute($destAbsolute);
+            if ($success && $savedAbsolute !== null && ! $this->isBlockedPlaceholderImage($savedAbsolute)) {
+                return $this->storedPathMatchingFile($destStoragePath, $savedAbsolute);
             }
 
-            if (is_file($destAbsolute)) {
-                @unlink($destAbsolute);
+            foreach (array_filter([$destAbsolute, $this->jpegSibling($destAbsolute)]) as $leftover) {
+                if (is_file($leftover)) {
+                    @unlink($leftover);
+                }
             }
 
             Log::info('SocialMediaImageSource: Apify image unavailable — using default1', [
@@ -50,12 +53,12 @@ class SocialMediaImageSourceService
         }
 
         if ($this->copyPrimaryDefaultImage($destAbsolute)) {
-            return $destStoragePath;
+            return $this->storedPathMatchingFile($destStoragePath, $destAbsolute);
         }
 
         $defaultSource = $this->pickRandomDefaultImage();
-        if ($defaultSource !== null && $this->copyImageAsJpeg($defaultSource, $destAbsolute)) {
-            return $destStoragePath;
+        if ($defaultSource !== null && $this->copyImageToDestination($defaultSource, $destAbsolute)) {
+            return $this->storedPathMatchingFile($destStoragePath, $destAbsolute);
         }
 
         return $this->copyDefaultJpeg($destStoragePath);
@@ -131,21 +134,12 @@ class SocialMediaImageSourceService
         try {
             file_put_contents($temp, $body);
 
-            if (! $this->copyImageAsWebp($temp, $destAbsolute)) {
+            if (! $this->copyImageAsWebp($temp, $destAbsolute) || ! is_file($destAbsolute)) {
                 return false;
             }
 
-            $savedPath = is_file($destAbsolute)
-                ? $destAbsolute
-                : (is_file($jpegPath = preg_replace('/\.webp$/i', '.jpg', $destAbsolute) ?: '')
-                    ? $jpegPath
-                    : null);
-
-            if ($savedPath === null || $this->isBlockedPlaceholderImage($savedPath)) {
+            if ($this->isBlockedPlaceholderImage($destAbsolute)) {
                 @unlink($destAbsolute);
-                if (isset($jpegPath) && is_string($jpegPath)) {
-                    @unlink($jpegPath);
-                }
 
                 return false;
             }
@@ -336,7 +330,7 @@ class SocialMediaImageSourceService
             return false;
         }
 
-        return $this->copyImageAsJpeg($source, $destAbsolute);
+        return $this->copyImageToDestination($source, $destAbsolute);
     }
 
     protected function pickRandomDefaultImage(): ?string
@@ -372,34 +366,134 @@ class SocialMediaImageSourceService
         return $paths;
     }
 
-    protected function copyImageAsWebp(string $sourceAbsolute, string $destAbsolute): bool
+    public function convertFileToWebp(string $sourceAbsolute, string $destAbsolute, int $maxEdge = 1920): bool
     {
-        if (extension_loaded('gd')) {
+        return $this->copyImageAsWebp($sourceAbsolute, $destAbsolute, $maxEdge) && is_file($destAbsolute);
+    }
+
+    protected function copyImageToDestination(string $sourceAbsolute, string $destAbsolute): bool
+    {
+        return $this->wantsWebp($destAbsolute)
+            ? $this->copyImageAsWebp($sourceAbsolute, $destAbsolute)
+            : $this->copyImageAsJpeg($sourceAbsolute, $destAbsolute);
+    }
+
+    protected function wantsWebp(string $path): bool
+    {
+        return str_ends_with(strtolower($path), '.webp');
+    }
+
+    protected function jpegSibling(string $path): string
+    {
+        return preg_replace('/\.webp$/i', '.jpg', $path) ?: $path;
+    }
+
+    protected function resolveSavedAbsolute(string $destAbsolute): ?string
+    {
+        if (is_file($destAbsolute)) {
+            return $destAbsolute;
+        }
+
+        $jpeg = $this->jpegSibling($destAbsolute);
+
+        return is_file($jpeg) ? $jpeg : null;
+    }
+
+    protected function storedPathMatchingFile(string $destStoragePath, string $savedAbsolute): string
+    {
+        if (str_ends_with(strtolower($savedAbsolute), '.jpg') && $this->wantsWebp($destStoragePath)) {
+            return preg_replace('/\.webp$/i', '.jpg', $destStoragePath) ?: $destStoragePath;
+        }
+
+        return $destStoragePath;
+    }
+
+    protected function copyImageAsWebp(string $sourceAbsolute, string $destAbsolute, int $maxEdge = 1920): bool
+    {
+        $maxEdge = max(320, $maxEdge);
+
+        if (extension_loaded('imagick')) {
+            try {
+                $image = new \Imagick($sourceAbsolute);
+                $image->setImageBackgroundColor('white');
+                $image = $image->mergeImageLayers(\Imagick::LAYERMETHOD_FLATTEN);
+                $image->thumbnailImage($maxEdge, $maxEdge, true);
+                $image->setImageFormat('webp');
+                $image->setImageCompressionQuality(82);
+                $written = $image->writeImage($destAbsolute);
+                $image->clear();
+                $image->destroy();
+
+                if ($written && is_file($destAbsolute)) {
+                    return true;
+                }
+            } catch (\Throwable) {
+                // Fallback GD
+            }
+        }
+
+        if (extension_loaded('gd') && function_exists('imagewebp')) {
+            $info = @getimagesize($sourceAbsolute);
+            $width = (int) ($info[0] ?? 0);
+            $height = (int) ($info[1] ?? 0);
+            $pixels = $width * $height;
+
+            // Truecolor ~4 bytes/pixel; imagewebp cần thêm buffer.
+            if ($pixels > 25_000_000) {
+                return false;
+            }
+
             $image = $this->loadImage($sourceAbsolute);
             if ($image !== null) {
                 $image = $this->ensureTruecolorImage($image);
+                $image = $this->constrainImageEdge($image, $maxEdge);
                 imagesavealpha($image, true);
                 imagealphablending($image, true);
-
-                if (function_exists('imagewebp')) {
-                    $saved = @imagewebp($image, $destAbsolute, 85);
-                    imagedestroy($image);
-
-                    return $saved && is_file($destAbsolute);
-                }
-
+                $saved = @imagewebp($image, $destAbsolute, 82);
                 imagedestroy($image);
+
+                if ($saved && is_file($destAbsolute)) {
+                    return true;
+                }
             }
         }
 
         $mime = mime_content_type($sourceAbsolute) ?: '';
         if (str_contains($mime, 'webp')) {
-            return copy($sourceAbsolute, $destAbsolute);
+            return copy($sourceAbsolute, $destAbsolute) && is_file($destAbsolute);
         }
 
-        $jpegDest = preg_replace('/\.webp$/i', '.jpg', $destAbsolute) ?: $destAbsolute;
+        return false;
+    }
 
-        return $this->copyImageAsJpeg($sourceAbsolute, $jpegDest);
+    protected function constrainImageEdge(\GdImage $image, int $maxEdge): \GdImage
+    {
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $long = max($width, $height);
+
+        if ($long <= $maxEdge) {
+            return $image;
+        }
+
+        $scale = $maxEdge / $long;
+        $newWidth = max(1, (int) round($width * $scale));
+        $newHeight = max(1, (int) round($height * $scale));
+        $resized = imagecreatetruecolor($newWidth, $newHeight);
+
+        if ($resized === false) {
+            return $image;
+        }
+
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+        $transparent = imagecolorallocatealpha($resized, 0, 0, 0, 127);
+        imagefilledrectangle($resized, 0, 0, $newWidth, $newHeight, $transparent);
+        imagealphablending($resized, true);
+        imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+        imagedestroy($image);
+
+        return $resized;
     }
 
     protected function ensureTruecolorImage(\GdImage $image): \GdImage
@@ -464,15 +558,42 @@ class SocialMediaImageSourceService
         };
     }
 
-    protected function copyDefaultJpeg(string $dest): string
+    public function copyDefaultJpeg(string $dest): string
     {
         $jpeg = base64_decode(
             '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////wgARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAAv/EABQBAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhADEAAAAU//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAEFAn//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/AX//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/AX//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAYJAn//xAAUEAEAAAAAAAAAAAAAAAAAAAAQ/9oACAEBAAE/IX//2Q==',
             true,
         );
 
-        PublicStorage::put($dest, $jpeg);
+        if ($this->wantsWebp($dest) && extension_loaded('gd') && function_exists('imagewebp')) {
+            $absolute = PublicStorage::absolutePath($dest);
+            PublicStorage::ensureDirectory(dirname(str_replace('\\', '/', $dest)));
+            $image = imagecreatetruecolor(1, 1);
+            if ($image !== false) {
+                $saved = @imagewebp($image, $absolute, 80);
+                imagedestroy($image);
+                if ($saved && is_file($absolute)) {
+                    return $dest;
+                }
+            }
+        }
 
-        return $dest;
+        $jpegDest = $this->wantsWebp($dest)
+            ? (preg_replace('/\.webp$/i', '.jpg', $dest) ?: $dest)
+            : $dest;
+
+        PublicStorage::put($jpegDest, $jpeg ?: '');
+
+        if ($this->wantsWebp($dest)) {
+            $webpAbsolute = PublicStorage::absolutePath($dest);
+            $jpegAbsolute = PublicStorage::absolutePath($jpegDest);
+            if ($this->copyImageAsWebp($jpegAbsolute, $webpAbsolute)) {
+                @unlink($jpegAbsolute);
+
+                return $dest;
+            }
+        }
+
+        return $jpegDest;
     }
 }

@@ -13,6 +13,8 @@ class HomeController extends Controller
 {
     private const CATEGORY_POSTS_LIMIT = 7;
 
+    private const CATEGORY_BLOCKS_LIMIT = 7;
+
     public function index(Request $request): View
     {
         $searchQuery = $request->string('q')->toString();
@@ -99,7 +101,7 @@ class HomeController extends Controller
             ->limit(6)
             ->get();
 
-        $categoryPosts = $this->buildCategoryPosts($categoryCatalog);
+        $categoryPosts = $this->buildCategoryPosts($this->popularCategoryBlocks($categoryCatalog));
 
         return view('home', [
             'isFiltered' => false,
@@ -208,6 +210,30 @@ class HomeController extends Controller
         }
 
         return $stats;
+    }
+
+    /**
+     * Tối đa 7 block category — ưu tiên danh mục có tổng lượt xem / nhiều bài nhất.
+     *
+     * @param  Collection<int, array{id: int, name: string, slug: string, count: int, views_sum: int, url: string, icon: string, color: string}>  $categories
+     * @return Collection<int, array{id: int, name: string, slug: string, count: int, views_sum: int, url: string, icon: string, color: string}>
+     */
+    protected function popularCategoryBlocks(Collection $categories): Collection
+    {
+        return $categories
+            ->sort(function (array $a, array $b): int {
+                if ($a['views_sum'] !== $b['views_sum']) {
+                    return $b['views_sum'] <=> $a['views_sum'];
+                }
+
+                if ($a['count'] !== $b['count']) {
+                    return $b['count'] <=> $a['count'];
+                }
+
+                return strcasecmp($a['name'], $b['name']);
+            })
+            ->take(self::CATEGORY_BLOCKS_LIMIT)
+            ->values();
     }
 
     /**

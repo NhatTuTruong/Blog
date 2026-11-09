@@ -33,7 +33,7 @@ class AutoBlogFeaturedImageService
 
     public function resolveApifyFallback(AutoBlogQueueItem $item): ?string
     {
-        $dest = "blogs/auto-generated/item-{$item->id}.jpg";
+        $dest = "blogs/auto-generated/item-{$item->id}.webp";
 
         try {
             $path = app(SocialMediaImageSourceService::class)->generatePlaceholderJpeg(
