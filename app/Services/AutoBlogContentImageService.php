@@ -3,10 +3,8 @@
 namespace App\Services;
 
 use App\Support\ApifyImageOrientation;
-use App\Support\ApifyTokenRotator;
 use App\Support\BlogContentSanitizer;
 use App\Support\PublicStorage;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class AutoBlogContentImageService
@@ -135,20 +133,15 @@ class AutoBlogContentImageService
         }
 
         $tokenError = null;
-        $items = ApifyTokenRotator::attempt(
-            $userId,
-            fn (string $token): array => $this->fetchImageResults($token, $query),
-            $tokenError,
-            'ApifyGoogleImages',
-        );
+        $apify = app(ApifyGoogleImagesService::class);
+        $items = $apify->fetchDatasetItems($query, $userId, $tokenError);
 
-        if (! is_array($items) || $items === []) {
-            $this->lastError = $tokenError ?? 'Apify returned no images.';
+        if ($items === []) {
+            $this->lastError = $tokenError ?? $apify->lastError ?? 'Apify returned no images.';
 
             return [];
         }
 
-        $apify = app(ApifyGoogleImagesService::class);
         $urls = $apify->pickBestImageUrls($items, ApifyImageOrientation::LANDSCAPE, strict: true);
 
         if ($urls === []) {
@@ -161,69 +154,6 @@ class AutoBlogContentImageService
         }
 
         return array_slice($urls, 0, self::URL_CANDIDATE_LIMIT);
-    }
-
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    protected function fetchImageResults(string $token, string $query): array
-    {
-        $actorId = (string) config('apify.google_images_actor_id', 'MrbqFgdpNTQcRW0Vt');
-        $waitSeconds = max(30, (int) config('apify.run_wait_seconds', 180));
-
-        $url = sprintf(
-            'https://api.apify.com/v2/acts/%s/run-sync-get-dataset-items?token=%s&waitForFinish=%d',
-            rawurlencode($actorId),
-            rawurlencode($token),
-            $waitSeconds,
-        );
-
-        try {
-            $response = Http::asJson()
-                ->timeout($waitSeconds + 30)
-                ->post($url, $this->buildRunInput($query));
-        } catch (\Throwable $e) {
-            $this->lastError = 'Apify timeout/lỗi mạng: '.$e->getMessage();
-            Log::warning('AutoBlogContentImageService: Apify request failed', [
-                'query' => $query,
-                'error' => $e->getMessage(),
-            ]);
-
-            return [];
-        }
-
-        if (! $response->successful()) {
-            $this->lastError = 'Apify HTTP '.$response->status().': '.$response->body();
-
-            return [];
-        }
-
-        $items = $response->json();
-        if (! is_array($items)) {
-            $this->lastError = 'Apify trả về dữ liệu không hợp lệ.';
-
-            return [];
-        }
-
-        return collect($items)
-            ->filter(fn (mixed $item): bool => is_array($item))
-            ->values()
-            ->all();
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    protected function buildRunInput(string $query): array
-    {
-        return [
-            'query' => $query,
-            'country' => config('apify.google_images.country', 'us'),
-            'language' => config('apify.google_images.language', 'en'),
-            'num' => '10',
-            'max_pages' => 1,
-            'date_range' => 'anytime',
-        ];
     }
 
     protected function downloadAndValidate(

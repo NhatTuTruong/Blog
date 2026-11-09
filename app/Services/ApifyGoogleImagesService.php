@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Support\ApifyImageOrientation;
-use App\Support\ApifySettings;
 use App\Support\ApifyTokenRotator;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -65,14 +64,9 @@ class ApifyGoogleImagesService
         }
 
         $tokenError = null;
-        $items = ApifyTokenRotator::attempt(
-            $userId,
-            fn (string $token): array => $this->fetchImageResultsForToken($token, $query),
-            $tokenError,
-            'ApifyGoogleImages',
-        );
+        $items = $this->fetchDatasetItems($query, $userId, $tokenError);
 
-        if (! is_array($items) || $items === []) {
+        if ($items === []) {
             if ($tokenError !== null && $this->lastError === null) {
                 $this->lastError = $tokenError;
             }
@@ -122,6 +116,36 @@ class ApifyGoogleImagesService
     }
 
     /**
+     * Lấy dataset ảnh, tự thử lần lượt mọi Apify token.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function fetchDatasetItems(string $query, ?int $userId, ?string &$error = null): array
+    {
+        $this->lastError = null;
+
+        $items = ApifyTokenRotator::attempt(
+            $userId,
+            fn (string $token): array => $this->fetchImageResultsForToken($token, $query),
+            $error,
+            'ApifyGoogleImages',
+        );
+
+        if (! is_array($items) || $items === []) {
+            if ($error !== null) {
+                $this->lastError = $error;
+            }
+
+            return [];
+        }
+
+        return collect($items)
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array{value: mixed, token_failed: bool, error?: string}
      */
     protected function fetchImageResultsForToken(string $token, string $query): array
@@ -133,22 +157,8 @@ class ApifyGoogleImagesService
         }
 
         $error = $this->lastError ?? 'Apify không trả về ảnh.';
-        $httpStatus = $this->extractHttpStatusFromError($error);
 
-        if (ApifySettings::shouldRotateToken($httpStatus, $error)) {
-            return ApifyTokenRotator::result([], true, $error);
-        }
-
-        return ApifyTokenRotator::result($items);
-    }
-
-    protected function extractHttpStatusFromError(string $error): ?int
-    {
-        if (preg_match('/HTTP\s+(\d{3})/', $error, $matches) === 1) {
-            return (int) $matches[1];
-        }
-
-        return null;
+        return ApifyTokenRotator::result([], true, $error);
     }
 
     /**

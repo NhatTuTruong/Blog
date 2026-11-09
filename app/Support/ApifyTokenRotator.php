@@ -23,13 +23,18 @@ class ApifyTokenRotator
         }
 
         $failures = [];
+        $lastIndex = count($tokens) - 1;
 
         foreach ($tokens as $index => $token) {
             $result = $callback($token);
+            $hasMoreTokens = $index < $lastIndex;
 
-            if (is_array($result) && array_key_exists('token_failed', $result)) {
-                if ($result['token_failed'] === true) {
-                    $message = trim((string) ($result['error'] ?? 'Token Apify lỗi.'));
+            if (self::isWrappedResult($result)) {
+                $value = $result['value'] ?? null;
+                $failed = $result['token_failed'] === true || ($hasMoreTokens && self::isEmptyResult($value));
+
+                if ($failed) {
+                    $message = trim((string) ($result['error'] ?? 'Token Apify không trả dữ liệu.'));
                     $failures[] = $message;
                     Log::warning("{$context} token failed, trying next", [
                         'token_index' => $index + 1,
@@ -40,7 +45,18 @@ class ApifyTokenRotator
                     continue;
                 }
 
-                return $result['value'] ?? null;
+                return $value;
+            }
+
+            // Callback cũ trả [] khi token lỗi — phải thử token tiếp theo, không dừng ở token đầu.
+            if ($hasMoreTokens && self::isEmptyResult($result)) {
+                $failures[] = 'Token Apify không trả dữ liệu.';
+                Log::warning("{$context} token returned empty, trying next", [
+                    'token_index' => $index + 1,
+                    'token_count' => count($tokens),
+                ]);
+
+                continue;
             }
 
             return $result;
@@ -68,5 +84,25 @@ class ApifyTokenRotator
         }
 
         return $payload;
+    }
+
+    /**
+     * @param  mixed  $result
+     * @phpstan-assert-if-true array{value: mixed, token_failed: bool, error?: string} $result
+     */
+    protected static function isWrappedResult(mixed $result): bool
+    {
+        return is_array($result)
+            && array_key_exists('token_failed', $result)
+            && array_key_exists('value', $result)
+            && is_bool($result['token_failed']);
+    }
+
+    protected static function isEmptyResult(mixed $result): bool
+    {
+        return $result === null
+            || $result === false
+            || $result === []
+            || $result === '';
     }
 }

@@ -35,7 +35,8 @@ class ApifySettings
             return [];
         }
 
-        $parts = preg_split('/[\r\n,;]+/', $raw) ?: [];
+        $normalized = str_replace(["\\r\\n", "\\n", "\\r"], "\n", $raw);
+        $parts = preg_split('/[\r\n,;]+/', $normalized) ?: [];
 
         return collect($parts)
             ->map(fn (mixed $part): string => trim((string) $part))
