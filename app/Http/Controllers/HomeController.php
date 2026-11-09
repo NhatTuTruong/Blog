@@ -221,7 +221,7 @@ class HomeController extends Controller
         return $categories
             ->map(function (array $cat) use ($baseQuery) {
                 $query = (clone $baseQuery)
-                    ->homeOrder()
+                    ->orderByDesc('created_at')
                     ->limit(self::CATEGORY_POSTS_LIMIT);
 
                 if (! empty($cat['id'])) {
