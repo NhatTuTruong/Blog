@@ -124,14 +124,33 @@
         font-weight: 700;
         color: rgba(239, 108, 0, 0.45);
     }
-    .deal-card__meta {
+    .deal-card__identity {
         flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-self: stretch;
+    }
+    .deal-card__store {
+        font-family: 'Poppins', sans-serif;
+        font-size: 0.92rem;
+        font-weight: 700;
+        line-height: 1.3;
+        color: #1a2332;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .deal-card__meta {
+        flex: 0 0 auto;
         min-width: 0;
         display: flex;
         flex-direction: column;
         align-items: flex-end;
         gap: 0.35rem;
         padding-top: 0.1rem;
+        margin-left: auto;
     }
     .deal-card__badge {
         display: inline-flex;

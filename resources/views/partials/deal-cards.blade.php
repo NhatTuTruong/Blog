@@ -29,11 +29,16 @@
             <div class="deal-card__top">
                 <div class="deal-card__media">
                     @if($deal->brandImageUrl())
-                        <img src="{{ $deal->brandImageUrl() }}" alt="" loading="lazy" decoding="async">
+                        <img src="{{ $deal->brandImageUrl() }}" alt="{{ $deal->storeName() ?? $deal->title }}" loading="lazy" decoding="async">
                     @else
                         <span class="deal-card__media-fallback">{{ $deal->brandInitial() }}</span>
                     @endif
                 </div>
+                @if($deal->storeName())
+                    <div class="deal-card__identity">
+                        <span class="deal-card__store">{{ $deal->storeName() }}</span>
+                    </div>
+                @endif
                 <div class="deal-card__meta">
                     <span class="deal-card__badge">Deal</span>
                     <span class="deal-card__type">{{ $deal->typeLabel() }}</span>

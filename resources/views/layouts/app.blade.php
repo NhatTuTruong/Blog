@@ -26,6 +26,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $finalTitle }}</title>
+    <meta name="mylead-verification" content="a995cad8f424e23b02e62450f42c88e4">
     @include('partials.seo-head')
     <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
     @yield('head')

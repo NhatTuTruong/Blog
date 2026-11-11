@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Support\BrandDomain;
 use App\Support\CouponDescriptionGenerator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Str;
 
 class BlogDeal extends Model
 {
@@ -85,11 +87,18 @@ class BlogDeal extends Model
         return $this->primaryPublishedBlog()?->featured_image_url;
     }
 
+    public function storeName(): ?string
+    {
+        $slug = BrandDomain::brandName($this->shop_url);
+
+        return filled($slug) ? Str::headline($slug) : null;
+    }
+
     public function brandInitial(): string
     {
-        $title = trim($this->title);
+        $label = $this->storeName() ?: trim((string) $this->title);
 
-        return $title !== '' ? mb_strtoupper(mb_substr($title, 0, 1)) : 'D';
+        return $label !== '' ? mb_strtoupper(mb_substr($label, 0, 1)) : 'D';
     }
 
     public function postUrl(): ?string
